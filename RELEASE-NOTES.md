@@ -1,3 +1,11 @@
+## App polish and community support
+
+- Added Help & community (F1) with hanki.tools, Discord, user guide, privacy information and GitHub links.
+- Added an editable bug-report draft and copyable app details without account names, file paths or automatic log collection.
+- Added Task Manager, Event Viewer and Windows Settings to quick access and Ctrl+K search.
+- Search now understands common terms such as Wi-Fi, BSOD, RAM, cleanup, undo and support.
+- Updates remain manual; opening a support link does not upload a report.
+
 # Hanki Tools 0.16.0-rc.3
 
 RC3 replaces Compress-Archive with verified staging and .NET ZIP creation. Read-sharing supports loaded/read-open executables; sharing violations receive bounded retries. Partial ZIPs are removed on failure, existing ZIPs are never overwritten, and both candidate/final packaging use the same helper. REPACKAGE-WINDOWS.ps1 can package a successful RC2 candidate without rebuilding after verifying its recorded hashes and smoke result.

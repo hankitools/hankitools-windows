@@ -97,6 +97,7 @@ public sealed class HankiForm : Form
             AddTab(performanceTabs, "Long monitoring / saved runs", longPerformance); AddTab(performanceTabs, "Power tuning", tuning);
         }
         Page("Recovery").Controls.Add(recovery);
+        Page("Help & community").Controls.Add(new SupportPanel());
         foreach (var extra in ExtraPages) extra.PrepareRequested += Prepare;
         diagnose.PrepareRequested += Prepare; defender.PrepareRequested += Prepare;
         networkDeep.PrepareRequested += Prepare; sampling.PrepareRequested += Prepare;
@@ -112,11 +113,11 @@ public sealed class HankiForm : Form
             AutoScroll = true, WrapContents = false, Padding = new Padding(12, 8, 12, 12) };
         sidebar.Controls.Add(new BrandHeader());
         var navigation = new List<(HankiButton Button, TabPage Page)>();
-        foreach (var name in new[] { "Home", "Diagnose", "Performance", "Maintain", "Connect", "Shield · experimental", "Assistant", "Recovery", "Scan history" }) {
+        foreach (var name in new[] { "Home", "Diagnose", "Performance", "Maintain", "Connect", "Shield · experimental", "Assistant", "Recovery", "Scan history", "Help & community" }) {
             if (name is "Diagnose" or "Assistant") sidebar.Controls.Add(new Label {
                 Text = name == "Diagnose" ? "YOUR PC" : "SUPPORT & HISTORY", AutoSize = true,
                 Font = new Font("Segoe UI", 9), Margin = new Padding(12, 16, 0, 6) });
-            bool support = name is "Assistant" or "Recovery" or "Scan history";
+            bool support = name is "Assistant" or "Recovery" or "Scan history" or "Help & community";
             var page = tabs.TabPages.Cast<TabPage>().Single(p => p.Text == name);
             var button = new HankiButton { Text = name == "Shield · experimental" ? "Shield" : name,
                 Width = 192, Height = support ? 32 : 38, Margin = new Padding(2, 1, 2, 1), AccessibleName = "Open " + name,
@@ -133,7 +134,7 @@ public sealed class HankiForm : Form
             quickToggle.AccessibleName = quick.Visible ? "Collapse quick access" : "Expand quick access";
         };
         sidebar.Controls.Add(quickToggle); sidebar.Controls.Add(quick);
-        foreach (var item in new[] { ("PowerShell (Admin)", "powershell"), ("CMD (Admin)", "cmd"), ("File Explorer", "explorer") }) {
+        foreach (var item in new[] { ("PowerShell (Admin)", "powershell"), ("CMD (Admin)", "cmd"), ("File Explorer", "explorer"), ("Task Manager", "task-manager"), ("Windows Settings", "settings"), ("Event Viewer", "event-viewer") }) {
             var shortcut = new HankiButton { Text = item.Item1, Width = 188, Height = 30, Appearance = HankiButtonStyle.Quiet, Font = new Font("Segoe UI", 9) };
             shortcut.Click += (_, _) => DesktopShortcuts.Open(this, item.Item2); quick.Controls.Add(shortcut);
         }
@@ -166,11 +167,15 @@ public sealed class HankiForm : Form
             }
         }
         AddRoutes(tabs);
+        foreach (var shortcut in new[] { ("Windows / Task Manager", "task-manager"), ("Windows / Event Viewer", "event-viewer"), ("Windows / Settings", "settings"), ("Windows / File Explorer", "explorer") }) {
+            var item = shortcut;
+            routes.Add(new ToolLauncher.Route(item.Item1, () => DesktopShortcuts.Open(this, item.Item2)));
+        }
         void FindTool() { using var launcher = new ToolLauncher(routes); launcher.ShowDialog(this); }
         var search = new HankiButton { Text = "Find a tool   Ctrl+K", Dock = DockStyle.Right, Width = 205, AccessibleName = "Find a tool, Control K" };
         search.Click += (_, _) => FindTool();
         KeyPreview = true;
-        KeyDown += (_, e) => { if (e.Control && e.KeyCode == Keys.K) { FindTool(); e.SuppressKeyPress = true; } };
+        KeyDown += (_, e) => { if (e.KeyCode == Keys.F1) { Navigate("Help & community"); e.SuppressKeyPress = true; } if (e.Control && e.KeyCode == Keys.K) { FindTool(); e.SuppressKeyPress = true; } };
         var header = new Panel { Dock = DockStyle.Top, Height = 66, Padding = new Padding(0, 6, 14, 8) };
         title.Dock = DockStyle.Fill; header.Controls.Add(title); header.Controls.Add(search);
         var introduction = new Label { Dock = DockStyle.Top, AutoSize = false, Padding = new Padding(22, 0, 22, 14),
@@ -197,6 +202,7 @@ public sealed class HankiForm : Form
                 "Shield · experimental" => "Review Microsoft Defender protection, run scans and inspect findings to see what needs attention. Hanki’s separate file scanner is experimental.",
                 "Assistant" => "Prepare and redact diagnostic reports, then use optional AI chat to help explain the evidence and explore next steps.",
                 "Recovery" => "Review recorded changes and undo supported actions when you need to return to a previous configuration.",
+                "Help & community" => "Find guides, join the community, prepare a bug report and check which version you are running.",
                 "Scan history" => "Review past file-scan summaries to see what was checked, when it ran and how many findings were reported.",
                 _ => ""
             };

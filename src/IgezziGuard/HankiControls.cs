@@ -203,7 +203,7 @@ internal sealed class Dashboard : UserControl
         cards.SizeChanged += (_, _) => FitCards();
         var utilities = new FlowLayoutPanel { Dock = DockStyle.Bottom, AutoSize = true, Padding = new Padding(0, 10, 0, 0) };
         utilities.Controls.Add(new Label { Text = "SUPPORTING TOOLS", AutoSize = true, Margin = new Padding(0, 10, 12, 0), Font = new Font("Segoe UI", 9) });
-        foreach (var name in new[] { "Assistant", "Recovery", "Scan history" }) {
+        foreach (var name in new[] { "Assistant", "Recovery", "Scan history", "Help & community" }) {
             var link = new HankiButton { Text = name + "  →", AutoSize = true, Appearance = HankiButtonStyle.Quiet };
             link.Click += (_, _) => navigate(name); utilities.Controls.Add(link);
         }

@@ -5,6 +5,15 @@ internal sealed class ToolLauncher : Form
     internal sealed record Route(string Name, Action Open)
     {
         public override string ToString() => Name;
+        internal string SearchText => Name + " " + string.Join(" ", new[] {
+            Name.Contains("Diagnose", StringComparison.OrdinalIgnoreCase) ? "crash blue screen bsod freeze logs troubleshoot" : "",
+            Name.Contains("Performance", StringComparison.OrdinalIgnoreCase) ? "slow speed memory ram cpu gpu pagefile" : "",
+            Name.Contains("Maintain", StringComparison.OrdinalIgnoreCase) ? "cleanup storage disk space files apps startup" : "",
+            Name.Contains("Connect", StringComparison.OrdinalIgnoreCase) ? "internet wifi wi-fi network dns connection" : "",
+            Name.Contains("Shield", StringComparison.OrdinalIgnoreCase) ? "security defender antivirus protection" : "",
+            Name.Contains("Help", StringComparison.OrdinalIgnoreCase) ? "discord contact support bug report website version updates guide" : "",
+            Name.Contains("Recovery", StringComparison.OrdinalIgnoreCase) ? "undo restore revert" : ""
+        });
     }
     public ToolLauncher(IReadOnlyList<Route> routes)
     {
@@ -18,7 +27,7 @@ internal sealed class ToolLauncher : Form
         void Filter() {
             results.BeginUpdate(); results.Items.Clear();
             var words = query.Text.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-            foreach (var route in routes.Where(r => words.All(w => r.Name.Contains(w, StringComparison.CurrentCultureIgnoreCase)))) results.Items.Add(route);
+            foreach (var route in routes.Where(r => words.All(w => r.SearchText.Contains(w, StringComparison.CurrentCultureIgnoreCase)))) results.Items.Add(route);
             results.EndUpdate(); open.Enabled = results.Items.Count > 0;
             if (open.Enabled) results.SelectedIndex = 0;
             hint.Text = open.Enabled ? $"{results.Items.Count} tools    ↑ ↓ Choose    Enter Open    Esc Close" : "No matching tools. Try a broader term, such as network.";

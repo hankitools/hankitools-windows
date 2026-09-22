@@ -15,6 +15,16 @@ internal static class DesktopShortcuts
             var start = new ProcessStartInfo { UseShellExecute = true, WorkingDirectory = windows };
             switch (shortcut)
             {
+                case "task-manager":
+                    start.FileName = Path.Combine(system, "Taskmgr.exe");
+                    break;
+                case "settings":
+                    start.FileName = "ms-settings:";
+                    break;
+                case "event-viewer":
+                    start.FileName = Path.Combine(system, "mmc.exe");
+                    start.ArgumentList.Add(Path.Combine(system, "eventvwr.msc"));
+                    break;
                 case "startup":
                     start.FileName = "ms-settings:startupapps";
                     break;
