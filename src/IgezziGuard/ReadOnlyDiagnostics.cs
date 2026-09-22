@@ -18,7 +18,8 @@ internal static class ReadOnlyDiagnostics
     public static async Task<string> Defender(CancellationToken token)
     {
         const string script = "& { $s=$null; $p=$null; $se=$null; $pe=$null; try { $s=Get-MpComputerStatus | Select-Object AMRunningMode,AMServiceEnabled,AntivirusEnabled,RealTimeProtectionEnabled,BehaviorMonitorEnabled,IoavProtectionEnabled,NISEnabled,IsTamperProtected,AntivirusSignatureVersion,AntivirusSignatureLastUpdated } catch { $se=$_.Exception.Message }; try { $p=Get-MpPreference | Select-Object DisableRealtimeMonitoring,DisableBehaviorMonitoring,DisableIOAVProtection,DisableScriptScanning,ExclusionPath,ExclusionProcess,ExclusionExtension,ExclusionIpAddress } catch { $pe=$_.Exception.Message }; [pscustomobject]@{Status=$s;Preferences=$p;StatusError=$se;PreferencesError=$pe} | ConvertTo-Json -Depth 5 }";
-        return $"Checked {DateTimeOffset.Now:f}\r\n\r\n" + DefenderAuditSummary.Format(await WindowsCommand.PowerShell(script, token, 45));
+        var result = await WindowsCommand.PowerShellCapture(script, token, 45);
+        return $"Checked {DateTimeOffset.Now:f}\r\n\r\n" + DefenderAuditSummary.Format(result.StandardOutput, result.StandardError);
     }
 
     public static async Task<string> Network(CancellationToken token)

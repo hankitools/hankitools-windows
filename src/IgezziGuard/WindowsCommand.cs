@@ -6,11 +6,19 @@ namespace IgezziGuard;
 internal static class WindowsCommand
 {
     public static string Quote(string value) => "'" + value.Replace("'", "''") + "'";
-    public static Task<string> PowerShell(string script, CancellationToken token, int seconds = 60) => Run(
+    internal sealed record CommandOutput(string StandardOutput, string StandardError)
+    {
+        public string DisplayText => StandardOutput + (string.IsNullOrWhiteSpace(StandardError) ? "" : "\r\nTool notes: " + StandardError);
+    }
+    public static async Task<string> PowerShell(string script, CancellationToken token, int seconds = 60) =>
+        (await PowerShellCapture(script, token, seconds)).DisplayText;
+    public static Task<CommandOutput> PowerShellCapture(string script, CancellationToken token, int seconds = 60) => RunCaptured(
         Path.Combine(Environment.SystemDirectory, @"WindowsPowerShell\v1.0\powershell.exe"),
         ["-NoLogo", "-NoProfile", "-NonInteractive", "-EncodedCommand", Convert.ToBase64String(Encoding.Unicode.GetBytes(
             "[Console]::OutputEncoding=[System.Text.UTF8Encoding]::new(); $ErrorActionPreference='Stop'; try { " + script + " } catch { [Console]::Error.WriteLine($_.Exception.Message); exit 1 }"))], token, seconds, true);
     public static async Task<string> Run(string exe, string[] args, CancellationToken token, int seconds = 60, bool utf8 = false, string? workingDirectory = null, bool isolateDebugger = false)
+        => (await RunCaptured(exe, args, token, seconds, utf8, workingDirectory, isolateDebugger)).DisplayText;
+    internal static async Task<CommandOutput> RunCaptured(string exe, string[] args, CancellationToken token, int seconds = 60, bool utf8 = false, string? workingDirectory = null, bool isolateDebugger = false)
     {
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(token); timeout.CancelAfter(TimeSpan.FromSeconds(seconds));
         var start = new ProcessStartInfo(exe) { UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true, RedirectStandardError = true,
@@ -30,7 +38,7 @@ internal static class WindowsCommand
         try {
             await process.WaitForExitAsync(timeout.Token); var output = await stdout; var error = await stderr;
             if (process.ExitCode != 0) throw new IOException($"Windows tool exit {process.ExitCode}: {error}\r\n{output}");
-            return output + (string.IsNullOrWhiteSpace(error) ? "" : "\r\nTool notes: " + error);
+            return new CommandOutput(output, error);
         }
         catch (OperationCanceledException) when (!token.IsCancellationRequested) {
             throw new IOException($"Windows tool timed out after {seconds} seconds. Results may be incomplete; verify any requested setting change in Recovery or Windows before retrying.");

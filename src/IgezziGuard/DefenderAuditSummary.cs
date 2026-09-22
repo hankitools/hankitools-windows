@@ -6,7 +6,7 @@ namespace IgezziGuard;
 
 internal static class DefenderAuditSummary
 {
-    public static string Format(string json)
+    public static string Format(string json, string? toolNotes = null)
     {
         using var document = JsonDocument.Parse(json);
         var root = document.RootElement;
@@ -32,6 +32,7 @@ internal static class DefenderAuditSummary
         if (Get(root, "PreferencesError").ValueKind == JsonValueKind.String) text.AppendLine("Preferences could not be read: " + Get(root, "PreferencesError").GetString());
         text.AppendLine("\r\nIf access is restricted, reopen Hanki as administrator and run the audit again to review exclusions. No settings were changed. Enabled protection does not prove the PC is free of threats.");
         text.AppendLine("\r\nRAW EVIDENCE • REVIEW BEFORE SHARING\r\n" + json);
+        if (!string.IsNullOrWhiteSpace(toolNotes)) text.AppendLine("\r\nTool notes (stderr):\r\n" + toolNotes);
         return text.ToString();
     }
     private static JsonElement Get(JsonElement value, string key) => value.ValueKind == JsonValueKind.Object && value.TryGetProperty(key, out var result) ? result : default;

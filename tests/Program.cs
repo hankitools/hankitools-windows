@@ -1,5 +1,10 @@
 using IgezziGuard;
 
+if (args.Length == 1 && args[0] == "--json-notes-fixture") {
+    Console.WriteLine("""{"Status":{"AntivirusEnabled":true}}""");
+    Console.Error.WriteLine("Test warning from PowerShell error stream");
+    return;
+}
 if (args.Length == 1 && args[0] == "--timeout-fixture") { await Task.Delay(30000); return; }
 
 // Non-destructive to user data. All disk fixtures are under a unique temporary directory.
@@ -8,6 +13,20 @@ var root = Path.Combine(Path.GetTempPath(), "HankiChecks-" + Guid.NewGuid().ToSt
 Directory.CreateDirectory(root);
 try
 {
+    var host = Environment.ProcessPath!;
+    var jsonFixtureArgs = Path.GetFileNameWithoutExtension(host).Equals("dotnet", StringComparison.OrdinalIgnoreCase)
+        ? new[] { typeof(WindowsCommand).Assembly.Location, "--json-notes-fixture" }
+        : new[] { "--json-notes-fixture" };
+    var captured = await WindowsCommand.RunCaptured(host, jsonFixtureArgs, CancellationToken.None, workingDirectory: root);
+    var capturedAudit = DefenderAuditSummary.Format(captured.StandardOutput, captured.StandardError);
+    Assert(capturedAudit.Contains("Antivirus: Enabled"), "audit parses JSON with separate process stderr");
+    Assert(capturedAudit.Contains("Test warning from PowerShell error stream"), "audit retains stderr notes");
+    Assert(!captured.StandardOutput.Contains("Test warning"), "JSON stdout remains uncontaminated");
+    Assert(captured.DisplayText.Contains("Tool notes:"), "text commands retain tool notes");
+    bool malformedRejected = false;
+    try { DefenderAuditSummary.Format(captured.StandardOutput + "Trailing garbage"); }
+    catch (System.Text.Json.JsonException) { malformedRejected = true; }
+    Assert(malformedRejected, "audit still rejects malformed JSON stdout");
     var missingCards = ResultPresentation.Performance("Memory counters unavailable: denied");
     Assert(missingCards[0].Body.Contains("unavailable: denied"), "result cards preserve counter failures");
     Assert(missingCards[1].Body.Contains("unavailable"), "missing advisor is not a recommendation");
