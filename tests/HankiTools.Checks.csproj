@@ -6,6 +6,10 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="../src/IgezziGuard/Diagnostics/Modules/WindowsDiagnostics.cs" Link="Diagnostics/Modules/WindowsDiagnostics.cs" />
+    <Compile Include="../src/IgezziGuard/Diagnostics/IDiagnosticModule.cs" Link="Diagnostics/IDiagnosticModule.cs" />
+    <Compile Include="../src/IgezziGuard/Diagnostics/DiagnosticOrchestrator.cs" Link="Diagnostics/DiagnosticOrchestrator.cs" />
+    <Compile Include="../src/IgezziGuard/Diagnostics/DiagnosticResult.cs" Link="Diagnostics/DiagnosticResult.cs" />
     <Compile Include="../build/ArchiveBuilder.cs" Link="ArchiveBuilder.cs" />
     <Compile Include="../src/IgezziGuard/WindowsCommand.cs" Link="WindowsCommand.cs" />
     <Compile Include="../src/IgezziGuard/SessionValidation.cs" Link="SessionValidation.cs" />

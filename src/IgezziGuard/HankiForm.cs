@@ -11,6 +11,7 @@ public sealed class HankiForm : Form
     private readonly HankiButton cancel = new() { Text = "Cancel", Dock = DockStyle.Bottom, Enabled = false };
     private readonly Label status = new() { Text = "Ready — no checks run", Dock = DockStyle.Bottom, Height = 32 };
     private CancellationTokenSource? running;
+    private readonly FullScanPanel fullScan = new();
     private readonly MaintainPanel maintain = new();
     private readonly AppsPanel apps = new();
     private readonly PerformancePanel performance = new();
@@ -32,7 +33,7 @@ public sealed class HankiForm : Form
     private readonly DumpAnalysisPanel dumps = new();
     private readonly TroubleshootingPanel guidance = new();
     private readonly RecoveryPanel recovery = new();
-    private ToolPage[] ExtraPages => [duplicates, startupFolders, longPerformance, tuning, networkTools, defenderTools, dumps, guidance, recovery];
+    private ToolPage[] ExtraPages => [fullScan, duplicates, startupFolders, longPerformance, tuning, networkTools, defenderTools, dumps, guidance, recovery];
 
     public HankiForm()
     {
@@ -45,6 +46,7 @@ public sealed class HankiForm : Form
         StartPosition = FormStartPosition.CenterScreen;
         void Navigate(string name) { var page = tabs.TabPages.Cast<TabPage>().FirstOrDefault(p => p.Text == name); if (page is not null) tabs.SelectedTab = page; }
         Page("Home").Controls.Add(new Dashboard(Navigate));
+        Page("Full system scan").Controls.Add(fullScan);
         var shield = Page("Shield · experimental");
         shield.Controls.Add(scan);
         var bar = new FlowLayoutPanel { Dock = DockStyle.Top, Height = 48 };
@@ -113,7 +115,7 @@ public sealed class HankiForm : Form
             AutoScroll = true, WrapContents = false, Padding = new Padding(12, 8, 12, 12) };
         sidebar.Controls.Add(new BrandHeader());
         var navigation = new List<(HankiButton Button, TabPage Page)>();
-        foreach (var name in new[] { "Home", "Diagnose", "Performance", "Maintain", "Connect", "Shield · experimental", "Assistant", "Recovery", "Scan history", "Help & community" }) {
+        foreach (var name in new[] { "Home", "Full system scan", "Diagnose", "Performance", "Maintain", "Connect", "Shield · experimental", "Assistant", "Recovery", "Scan history", "Help & community" }) {
             if (name is "Diagnose" or "Assistant") sidebar.Controls.Add(new Label {
                 Text = name == "Diagnose" ? "YOUR PC" : "SUPPORT & HISTORY", AutoSize = true,
                 Font = new Font("Segoe UI", 9), Margin = new Padding(12, 16, 0, 6) });

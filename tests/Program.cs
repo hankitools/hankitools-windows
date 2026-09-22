@@ -13,6 +13,9 @@ var root = Path.Combine(Path.GetTempPath(), "HankiChecks-" + Guid.NewGuid().ToSt
 Directory.CreateDirectory(root);
 try
 {
+    DiagnosticChecks.Models();
+    await DiagnosticChecks.Modules();
+    await DiagnosticChecks.WindowsModules();
     var host = Environment.ProcessPath!;
     var jsonFixtureArgs = Path.GetFileNameWithoutExtension(host).Equals("dotnet", StringComparison.OrdinalIgnoreCase)
         ? new[] { typeof(WindowsCommand).Assembly.Location, "--json-notes-fixture" }
