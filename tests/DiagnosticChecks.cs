@@ -25,6 +25,18 @@ internal static class DiagnosticChecks
         Check(copy.Metadata["source"] == "fixture" && copy.Coverage == rich.Coverage && copy.AutomatedRepairAvailable, "evidence metadata coverage and references roundtrip");
         Check(Result().RepairActionId is null && !Result().AutomatedRepairAvailable, "repair absent by default");
     }
+    internal static void Recommendations()
+    {
+        var sources = new[] { Result(severity: FindingSeverity.Warning, module: "dism"), Result(severity: FindingSeverity.Warning, module: "sfc"), Result(module: "unrelated") };
+        var groups = FindingAnalysis.Normalize(sources);
+        Check(groups.Count == 2 && groups.Single(g => g.Key == "windows-integrity").Sources.Count == 2, "related findings grouped with original evidence");
+        Check(FindingAnalysis.Rank(groups).Select(g => g.Group.Key).SequenceEqual(FindingAnalysis.Rank(groups.Reverse()).Select(g => g.Group.Key)), "ranking ties deterministic");
+        Check(FindingAnalysis.Recommend(Result()) is null && FindingAnalysis.Recommend(Result(CollectionOutcome.Failed, FindingSeverity.Unknown)) is null, "no fabricated advice for failed or healthy result");
+        foreach(var module in new[]{"storage","network","devices","events","security","performance","update","sfc"}) {
+            var r = Result(severity: FindingSeverity.Warning, module: module);
+            Check(FindingAnalysis.Recommend(r) is not null && FindingAnalysis.Describe(r).Contains("Technical evidence"), "deterministic evidence-preserving explanation " + module);
+        }
+    }
     internal static async Task WindowsModules()
     {
         var now = DateTimeOffset.UtcNow;

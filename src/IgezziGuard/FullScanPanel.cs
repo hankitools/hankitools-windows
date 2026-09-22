@@ -16,7 +16,7 @@ public sealed class FullScanPanel : ToolPage
         findings.Columns.Add("Finding", 285); findings.Columns.Add("Severity", 110); findings.Columns.Add("Collection", 110);
         findings.SelectedIndexChanged += (_, _) => {
             if (IsBusy || findings.SelectedItems.Count != 1 || findings.SelectedItems[0].Tag is not DiagnosticResult r) return;
-            Output.Text = $"{r.Title}\r\n{r.Severity} · {r.Outcome}\r\n\r\n{r.Explanation}\r\n\r\nCoverage: {r.Coverage}\r\n\r\nTechnical evidence (review before sharing):\r\n{r.Evidence}";
+            Output.Text = FindingAnalysis.Describe(r);
         };
         Controls.Add(findings); Controls.SetChildIndex(findings, 1);
     }
@@ -31,7 +31,7 @@ public sealed class FullScanPanel : ToolPage
             latest = await new DiagnosticOrchestrator(WindowsDiagnosticCatalog.Create(includeExternal: contact)).ScanAsync(context, progress, token);
             return Summary(latest);
         });
-        if (latest is not null) foreach (var r in latest.Results) findings.Items.Add(new ListViewItem([r.Title, r.Severity.ToString(), r.Outcome.ToString()]) { Tag = r });
+        if (latest is not null) foreach (var r in FindingAnalysis.Rank(FindingAnalysis.Normalize(latest.Results)).SelectMany(g => g.Group.Sources)) findings.Items.Add(new ListViewItem([r.Title, r.Severity.ToString(), r.Outcome.ToString()]) { Tag = r });
     }
     internal static DiagnosticContext Context(bool external)
     {

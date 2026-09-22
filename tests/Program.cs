@@ -14,8 +14,10 @@ Directory.CreateDirectory(root);
 try
 {
     DiagnosticChecks.Models();
+    DiagnosticChecks.Recommendations();
     await DiagnosticChecks.Modules();
     await DiagnosticChecks.WindowsModules();
+    await RepairChecks.Run(root);
     var host = Environment.ProcessPath!;
     var jsonFixtureArgs = Path.GetFileNameWithoutExtension(host).Equals("dotnet", StringComparison.OrdinalIgnoreCase)
         ? new[] { typeof(WindowsCommand).Assembly.Location, "--json-notes-fixture" }
