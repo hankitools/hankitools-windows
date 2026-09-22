@@ -1,0 +1,14 @@
+**/bin/
+**/obj/
+dist/
+*.pfx
+*.p12
+*.key
+.env
+.vs/
+
+# Local credentials and machine-specific files
+.env.*
+*.user
+*.suo
+*.pdb

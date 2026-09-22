@@ -1,0 +1,7 @@
+  IgezziGuard -> /workspace/scratch/c52aa06afd0f/IgezziGuard/src/IgezziGuard/bin/Release/net8.0-windows/HankiTools.dll
+
+Build succeeded.
+    0 Warning(s)
+    0 Error(s)
+
+Time Elapsed 00:00:02.69

@@ -1,0 +1,9 @@
+{
+  "version": "0.16.0-rc.3",
+  "checked_source_files": 104,
+  "required_release_documents": "pass",
+  "maintained_document_links": "pass",
+  "version_metadata": "pass",
+  "private_key_file_and_common_secret_marker_check": "pass",
+  "limitations": "Pattern checks are not a full secret audit. Native scripts and Windows actions unexecuted here."
+}

@@ -1,0 +1,11 @@
+{
+  "ratios": {
+    "text/report": 14.83,
+    "secondary/report": 8.69,
+    "text/raised": 12.66,
+    "primary label/blue": 5.18,
+    "intro/workspace": 9.41,
+    "sidebar text": 16.87
+  },
+  "scope": "Static palette pairs only; not a native rendering/accessibility audit."
+}

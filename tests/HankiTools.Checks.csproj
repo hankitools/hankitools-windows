@@ -1,0 +1,35 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../build/ArchiveBuilder.cs" Link="ArchiveBuilder.cs" />
+    <Compile Include="../src/IgezziGuard/WindowsCommand.cs" Link="WindowsCommand.cs" />
+    <Compile Include="../src/IgezziGuard/SessionValidation.cs" Link="SessionValidation.cs" />
+    <Compile Include="../src/IgezziGuard/Models.cs" Link="Models.cs" />
+    <Compile Include="../src/IgezziGuard/ScannerService.cs" Link="ScannerService.cs" />
+    <Compile Include="../src/IgezziGuard/SignatureDatabase.cs" Link="SignatureDatabase.cs" />
+    <Compile Include="../src/IgezziGuard/SecurityPaths.cs" Link="SecurityPaths.cs" />
+    <Compile Include="../src/IgezziGuard/HistoryStore.cs" Link="HistoryStore.cs" />
+
+    <Compile Include="../src/IgezziGuard/ResultPresentation.cs" Link="ResultPresentation.cs" />
+    <Compile Include="../src/IgezziGuard/DefenderAuditSummary.cs" Link="DefenderAuditSummary.cs" />
+    <Compile Include="../src/IgezziGuard/ChangeJournal.cs" Link="ChangeJournal.cs" />
+    <Compile Include="../src/IgezziGuard/DuplicateFinder.cs" Link="DuplicateFinder.cs" />
+    <Compile Include="../src/IgezziGuard/DumpInspector.cs" Link="DumpInspector.cs" />
+    <Compile Include="../src/IgezziGuard/DefenderReview.cs" Link="DefenderReview.cs" />
+    <Compile Include="../src/IgezziGuard/CrashTimeline.cs" Link="CrashTimeline.cs" />
+    <Compile Include="../src/IgezziGuard/StartupActions.cs" Link="StartupActions.cs" />
+    <Compile Include="../src/IgezziGuard/UsageReview.cs" Link="UsageReview.cs" />
+    <Compile Include="../src/IgezziGuard/PagefileAdvisor.cs" Link="PagefileAdvisor.cs" />
+    <Compile Include="../src/IgezziGuard/AiClient.cs" Link="AiClient.cs" />
+    <Compile Include="../src/IgezziGuard/DiagnosticRules.cs" Link="DiagnosticRules.cs" />
+    <Compile Include="../src/IgezziGuard/AssistantPrompt.cs" Link="AssistantPrompt.cs" />
+    <Compile Include="../src/IgezziGuard/ReviewModels.cs" Link="ReviewModels.cs" />
+    <Compile Include="../src/IgezziGuard/FileInventory.cs" Link="FileInventory.cs" />
+    <Compile Include="../src/IgezziGuard/RecycleService.cs" Link="RecycleService.cs" />
+  </ItemGroup>
+</Project>

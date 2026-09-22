@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="620" height="180" viewBox="0 0 620 180">
+  <title>Hanki Tools wordmark</title>
+  <rect width="620" height="180" rx="24" fill="#101b1c"/>
+  <g transform="translate(22 26) scale(.5)"><path fill="#97e1c9" d="M64 58h27v140H64zM165 58h27v140h-27zM91 119l74-28v34l-74 28z"/></g>
+  <text x="178" y="103" fill="#eff6f3" font-family="Segoe UI, sans-serif" font-weight="700" font-size="76" letter-spacing="-3">hanki</text>
+  <text x="182" y="139" fill="#9eb5af" font-family="Segoe UI, sans-serif" font-size="16" letter-spacing="5">WINDOWS TOOLKIT</text>
+</svg>

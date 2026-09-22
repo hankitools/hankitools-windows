@@ -1,0 +1,124 @@
+PASS result cards preserve counter failures
+PASS missing advisor is not a recommendation
+PASS result cards preserve localized values
+PASS result cards preserve urgent advisor guidance
+PASS raw evidence cannot override labelled summary
+PASS result cards preserve restricted exclusions
+PASS audit explains enabled protection
+PASS audit exposes disabled protection
+PASS audit inverts Disable flags
+PASS restricted exclusions remain unknown
+PASS missing status remains unknown
+PASS legacy PowerShell date is readable
+PASS out-of-range date safe
+PASS missing exclusions not declared absent
+PASS child path accepted
+PASS prefix sibling rejected
+PASS root itself is not a child
+PASS recursive inventory counts/bytes
+PASS largest file numeric order
+PASS complete fixture inventory
+PASS temporary app-data files cannot be cleaned
+PASS non-recycling transfer vetoed before touching file
+PASS invalid shell target vetoed
+PASS failure cannot be reported as recycled
+PASS cancellation
+PASS valid installer date
+PASS invalid installer date unknown
+PASS missing installer date unknown
+PASS installer size KiB conversion
+PASS missing or wrong-type size unknown
+PASS DWORD size treated as unsigned
+PASS system-managed entry recognised
+PASS custom pagefile config not mislabelled active size
+PASS unknown pagefile syntax preserved
+PASS zero commit limit is unknown
+PASS commit threshold boundary
+PASS low commit sample not a safety verdict
+PASS common identifier masking
+PASS basic event evidence retained
+PASS report JSON preserves untrusted evidence
+PASS empty report rejected
+PASS oversized report rejected
+PASS CPU subtracts idle from kernel-inclusive total
+PASS idle CPU is zero
+PASS fully busy CPU
+PASS zero time delta unknown
+PASS counter reset rejected
+PASS ping reply count
+PASS no replies is not zero latency
+PASS empty probe batch
+PASS disable preserves backup before removal
+PASS undo refuses changed current value
+PASS undo restores exact command and value type
+PASS stale startup preview cannot remove current value
+PASS interrupted change leaves recoverable pending backup
+PASS undo reconciles unchanged pending value
+PASS interruption after removal retains recovery data
+PASS pending action restores removed startup value
+PASS failed backup prevents startup mutation
+PASS corrupt history never resets silently or mutates startup
+PASS unmapped usage unknown
+PASS calendar age without coverage is not unused evidence
+PASS usage candidate requires coverage and age
+PASS recent sighting excludes unused candidate
+PASS advisor flags pressure and peak beyond RAM
+PASS low peak does not endorse disabling pagefile
+PASS advisor missing counters remain unknown
+PASS AI requests no response storage and no execution tools
+PASS untrusted log remains user input
+PASS AI invalid role rejected
+PASS AI oversized history rejected
+PASS AI Responses text extraction
+PASS incomplete AI answer is labelled
+PASS AI request uses mocked transport only
+PASS AI fixed destination and exact reviewed payload
+PASS AI auth failure is safe and not retried
+PASS AI cancellation propagates without retry
+PASS kernel power marker recognized by provider and ID
+PASS same event ID from unrelated provider is not a crash marker
+PASS restart logged time is not represented as crash time
+PASS 6008 directs review to earlier shutdown time
+PASS corrected hardware event is not labelled causal
+PASS dump failure does not rule out bugcheck
+PASS timeline bounds inclusive and chronological
+PASS timeline compares instants across timezone offsets
+PASS empty timeline preserves uncertainty and collection errors
+PASS dump ID collision cannot trigger wrong explanation
+PASS invalid timeline window rejected
+PASS duplicate finder compares content not just size
+PASS changed duplicate rejected before cleanup
+PASS bytewise comparison rejects different equal-length data
+PASS bytewise comparison accepts identical contents
+PASS settings change journals and verifies applied state
+PASS general recovery refuses external change
+PASS general recovery restores exact prior value
+PASS interrupted setting write retains pending recovery entry
+PASS undo recovers a setting applied before interruption
+PASS stale setting preview cannot mutate current state
+PASS failed general journal write prevents mutation
+PASS minidump exception structure parsed at correct offsets
+PASS malformed dump RVA rejected
+PASS truncated dump rejected
+PASS missing Defender fields are not healthy verdicts
+PASS disabled protection and old signatures create review alerts
+PASS tool timeout is distinct from user cancellation
+PASS command cancellation propagates
+PASS valid saved session accepted
+PASS malformed saved session rejected
+PASS malformed saved session rejected
+PASS malformed saved session rejected
+PASS malformed saved session rejected
+PASS malformed saved session rejected
+PASS malformed saved session rejected
+PASS scan history round trip
+PASS scan history remains bounded
+PASS corrupt scan history preserved
+PASS scanner reads benign fixture
+PASS missing scan target rejected
+PASS scanner cancellation honored
+PASS archive contains full payload while source has a reader
+PASS archive preserves source bytes
+PASS archive refuses overwriting an existing package
+PASS archive rejects destination inside source
+All non-destructive checks passed. Native Windows operations, counters, debugger and external services still require acceptance tests.
