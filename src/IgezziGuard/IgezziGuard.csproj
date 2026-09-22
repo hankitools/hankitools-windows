@@ -22,6 +22,7 @@
 
   <ItemGroup>
     <EmbeddedResource Include="Brand/hanki.ico" />
+    <EmbeddedResource Include="Brand/hanki-smile.png" />
     <Content Include="Data\signatures.txt">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>

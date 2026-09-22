@@ -144,15 +144,24 @@ internal sealed class WorkspacePages : TabControl
 
 internal sealed class BrandHeader : Control
 {
+    private readonly Image brandImage = LoadBrandImage();
+    private static Image LoadBrandImage()
+    {
+        using var stream = typeof(BrandHeader).Assembly.GetManifestResourceStream("IgezziGuard.Brand.hanki-smile.png")
+            ?? throw new InvalidOperationException("The Hanki brand image is missing.");
+        using var source = Image.FromStream(stream);
+        return new Bitmap(source);
+    }
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing) brandImage.Dispose();
+        base.Dispose(disposing);
+    }
     public BrandHeader() { Height = 70; Width = 200; AccessibleName = "Hanki Tools"; SetStyle(ControlStyles.UserPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.AllPaintingInWmPaint, true); }
     protected override void OnPaint(PaintEventArgs e) {
         base.OnPaint(e); var g = e.Graphics; g.SmoothingMode = SmoothingMode.AntiAlias;
         g.ScaleTransform(DeviceDpi / 96f, DeviceDpi / 96f);
-        using var tile = new SolidBrush(SystemInformation.HighContrast ? SystemColors.Highlight : HankiTheme.PrimaryFill);
-        using var shape = HankiButton.Rounded(new RectangleF(8, 16, 32, 34), 5); g.FillPath(tile, shape);
-        using var white = new SolidBrush(SystemInformation.HighContrast ? SystemColors.HighlightText : Color.White);
-        g.FillRectangle(white, 15, 23, 4, 20); g.FillRectangle(white, 29, 23, 4, 20);
-        g.FillPolygon(white,new Point[] {new(19,32),new(29,28),new(29,33),new(19,37)});
+        g.DrawImage(brandImage, new Rectangle(0, 8, 50, 50));
         using var title = new Font("Segoe UI", 20, FontStyle.Bold, GraphicsUnit.Pixel);
         using var text = new SolidBrush(ForeColor); g.DrawString("Hanki Tools", title, text, new PointF(49, 22));
     }
