@@ -1,0 +1,80 @@
+name: Windows build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: windows-build-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Checks, UI smoke test and candidate package
+    runs-on: windows-2022
+    timeout-minutes: 25
+    env:
+      DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+      DOTNET_NOLOGO: '1'
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Install .NET 8 SDK
+        id: dotnet
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Select installed .NET 8 SDK
+        shell: pwsh
+        env:
+          SDK_VERSION: ${{ steps.dotnet.outputs.dotnet-version }}
+        run: |
+          @{ sdk = @{ version = $env:SDK_VERSION; rollForward = 'latestPatch' } } |
+            ConvertTo-Json -Depth 3 | Set-Content global.json -Encoding utf8
+          dotnet --info
+          if ($LASTEXITCODE -ne 0) { throw 'SDK selection failed.' }
+
+      # Windows PowerShell matches BUILD-WINDOWS.cmd and its Add-Type references.
+      - name: Run checks and build Windows candidate
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Start-Transcript -Path build-transcript.txt
+          try {
+            & .\BUILD-WINDOWS.ps1
+          } finally {
+            Stop-Transcript
+          }
+
+      - name: Upload unsigned test candidate and checksum
+        uses: actions/upload-artifact@v4
+        with:
+          name: HankiTools-win-x64-candidate-${{ github.run_number }}-${{ github.run_attempt }}
+          path: |
+            dist/*-candidate.zip
+            dist/*-candidate.zip.sha256
+          if-no-files-found: error
+          retention-days: 14
+          compression-level: 0
+
+      - name: Upload build diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Windows-build-diagnostics-${{ github.run_number }}-${{ github.run_attempt }}
+          path: |
+            build-transcript.txt
+            dist/**/ui-smoke.json
+            dist/**/build-info.json
+          if-no-files-found: warn
+          retention-days: 14
