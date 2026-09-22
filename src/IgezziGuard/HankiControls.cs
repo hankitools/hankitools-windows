@@ -172,8 +172,8 @@ internal sealed class Dashboard : UserControl
     public Dashboard(Action<string> navigate)
     {
         Dock = DockStyle.Fill; AutoScroll = true; Padding = new Padding(14);
-        var heading = new Label { Text = "YOUR TOOLBOX", Font = new Font("Segoe UI", 9, FontStyle.Bold), AutoSize = true, Dock = DockStyle.Top, Padding = new Padding(0, 12, 0, 8) };
-        var intro = new Label { Text = "Inspect, measure and review changes with the right tool.", AutoSize = true, Dock = DockStyle.Top, Padding = new Padding(0, 0, 0, 14) };
+        var heading = new Label { Text = "LESS DIGGING. MORE DOING.", Font = new Font("Segoe UI", 9, FontStyle.Bold), AutoSize = true, Dock = DockStyle.Top, Padding = new Padding(0, 12, 0, 8) };
+        var intro = new Label { Text = "Start with what you want to understand. Review changes before you make them.", AutoSize = true, Dock = DockStyle.Top, Padding = new Padding(0, 0, 0, 14) };
         var cards = new FlowLayoutPanel { Dock = DockStyle.Fill, AutoScroll = true, Padding = new Padding(0, 8, 0, 0) };
         var items = new[] {
             ("Diagnose", "Follow the crash timeline", "Review nearby events, restart markers and practical explanations."),
@@ -183,16 +183,17 @@ internal sealed class Dashboard : UserControl
             ("Shield · experimental", "Review your protection", "Run Defender scans, inspect findings and enable in-app protection alerts.")
         };
         foreach (var (target, title, description) in items) {
-            var card = new Panel { Width = 310, Height = 218, Padding = new Padding(18), Margin = new Padding(0, 0, 16, 16), Tag = "card" };
+            var card = new Panel { Width = 310, Height = 270, Padding = new Padding(18), Margin = new Padding(0, 0, 16, 16), Tag = "card" };
             card.Paint += (_, e) => {
                 using var border = new Pen(SystemInformation.HighContrast ? SystemColors.ControlText : HankiTheme.Border);
                 e.Graphics.DrawRectangle(border, 0, 0, Math.Max(1, card.Width - 1), Math.Max(1, card.Height - 1));
             };
-            var label = new Label { Text = target.Split(' ')[0], Font = new Font("Segoe UI", 12, FontStyle.Bold), Dock = DockStyle.Top, Height = 32 };
+            var module = new Label { Text = target.Split(' ')[0].ToUpperInvariant(), Font = new Font("Segoe UI", 9), Dock = DockStyle.Top, Height = 26, Tag = "intro" };
+            var label = new Label { Text = title, Font = new Font("Segoe UI", 14, FontStyle.Bold), Dock = DockStyle.Top, Height = 62 };
             var body = new Label { Text = description, Dock = DockStyle.Fill };
             var open = new HankiButton { Text = "Open " + target.Split(' ')[0] + "  →", Dock = DockStyle.Bottom, Height = 34, Appearance = HankiButtonStyle.Quiet };
             open.Click += (_, _) => navigate(target);
-            card.Controls.Add(body); card.Controls.Add(label); card.Controls.Add(new ToolIcon { Kind = target }); card.Controls.Add(open); cards.Controls.Add(card);
+            card.Controls.Add(body); card.Controls.Add(label); card.Controls.Add(module); card.Controls.Add(new ToolIcon { Kind = target }); card.Controls.Add(open); cards.Controls.Add(card);
         }
         void FitCards() {
             int width = Math.Max(260, cards.ClientSize.Width - SystemInformation.VerticalScrollBarWidth - 4);
@@ -201,7 +202,7 @@ internal sealed class Dashboard : UserControl
         }
         cards.SizeChanged += (_, _) => FitCards();
         var utilities = new FlowLayoutPanel { Dock = DockStyle.Bottom, AutoSize = true, Padding = new Padding(0, 10, 0, 0) };
-        utilities.Controls.Add(new Label { Text = "ALSO AVAILABLE", AutoSize = true, Margin = new Padding(0, 10, 12, 0), Font = new Font("Segoe UI", 9) });
+        utilities.Controls.Add(new Label { Text = "SUPPORTING TOOLS", AutoSize = true, Margin = new Padding(0, 10, 12, 0), Font = new Font("Segoe UI", 9) });
         foreach (var name in new[] { "Assistant", "Recovery", "Scan history" }) {
             var link = new HankiButton { Text = name + "  →", AutoSize = true, Appearance = HankiButtonStyle.Quiet };
             link.Click += (_, _) => navigate(name); utilities.Controls.Add(link);

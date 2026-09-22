@@ -10,7 +10,7 @@ internal static class HankiTheme
     internal static readonly Color Muted = Color.FromArgb(175, 188, 204);
     internal static readonly Color Accent = Color.FromArgb(101, 181, 255);
     internal static readonly Color PrimaryFill = Color.FromArgb(0, 105, 220);
-    internal static readonly Color Border = Color.FromArgb(65, 82, 103);
+    internal static readonly Color Border = Color.FromArgb(48, 61, 78);
 
     internal static readonly Color Pine = Color.FromArgb(12, 16, 22);
 
