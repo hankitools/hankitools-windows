@@ -5,6 +5,10 @@ internal static class Program
     [STAThread]
     private static void Main(string[] args)
     {
+        if (args.Length == 1 && args[0] == "--scheduled-health-check") {
+            Environment.ExitCode = ScheduledHealthChecks.RunAsync().GetAwaiter().GetResult();
+            return;
+        }
         ApplicationConfiguration.Initialize();
         Application.SetUnhandledExceptionMode(UnhandledExceptionMode.CatchException);
         Application.ThreadException += (_, args) => ShowFatal(args.Exception);

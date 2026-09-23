@@ -6,6 +6,8 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="../src/IgezziGuard/Entitlements/Entitlements.cs" Link="Entitlements/Entitlements.cs" />
+    <Compile Include="../src/IgezziGuard/Identity/IdentitySession.cs" Link="Identity/IdentitySession.cs" />
     <Compile Include="../src/IgezziGuard/Repairs/RepairWorkflow.cs" Link="Repairs/RepairWorkflow.cs" />
     <Compile Include="../src/IgezziGuard/History/DiagnosticHistory.cs" Link="History/DiagnosticHistory.cs" />
     <Compile Include="../src/IgezziGuard/Privacy/DiagnosticPrivacy.cs" Link="Privacy/DiagnosticPrivacy.cs" />

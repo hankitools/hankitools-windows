@@ -17,7 +17,7 @@ try
     DiagnosticChecks.Recommendations();
     await DiagnosticChecks.Modules();
     await DiagnosticChecks.WindowsModules();
-    await RepairChecks.Run(root);
+    await EntitlementChecks.Run();
     var host = Environment.ProcessPath!;
     var jsonFixtureArgs = Path.GetFileNameWithoutExtension(host).Equals("dotnet", StringComparison.OrdinalIgnoreCase)
         ? new[] { typeof(WindowsCommand).Assembly.Location, "--json-notes-fixture" }
@@ -270,6 +270,7 @@ try
     try { Hanki.Build.ArchiveBuilder.Create(packageSource, packageZip); throw new Exception("Existing ZIP overwritten"); } catch (IOException) { }
     Assert(Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(File.ReadAllBytes(packageZip))) == originalZipHash, "archive refuses overwriting an existing package");
     try { Hanki.Build.ArchiveBuilder.Create(packageSource, Path.Combine(packageSource, "bad.zip")); throw new Exception("Nested archive allowed"); } catch (IOException) { Console.WriteLine("PASS archive rejects destination inside source"); }
+    await RepairChecks.Run(root);
     Console.WriteLine("All non-destructive checks passed. Native Windows operations, counters, debugger and external services still require acceptance tests.");
 }
 finally

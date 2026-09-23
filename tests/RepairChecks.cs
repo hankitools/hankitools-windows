@@ -24,7 +24,7 @@ internal static class RepairChecks
         async Task<(RepairReport Report,int Calls)> Execute(RestoreState restoreState, bool failAudit=false, bool allowWithout=false, bool denied=false) {
             var action = new FakeRepair(definition); int reads=0;
             var module = new FakeModule("sfc", (_,_)=>Task.FromResult<IReadOnlyList<DiagnosticResult>>([++reads==1?before:after]));
-            var flow = new RepairWorkflow([action],[module],new FixtureEnvironment(denied?env with {Administrator=false}:env),new FixtureRestore(restoreState),new FixtureAudit(failAudit));
+            var flow = new RepairWorkflow([action],[module],new FixtureEnvironment(denied?env with {Administrator=false}:env),new FixtureRestore(restoreState),new FixtureAudit(failAudit),new EditionEntitlements(HankiEdition.Pro));
             var report=await flow.RunAsync(scan,approval with {AllowWithoutRestorePoint=allowWithout},new(true,true,false),null,CancellationToken.None);
             return (report,action.Calls);
         }
@@ -34,7 +34,7 @@ internal static class RepairChecks
         Check((await Execute(RestoreState.Created,failAudit:true)).Calls==0,"failed pending journal prevents mutation");
         Check((await Execute(RestoreState.Created,denied:true)).Calls==0,"non-admin repair never executes");
         var fakeAction=new FakeRepair(definition);
-        var empty=new RepairWorkflow([fakeAction],[],new FixtureEnvironment(env),new FixtureRestore(RestoreState.Created),new FixtureAudit(false));
+        var empty=new RepairWorkflow([fakeAction],[],new FixtureEnvironment(env),new FixtureRestore(RestoreState.Created),new FixtureAudit(false),new EditionEntitlements(HankiEdition.Pro));
         Check((await empty.RunAsync(scan,approval with {ActionIds=new HashSet<string>()},new(true,true,false),null,CancellationToken.None)).Attempts.Count==0 && fakeAction.Calls==0,"no approval means no actions");
         try {await empty.RunAsync(scan,approval with {ScanId=Guid.NewGuid()},new(true,true,false),null,CancellationToken.None);throw new Exception("Wrong scan accepted");}catch(InvalidOperationException){}
         var path=Path.Combine(root,"diagnostics.json");var history=new DiagnosticHistory(path);history.Add(scan);

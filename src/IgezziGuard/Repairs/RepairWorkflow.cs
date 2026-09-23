@@ -60,7 +60,7 @@ public static class RepairVerification
 
 /// <summary>Approval, fresh safety, journal-before-write and diagnostic verification; never executes report text.</summary>
 public sealed class RepairWorkflow(IEnumerable<IRepairAction> actions, IEnumerable<IDiagnosticModule> modules,
-    IRepairEnvironment environment, IRestoreProtection restore, IRepairAudit audit)
+    IRepairEnvironment environment, IRestoreProtection restore, IRepairAudit audit, IEntitlements entitlements)
 {
     private static readonly SemaphoreSlim Gate = new(1, 1);
     private readonly Dictionary<string, IRepairAction> actions = actions.ToDictionary(a => a.Definition.Id, StringComparer.Ordinal);
@@ -68,6 +68,7 @@ public sealed class RepairWorkflow(IEnumerable<IRepairAction> actions, IEnumerab
     public async Task<RepairReport> RunAsync(DiagnosticScan scan, RepairApproval approval, DiagnosticContext context,
         IProgress<string>? progress, CancellationToken token)
     {
+        if (!entitlements.Allows(HankiCapability.AutomaticRepair)) throw new InvalidOperationException("Automatic repair is unavailable for this edition. Manual Community tools remain available.");
         if (approval.ScanId != scan.Id || scan.Ended > DateTimeOffset.UtcNow || DateTimeOffset.UtcNow - scan.Ended > TimeSpan.FromMinutes(30))
             throw new InvalidOperationException("Run a fresh scan and approve its proposed actions.");
         var selected = approval.ActionIds.OrderBy(x => x, StringComparer.Ordinal).ToArray();
