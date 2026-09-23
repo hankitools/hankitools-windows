@@ -10,6 +10,13 @@ A Windows toolkit for understanding your PC, reviewing maintenance and investiga
 
 Builds are published on [GitHub Releases](https://github.com/hankitools/hankitools-windows/releases). Until code signing is in place, releases are **not code-signed** and are labelled that way: Windows SmartScreen will warn before the first run. Each release lists a SHA-256 checksum; compare it before running. Hanki is a portable app: extract the ZIP and run `HankiTools.exe`.
 
+With [Scoop](https://scoop.sh/), which checks the checksum for you:
+
+```powershell
+scoop bucket add hanki https://github.com/hankitools/scoop-bucket
+scoop install hanki/hanki-tools
+```
+
 ## Code signing policy
 
 Windows releases are intended to be signed through the [SignPath Foundation](https://signpath.org) program for open-source projects; the application is pending. Once approved, this section will read: *Free code signing provided by [SignPath.io](https://about.signpath.io), certificate by [SignPath Foundation](https://signpath.org).*
