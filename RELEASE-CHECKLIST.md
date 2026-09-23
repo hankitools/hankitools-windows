@@ -35,6 +35,6 @@ See [the roadmap acceptance ledger](docs/ROADMAP-IMPLEMENTATION.md).
 2. Use a trusted signing identity and RFC3161 timestamp; verify signer details match the intended publisher. Do not ship certificate private keys. Signing does not guarantee SmartScreen reputation.
 3. Build with the current supported runtime patch and record the build evidence. For this .NET 8 branch, upgrade before 10 November 2026; final packaging blocks after that date.
 4. Complete the acceptance table on the exact signed executable, with real evidence. Do not copy previous results onto a rebuilt executable.
-5. Run PACKAGE-RELEASE.ps1 and independently compare the downloaded ZIP's SHA-256 with the published checksum. Verify extracted package signature on another Windows account.
+5. Run PACKAGE-RELEASE.ps1, then PUBLISH-RELEASE.ps1 to create a draft GitHub release from the verified ZIP. Independently compare the downloaded ZIP's SHA-256 with the published checksum. Verify extracted package signature on another Windows account.
 6. Label this version “release candidate.” Do not market the experimental scanner as a full antivirus or imply guaranteed repair/performance gains. Publish the privacy description and limitations beside the download.
 7. Keep the previous signed package and its checksum for rollback. No automatic updater is implemented; provide a clear manual update path and a monitored place for bug reports.

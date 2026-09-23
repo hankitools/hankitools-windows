@@ -12,6 +12,8 @@ For a signing-enabled candidate, run `BUILD-WINDOWS.ps1 -CertificateThumbprint Y
 
 After testing that exact signed executable and recording evidence in its generated `acceptance.json`, run `PACKAGE-RELEASE.ps1 -CandidateDirectory PATH_TO_CANDIDATE`. This verifies the executable hash, signature, current runtime patch, smoke result and recorded acceptance before producing a release ZIP and checksum. It does not replace human testing. Details: [RELEASE-CHECKLIST.md](RELEASE-CHECKLIST.md).
 
+To publish on GitHub Releases, install the GitHub CLI (`winget install --id GitHub.cli`), sign in once with `gh auth login`, commit and push, then run `PUBLISH-RELEASE.ps1 -CandidateDirectory PATH_TO_CANDIDATE`. It re-verifies the packaged ZIP, checksum list and signature, requires a clean pushed commit matching the project version, and creates a **draft** release tagged `vVERSION` (marked pre-release for `-rc` versions) with notes from RELEASE-NOTES.md, then checks the uploaded ZIP against the local one. Review and publish the draft on GitHub, or pass `-Publish`. Use `-DryRun` to run every check without creating anything.
+
 ## Recover from an earlier ZIP failure
 
 If RC2 compiled and passed its smoke check but ZIP creation failed, use this package's helper without rebuilding the older candidate:
