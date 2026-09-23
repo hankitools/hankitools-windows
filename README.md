@@ -1,8 +1,25 @@
-# Hanki Tools • 0.16.0-rc.3
+# Hanki Tools
 
-A Windows toolkit for understanding your PC, reviewing maintenance and investigating problems. Blue-accented charcoal workspaces, icon-led cards, clear module introductions and a searchable tool launcher keep the main workflows accessible.
+A Windows toolkit for understanding your PC, reviewing maintenance and investigating problems. Hanki diagnoses common Windows problems, explains results in plain language and offers reviewed, reversible fixes. It is not a vulnerability scanner.
 
-**Status: release candidate, not yet approved for public distribution.** The source cross-builds and automated checks run on Linux. Native Windows acceptance, the final self-contained package and publisher signing remain required. See [RELEASE-STATUS.md](RELEASE-STATUS.md).
+**Status: 0.17 release candidate.** GitHub Actions builds every commit on Windows, runs the automated checks and a UI smoke test. Pre-release testing on Windows 11 is recorded in [VALIDATION-v0.17.md](VALIDATION-v0.17.md). Publisher signing and final acceptance are still required before a verified release; see [RELEASE-STATUS.md](RELEASE-STATUS.md).
+
+## Download
+
+Builds are published on [GitHub Releases](https://github.com/hankitools/hankitools-windows/releases). Until code signing is in place, releases are **unsigned previews** and are labelled that way: Windows SmartScreen will warn before the first run. Each release lists a SHA-256 checksum; compare it before running. Hanki is a portable app: extract the ZIP and run `HankiTools.exe`.
+
+## Code signing policy
+
+Windows releases are intended to be signed through the [SignPath Foundation](https://signpath.org) program for open-source projects; the application is pending. Once approved, this section will read: *Free code signing provided by [SignPath.io](https://about.signpath.io), certificate by [SignPath Foundation](https://signpath.org).*
+
+Team roles:
+
+- Committers and reviewers: [@hankitools](https://github.com/hankitools)
+- Approvers: [@hankitools](https://github.com/hankitools)
+
+Only release builds produced by this repository's GitHub Actions workflow from the public source are submitted for signing, and an approver reviews every signing request. Local or modified builds are never signed.
+
+Privacy policy: this program will not transfer any information to other networked systems unless specifically requested by the user or the person installing or operating it. Each optional network feature (connection checks, speed test, DNS comparison, Defender definition updates and the optional OpenAI chat) and the third parties it contacts are described in [PRIVACY.md](PRIVACY.md). Hanki shows a review before any change to system configuration and records supported changes for undo.
 
 ## Build and try
 

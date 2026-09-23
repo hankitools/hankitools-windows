@@ -78,7 +78,10 @@ $notes=@(
     "2. In PowerShell: ``(Get-FileHash .\$zipName).Hash`` must equal the value in the ``.sha256`` file."
     "3. After extracting, HankiTools.exe > Properties > Digital Signatures must show **$signer** with a valid timestamp."; ''
     'Portable app: extract and run HankiTools.exe; no installer or .NET runtime needed. Updates are manual.'
-    'Privacy: see PRIVACY.md in the package. The experimental file scanner is not an antivirus; Microsoft Defender remains your protection.'
+    'Privacy: see PRIVACY.md in the package. The experimental file scanner is not an antivirus; Microsoft Defender remains your protection.'; ''
+    '## Code signing policy'; ''
+    $(if ($signer -like '*SignPath Foundation*') { 'Free code signing provided by [SignPath.io](https://about.signpath.io), certificate by [SignPath Foundation](https://signpath.org).' } else { "Signed by $signer." })
+    "Team roles, signing rules and the privacy policy: [Code signing policy](https://github.com/$repo#code-signing-policy)."
 ) -join "`n"
 $title="Hanki Tools $version" + $(if ($candidate) { ' (release candidate)' } else { '' })
 

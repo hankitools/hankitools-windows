@@ -32,7 +32,7 @@ See [the roadmap acceptance ledger](docs/ROADMAP-IMPLEMENTATION.md).
 ## Publisher checks before upload
 
 1. Supply a real publisher identity, support/security/privacy contact and HTTPS download destination. Confirm logo/name/domain usage rights; no legal verification is claimed here.
-2. Use a trusted signing identity and RFC3161 timestamp; verify signer details match the intended publisher. Do not ship certificate private keys. Signing does not guarantee SmartScreen reputation.
+2. Use a trusted signing identity and RFC3161 timestamp; verify signer details match the intended publisher. Do not ship certificate private keys. Signing does not guarantee SmartScreen reputation. With the SignPath Foundation OSS program the publisher is "SignPath Foundation": only CI builds of this public repository are submitted, an approver reviews each request, the signed package must stay fully MIT with no proprietary components, and the README and release pages must carry the "Code signing policy" section.
 3. Build with the current supported runtime patch and record the build evidence. For this .NET 8 branch, upgrade before 10 November 2026; final packaging blocks after that date.
 4. Complete the acceptance table on the exact signed executable, with real evidence. Do not copy previous results onto a rebuilt executable.
 5. Run PACKAGE-RELEASE.ps1, then PUBLISH-RELEASE.ps1 to create a draft GitHub release from the verified ZIP. Independently compare the downloaded ZIP's SHA-256 with the published checksum. Verify extracted package signature on another Windows account.

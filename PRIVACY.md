@@ -14,7 +14,7 @@ API key, AI draft and chat are held in process memory until cleared or exit; the
 
 | Feature | Information disclosed |
 | --- | --- |
-| Basic network checks | DNS requests for example.com and TCP probes to example.com:443 / 1.1.1.1:443; destinations/resolvers can observe source IP and requests. |
+| Basic network checks | DNS requests for www.microsoft.com, cloudflare.com and example.com, a TCP probe to 1.1.1.1:443 and one to the first of those names that resolves; destinations/resolvers can observe source IP and requests. |
 | Wi-Fi/ICMP/traceroute | ICMP probes to disclosed gateways, public target or selected host; local reports can contain SSID, BSSID, MAC and IP addresses. |
 | DNS comparisons / DNS repair | Queries go to configured resolvers, Cloudflare 1.1.1.1 and Google 8.8.8.8. Changing system DNS affects future queries outside Hanki too. |
 | Transfer test | Requests to speed.cloudflare.com; up to 25 MiB download and 10 MiB upload payload, plus overhead. Metered charges may apply. |
