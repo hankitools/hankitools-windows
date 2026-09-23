@@ -2,6 +2,8 @@
 
 RC2 fixes Full System Scan modules being reported as Failed on Windows PowerShell 5.1. Harmless progress records ("Preparing modules for first use.") reached collector stderr and were treated as tool errors. Progress output is now suppressed so stderr carries only genuine errors, and a native check guards against regressions.
 
+RC2 also refreshes the interface: Home leads with Full System Scan and a last-scan summary; scan results show colored evidence states; the sidebar is grouped with distinct icons; sub-views use underline tabs; reports sit in rounded cards with inline search; and the title bar, scrollbars, list headers and inputs follow the dark theme. It fixes "&" disappearing from labels, missing startup selection highlights and fully-selected report text. High Contrast keeps system rendering.
+
 - Added free Full System Scan with structured results, visible unknown/partial states, cancellation and deterministic guidance.
 - Added Windows Activation troubleshooting with safe licensing-state/error explanations and optional organization KMS checks. No full product keys or activation changes.
 - Added minimized local diagnostic history and comparisons alongside existing scanner history and recovery tools.

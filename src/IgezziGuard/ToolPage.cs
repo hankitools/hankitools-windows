@@ -2,15 +2,15 @@ namespace IgezziGuard;
 
 public class ToolPage : UserControl
 {
-    protected readonly FlowLayoutPanel Bar = new() { Dock = DockStyle.Top, AutoSize = true, WrapContents = true, Padding = new Padding(0, 0, 0, 12) };
+    protected readonly FlowLayoutPanel Bar = new() { Dock = DockStyle.Top, AutoSize = true, WrapContents = true, Padding = new Padding(0, 0, 0, 14) };
     protected readonly TextBox Output = new() { Dock = DockStyle.Fill, Multiline = true, ReadOnly = true, BorderStyle = BorderStyle.None, ScrollBars = ScrollBars.Both, HideSelection = false };
-    private readonly HankiButton stop = new() { Text = "Cancel", AutoSize = true, Enabled = false, Visible = false };
+    private readonly HankiButton stop = new() { Text = "Cancel", AutoSize = true, Enabled = false, Visible = false, Appearance = HankiButtonStyle.Quiet, Margin = new Padding(0, 0, 0, 0) };
     private readonly HankiButton export = new() { Text = "Review / share report", Appearance = HankiButtonStyle.Quiet, AutoSize = true };
     private readonly HankiButton assistant = new() { Text = "Prepare for Assistant", Appearance = HankiButtonStyle.Quiet, AutoSize = true };
     private readonly HankiButton previous = new() { Text = "Previous report", Appearance = HankiButtonStyle.Quiet, AutoSize = true, Enabled = false };
-    private readonly Label state = new() { Text = "Ready when you are", AutoSize = true, Tag = "intro", Margin = new Padding(0, 9, 20, 8) };
-    private readonly TextBox find = new() { Width = 190, PlaceholderText = "Find in report…", AccessibleName = "Find in report", Margin = new Padding(0, 6, 8, 6) };
-    private readonly Label matches = new() { AutoSize = true, Tag = "intro", Margin = new Padding(8, 9, 0, 6) };
+    private readonly Label state = new() { Text = "Ready when you are", AutoSize = true, Tag = "intro", Margin = new Padding(0, 7, 12, 0), Font = new Font("Segoe UI Semibold", 9.75f) };
+    private readonly TextBox find = new() { Width = 200, PlaceholderText = "Find in report  (Ctrl+F)", AccessibleName = "Find in report", Margin = new Padding(8, 3, 0, 0) };
+    private readonly Label matches = new() { AutoSize = true, Tag = "intro", Margin = new Padding(8, 7, 0, 0) };
     private string? previousReport;
     private string previousState = "";
     private CancellationTokenSource? pending;
@@ -20,18 +20,28 @@ public class ToolPage : UserControl
 
     public ToolPage(string disclosure)
     {
-        Dock = DockStyle.Fill; Padding = new Padding(8); Output.Text = disclosure;
-        var footer = new FlowLayoutPanel { Dock = DockStyle.Bottom, AutoSize = true, Padding = new Padding(0, 8, 0, 0) };
+        Dock = DockStyle.Fill; Padding = new Padding(0, 4, 0, 0); Output.Text = disclosure;
+        var footer = new FlowLayoutPanel { Dock = DockStyle.Bottom, AutoSize = true, Padding = new Padding(0, 10, 0, 0) };
         footer.Controls.AddRange([export, assistant, previous]);
-        var statusBar = new FlowLayoutPanel { Dock = DockStyle.Top, AutoSize = true };
+        // Report card: status and cancel on the left, search tools on the right, report below.
+        var statusBar = new FlowLayoutPanel { AutoSize = true, WrapContents = false, Tag = "card", Margin = Padding.Empty, Anchor = AnchorStyles.Left | AnchorStyles.Top };
         statusBar.Controls.AddRange([state, stop]);
-        var searchBar = new FlowLayoutPanel { Dock = DockStyle.Top, AutoSize = true, Padding = new Padding(0, 0, 0, 8) };
-        var next = new HankiButton { Text = "Next match", AutoSize = true, Appearance = HankiButtonStyle.Quiet };
-        var wrap = new CheckBox { Text = "Wrap lines", Checked = true, AutoSize = true, Margin = new Padding(14, 9, 0, 6) };
-        searchBar.Controls.AddRange([find, next, wrap, matches]);
-        var report = new Panel { Dock = DockStyle.Fill, Padding = new Padding(14), Tag = "card" };
-        report.Controls.Add(Output);
-        Controls.Add(report); Controls.Add(searchBar); Controls.Add(statusBar); Controls.Add(Bar); Controls.Add(footer);
+        var next = new HankiButton { Text = "Next", AutoSize = true, Appearance = HankiButtonStyle.Quiet, Margin = new Padding(4, 0, 0, 0) };
+        var wrap = new CheckBox { Text = "Wrap lines", Checked = true, AutoSize = true, Margin = new Padding(12, 7, 0, 0) };
+        var searchBar = new FlowLayoutPanel { AutoSize = true, WrapContents = false, Tag = "card", Margin = Padding.Empty, Anchor = AnchorStyles.Right | AnchorStyles.Top };
+        searchBar.Controls.AddRange([matches, find, next, wrap]);
+        var header = new TableLayoutPanel { Dock = DockStyle.Top, AutoSize = true, ColumnCount = 2, RowCount = 1, Tag = "card", Padding = new Padding(0, 0, 0, 10) };
+        header.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100)); header.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+        header.Controls.Add(statusBar, 0, 0); header.Controls.Add(searchBar, 1, 0);
+        var divider = new Panel { Dock = DockStyle.Top, Height = 1, Tag = "divider" };
+        divider.Paint += (_, e) => { if (!SystemInformation.HighContrast) e.Graphics.Clear(HankiTheme.Border); };
+        var spacer = new Panel { Dock = DockStyle.Top, Height = 12, Tag = "card" };
+        var report = new RoundedPanel { Dock = DockStyle.Fill, Padding = new Padding(18, 12, 12, 12) };
+        report.Controls.Add(Output); report.Controls.Add(spacer); report.Controls.Add(divider); report.Controls.Add(header);
+        Controls.Add(report); Controls.Add(Bar); Controls.Add(footer);
+        // TextBox selects everything when focus arrives (for example when action buttons are disabled); a read-only report should not look selected.
+        Output.Select(0, 0);
+        Output.GotFocus += (_, _) => BeginInvoke(() => { if (Output.TextLength > 0 && Output.SelectionLength == Output.TextLength) Output.Select(0, 0); });
         stop.Click += (_, _) => { Cancel(); state.Text = "Cancelling…"; stop.Enabled = false; };
         assistant.Click += (_, _) => PrepareRequested?.Invoke(Output.Text);
         export.Click += (_, _) => ReviewReport();

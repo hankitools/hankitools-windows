@@ -1,4 +1,4 @@
-Current app direction (0.16.0-rc.3): cool charcoal workspaces, blue primary actions (#0069DC), sky-blue accents (#65B5FF), compact Hanki Tools wordmark and line icons, following the supplied website candidate. Earlier palette notes below are historical.
+Current app direction (0.17): layered charcoal surfaces (canvas #101318, sidebar #0B0D11, cards #181C23, raised #212730, borders #2C333E), blue primary actions (#0069DC, hover #127AEE), sky-blue accents (#65B5FF) and rounded 10px cards. Dark native chrome covers the title bar, scrollbars, list headers and inputs. Evidence states use green OK (#4AC478), amber review (#F0B040), red critical (#F06060), blue info and muted grey for not checked; they describe individual findings, never an overall health score. Sub-views use underline tabs; High Contrast keeps system rendering. Earlier palette notes below are historical.
 
 # Hanki visual identity
 

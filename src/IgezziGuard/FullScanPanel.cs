@@ -5,8 +5,12 @@ namespace IgezziGuard;
 
 public sealed class FullScanPanel : ToolPage
 {
-    private readonly CheckBox external = new() { Text = "Include network probes", AutoSize = true, AccessibleName = "Include optional external network probes" };
-    private readonly ListView findings = new() { Dock = DockStyle.Top, Height = 230, View = View.Details, FullRowSelect = true, MultiSelect = false, HideSelection = false, AccessibleName = "Diagnostic findings" };
+    private readonly CheckBox external = new() { Text = "Include network probes", AutoSize = true, AccessibleName = "Include optional external network probes", Margin = new Padding(6, 10, 14, 0) };
+    private readonly ListBox findings = new() { Dock = DockStyle.Fill, DrawMode = DrawMode.OwnerDrawFixed, IntegralHeight = false, BorderStyle = BorderStyle.None, AccessibleName = "Diagnostic findings" };
+    private readonly RoundedPanel results = new() { Dock = DockStyle.Top, Height = 320, Padding = new Padding(6, 4, 6, 8), Visible = false };
+    private readonly Panel counts = new() { Dock = DockStyle.Top, Height = 40, Tag = "card" };
+    private readonly Panel resultsGap = new() { Dock = DockStyle.Top, Height = 14, Visible = false };
+    private readonly Font pillFont = new("Segoe UI Semibold", 8.25f), metaFont = new("Segoe UI", 9f);
     private DiagnosticScan? latest;
     private readonly IEntitlements entitlements = EntitlementComposition.Current();
     private readonly DiagnosticHistory history = new(Path.Combine(SecurityPaths.Root, "diagnostic-history.json"));
@@ -16,18 +20,87 @@ public sealed class FullScanPanel : ToolPage
         Bar.Controls.Add(external);
         Button("Review automatic repairs", ReviewRepairs);
         Button("Show scan summary", () => { if (latest is not null) Output.Text = Summary(latest); });
-        findings.Columns.Add("Finding", 285); findings.Columns.Add("Severity", 110); findings.Columns.Add("Collection", 110);
         findings.SelectedIndexChanged += (_, _) => {
-            if (IsBusy || findings.SelectedItems.Count != 1 || findings.SelectedItems[0].Tag is not DiagnosticResult r) return;
+            if (IsBusy || findings.SelectedItem is not DiagnosticResult r) return;
             Output.Text = FindingAnalysis.Describe(r);
         };
-        Controls.Add(findings); Controls.SetChildIndex(findings, 1);
+        findings.DrawItem += DrawFinding;
+        findings.HandleCreated += (_, _) => findings.ItemHeight = (int)(42 * findings.DeviceDpi / 96f);
+        counts.Paint += (_, e) => {
+            if (latest is null) return;
+            float s = counts.DeviceDpi / 96f;
+            string total = $"{latest.Results.Count} results";
+            TextRenderer.DrawText(e.Graphics, total, pillFont, new Rectangle((int)(12 * s), 0, counts.Width, counts.Height), SystemInformation.HighContrast ? SystemColors.ControlText : HankiTheme.Muted,
+                TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
+            int left = (int)(12 * s) + TextRenderer.MeasureText(total, pillFont).Width + (int)(18 * s);
+            StatusChips.Draw(e.Graphics, new Rectangle(left, 0, counts.Width - left, counts.Height), StatusChips.Count(latest.Results), metaFont, s);
+        };
+        results.Controls.Add(findings); results.Controls.Add(counts);
+        var administrator = Context(false).IsAdministrator;
+        var adminHint = new Label { Dock = DockStyle.Top, AutoSize = false, Height = 30, Tag = "intro", Visible = !administrator,
+            Text = "DISM and SFC checks need administrator rights. To include them, close Hanki and run it as administrator." };
+        Controls.Add(results); Controls.SetChildIndex(results, 1);
+        Controls.Add(resultsGap); Controls.SetChildIndex(resultsGap, 1);
+        Controls.Add(adminHint); Controls.SetChildIndex(adminHint, 3);
     }
+    protected override void Dispose(bool disposing) { if (disposing) { pillFont.Dispose(); metaFont.Dispose(); } base.Dispose(disposing); }
+    internal void Start() { if (!IsBusy) StartScan(); }
+    private void DrawFinding(object? sender, DrawItemEventArgs e)
+    {
+        if (e.Index < 0 || findings.Items[e.Index] is not DiagnosticResult r) return;
+        var g = e.Graphics; float s = findings.DeviceDpi / 96f;
+        bool hc = SystemInformation.HighContrast, selected = (e.State & DrawItemState.Selected) != 0;
+        var text = hc ? (selected ? SystemColors.HighlightText : SystemColors.WindowText) : HankiTheme.Text;
+        var muted = hc ? text : HankiTheme.Muted;
+        using (var bg = new SolidBrush(hc ? (selected ? SystemColors.Highlight : SystemColors.Window) : selected ? HankiTheme.Raised : HankiTheme.Surface)) g.FillRectangle(bg, e.Bounds);
+        g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+        if (selected && !hc) { using var bar = new SolidBrush(HankiTheme.Accent); g.FillRectangle(bar, e.Bounds.X, e.Bounds.Y + 8 * s, 3 * s, e.Bounds.Height - 16 * s); }
+        var color = HankiTheme.SeverityColor(r.Severity, r.Outcome);
+        var pill = new RectangleF(e.Bounds.X + 14 * s, e.Bounds.Y + (e.Bounds.Height - 22 * s) / 2, 92 * s, 22 * s);
+        using (var path = HankiButton.Rounded(pill, 11 * s)) {
+            using var fill = new SolidBrush(hc ? SystemColors.Window : Color.FromArgb(38, color)); g.FillPath(fill, path);
+            if (hc) { using var edge = new Pen(text); g.DrawPath(edge, path); }
+        }
+        TextRenderer.DrawText(g, HankiTheme.SeverityLabel(r.Severity, r.Outcome), pillFont, Rectangle.Round(pill), hc ? text : color,
+            TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
+        string category = r.Category.ToString();
+        int categoryWidth = TextRenderer.MeasureText(category, metaFont).Width;
+        int titleLeft = (int)(pill.Right + 14 * s), right = e.Bounds.Right - (int)(14 * s);
+        TextRenderer.DrawText(g, category, metaFont, new Rectangle(right - categoryWidth, e.Bounds.Y, categoryWidth, e.Bounds.Height), muted,
+            TextFormatFlags.Right | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
+        TextRenderer.DrawText(g, DisplayTitle(r), findings.Font, new Rectangle(titleLeft, e.Bounds.Y, right - categoryWidth - titleLeft - (int)(12 * s), e.Bounds.Height), text,
+            TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis | TextFormatFlags.NoPrefix);
+        if (!hc && e.Index < findings.Items.Count - 1) { using var line = new Pen(HankiTheme.Border); g.DrawLine(line, e.Bounds.X + 14 * s, e.Bounds.Bottom - 1, e.Bounds.Right - 14 * s, e.Bounds.Bottom - 1); }
+        if ((e.State & DrawItemState.Focus) != 0 && findings.Focused && ShowFocusCues) {
+            using var ring = new Pen(hc ? text : HankiTheme.Accent, 2 * s); g.DrawRectangle(ring, e.Bounds.X + s, e.Bounds.Y + s, e.Bounds.Width - 2 * s, e.Bounds.Height - 2 * s);
+        }
+    }
+    // Several findings share a module title (for example two services); the finding id tells them apart.
+    private string DisplayTitle(DiagnosticResult r) =>
+        latest is not null && latest.Results.Count(x => x.Title == r.Title) > 1 && r.FindingId != "collection"
+            ? r.Title + " · " + r.FindingId.Replace("service-", "", StringComparison.Ordinal) : r.Title;
+    private void ShowFindings()
+    {
+        findings.BeginUpdate(); findings.Items.Clear();
+        if (latest is not null) foreach (var r in FindingAnalysis.Rank(FindingAnalysis.Normalize(latest.Results)).SelectMany(g => g.Group.Sources)) findings.Items.Add(r);
+        findings.EndUpdate();
+        bool any = findings.Items.Count > 0;
+        results.Visible = resultsGap.Visible = any;
+        FitResults(); counts.Invalidate();
+    }
+    // Findings get at most half the page so the selected result's explanation stays readable.
+    private void FitResults()
+    {
+        if (!results.Visible) return;
+        int wanted = counts.Height + findings.ItemHeight * findings.Items.Count + results.Padding.Vertical + 4;
+        results.Height = Math.Max(counts.Height + findings.ItemHeight * 2, Math.Min(wanted, ClientSize.Height / 2));
+    }
+    protected override void OnSizeChanged(EventArgs e) { base.OnSizeChanged(e); FitResults(); }
     private async void StartScan()
     {
         bool contact = external.Checked;
         if (contact && !Review("Include gateway ICMP, example.com DNS lookup and TCP connection to example.com:443? Installed KMS clients may also query your organization DNS and contact the Windows-configured KMS host. These endpoints and your DNS resolver can see your source IP. No report is uploaded. You can run without these checks by clearing Include network probes.")) return;
-        latest = null; findings.Items.Clear();
+        latest = null; ShowFindings();
         var context = Context(contact);
         var progress = new Progress<ScanProgressUpdate>(p => { if (IsBusy) Output.Text = $"{p.CompletedModules}/{p.TotalModules} checks finished\r\n{p.Activity}\r\n\r\nUnavailable checks remain unknown. Cancel preserves results from completed checks."; });
         await Run(async token => {
@@ -36,7 +109,7 @@ public sealed class FullScanPanel : ToolPage
             try { history.Add(latest); } catch { summary += "\r\nHistory could not be saved. Current results remain available; existing history was preserved."; }
             return summary;
         });
-        if (latest is not null) foreach (var r in FindingAnalysis.Rank(FindingAnalysis.Normalize(latest.Results)).SelectMany(g => g.Group.Sources)) findings.Items.Add(new ListViewItem([r.Title, r.Severity.ToString(), r.Outcome.ToString()]) { Tag = r });
+        ShowFindings();
     }
     private async void ReviewRepairs()
     {

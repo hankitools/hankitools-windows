@@ -24,6 +24,14 @@ internal sealed class ToolIcon : Control
             case "Assistant": graphics.DrawRectangle(p,4,5,24,18); graphics.DrawLines(p,new Point[] {new(9,23),new(9,29),new(15,23)}); break;
             case "Recovery": graphics.DrawArc(p,6,5,22,22,210,280); graphics.DrawLines(p,new Point[] {new(3,5),new(3,13),new(11,13)}); break;
             case "Home": graphics.DrawLines(p,new Point[] {new(3,15),new(16,4),new(29,15)}); graphics.DrawLines(p,new Point[] {new(7,13),new(7,28),new(25,28),new(25,13)}); break;
+            case "Full": // scan frame with check
+                graphics.DrawLines(p,new Point[] {new(3,10),new(3,3),new(10,3)}); graphics.DrawLines(p,new Point[] {new(22,3),new(29,3),new(29,10)});
+                graphics.DrawLines(p,new Point[] {new(29,22),new(29,29),new(22,29)}); graphics.DrawLines(p,new Point[] {new(10,29),new(3,29),new(3,22)});
+                graphics.DrawLines(p,new Point[] {new(10,16),new(14,20),new(22,12)}); break;
+            case "Diagnose": case "Search": graphics.DrawEllipse(p,4,4,18,18); graphics.DrawLine(p,19,19,28,28); break;
+            case "Diagnostic": graphics.DrawEllipse(p,4,4,24,24); graphics.DrawLines(p,new Point[] {new(16,9),new(16,16),new(21,19)}); break;
+            case "Scan": graphics.DrawLine(p,5,8,27,8); graphics.DrawLine(p,5,16,27,16); graphics.DrawLine(p,5,24,19,24); break;
+            case "Help": graphics.DrawEllipse(p,3,3,26,26); graphics.DrawArc(p,11,8,10,9,180,240); graphics.DrawLine(p,16,17,16,19); graphics.DrawEllipse(p,15.2f,22.5f,1.6f,1.6f); break;
             default: graphics.DrawRectangle(p,3,4,26,18); graphics.DrawLine(p,16,22,16,28); graphics.DrawLine(p,10,28,22,28); break;
         }
         graphics.Restore(state);

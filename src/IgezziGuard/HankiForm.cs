@@ -8,8 +8,8 @@ public sealed class HankiForm : Form
     private readonly HankiButton file = new() { Text = "Scan file", AutoSize = true, Primary = true };
     private readonly HankiButton folder = new() { Text = "Scan folder", AutoSize = true };
     private readonly HankiButton connect = new() { Text = "Run network checks", AutoSize = true, Primary = true };
-    private readonly HankiButton cancel = new() { Text = "Cancel", Dock = DockStyle.Bottom, Enabled = false };
-    private readonly Label status = new() { Text = "Ready — no checks run", Dock = DockStyle.Bottom, Height = 32 };
+    private readonly HankiButton cancel = new() { Text = "Cancel", Dock = DockStyle.Bottom, Enabled = false, Visible = false };
+    private readonly Label status = new() { Text = "Ready — no checks run", Dock = DockStyle.Bottom, Height = 32, Tag = "intro" };
     private CancellationTokenSource? running;
     private readonly DiagnosticHistoryPanel diagnosticHistory = new();
     private readonly ActivationPanel activation = new();
@@ -42,12 +42,12 @@ public sealed class HankiForm : Form
         Text = "Hanki Tools • " + AppInfo.Version;
         Size = new Size(1320, 880);
         MinimumSize = new Size(1120, 740);
-        Font = new Font("Segoe UI", 11);
-        BackColor = Color.FromArgb(18, 27, 40);
-        ForeColor = Color.WhiteSmoke;
+        Font = new Font("Segoe UI", 10.5f);
+        BackColor = HankiTheme.Canvas;
+        ForeColor = HankiTheme.Text;
         StartPosition = FormStartPosition.CenterScreen;
         void Navigate(string name) { var page = tabs.TabPages.Cast<TabPage>().FirstOrDefault(p => p.Text == name); if (page is not null) tabs.SelectedTab = page; }
-        Page("Home").Controls.Add(new Dashboard(Navigate));
+        Page("Home").Controls.Add(new Dashboard(Navigate, () => { Navigate("Full system scan"); fullScan.Start(); }));
         Page("Full system scan").Controls.Add(fullScan);
         Page("Diagnostic history").Controls.Add(diagnosticHistory);
         var shield = Page("Shield · experimental");
@@ -114,37 +114,39 @@ public sealed class HankiForm : Form
         prepareNetwork.Click += (_, _) => { if (running is null) Prepare(network.Text); };
         netBar.Controls.Add(prepareNetwork);
         maintain.BusyChanged += busy => { file.Enabled = folder.Enabled = connect.Enabled = !busy; };
-        var sidebar = new FlowLayoutPanel { Tag = "pine", Dock = DockStyle.Left, Width = 226, FlowDirection = FlowDirection.TopDown,
-            AutoScroll = true, WrapContents = false, Padding = new Padding(12, 8, 12, 12) };
-        sidebar.Controls.Add(new BrandHeader());
+        var sidebar = new FlowLayoutPanel { Tag = "pine", Dock = DockStyle.Left, Width = 240, FlowDirection = FlowDirection.TopDown,
+            AutoScroll = true, WrapContents = false, Padding = new Padding(12, 6, 12, 12) };
+        sidebar.Paint += (_, e) => {
+            if (SystemInformation.HighContrast) return;
+            using var edge = new Pen(HankiTheme.Border); e.Graphics.DrawLine(edge, sidebar.Width - 1, 0, sidebar.Width - 1, sidebar.Height);
+        };
+        sidebar.Controls.Add(new BrandHeader { Margin = new Padding(0, 0, 0, 10) });
         var navigation = new List<(HankiButton Button, TabPage Page)>();
-        foreach (var name in new[] { "Home", "Full system scan", "Diagnose", "Performance", "Maintain", "Connect", "Shield · experimental", "Assistant", "Recovery", "Diagnostic history", "Scan history", "Help & community" }) {
-            if (name is "Diagnose" or "Assistant") sidebar.Controls.Add(new Label {
-                Text = name == "Diagnose" ? "YOUR PC" : "SUPPORT & HISTORY", AutoSize = true,
-                Font = new Font("Segoe UI", 9), Margin = new Padding(12, 16, 0, 6) });
-            bool support = name is "Assistant" or "Recovery" or "Scan history" or "Diagnostic history" or "Help & community";
+        Label Group(string text) => new() { Text = text, AutoSize = true, Tag = "intro", Font = new Font("Segoe UI", 8.25f, FontStyle.Bold), Margin = new Padding(14, 18, 0, 6) };
+        foreach (var name in new[] { "Home", "Full system scan", "Diagnose", "Performance", "Maintain", "Connect", "Shield · experimental", "Assistant", "Diagnostic history", "Scan history", "Recovery", "Help & community" }) {
+            if (name == "Diagnose") sidebar.Controls.Add(Group("TOOLS"));
+            if (name == "Diagnostic history") sidebar.Controls.Add(Group("RECORDS & SUPPORT"));
             var page = tabs.TabPages.Cast<TabPage>().Single(p => p.Text == name);
             var button = new HankiButton { Text = name == "Shield · experimental" ? "Shield" : name,
-                Width = 192, Height = support ? 32 : 38, Margin = new Padding(2, 1, 2, 1), AccessibleName = "Open " + name,
-                IconKind = name, Appearance = support ? HankiButtonStyle.Quiet : HankiButtonStyle.Navigation,
-                Font = new Font("Segoe UI", support ? 10 : 11) };
+                Width = 214, Height = 38, Margin = new Padding(0, 1, 0, 1), AccessibleName = "Open " + name,
+                IconKind = name, Appearance = HankiButtonStyle.Navigation, Font = new Font("Segoe UI", 10.25f) };
             button.Click += (_, _) => tabs.SelectedTab = page;
             navigation.Add((button, page)); sidebar.Controls.Add(button);
         }
         var quick = new FlowLayoutPanel { AutoSize = true, FlowDirection = FlowDirection.TopDown, WrapContents = false, Visible = false, Margin = Padding.Empty };
-        var quickToggle = new HankiButton { Text = "›  Quick access", Width = 192, Height = 32, Appearance = HankiButtonStyle.Quiet,
-            Margin = new Padding(2, 18, 2, 2), AccessibleName = "Expand quick access", Font = new Font("Segoe UI", 10) };
+        var quickToggle = new HankiButton { Text = "›  Quick access", Width = 214, Height = 34, Appearance = HankiButtonStyle.Navigation,
+            Margin = new Padding(0, 18, 0, 2), AccessibleName = "Expand quick access", Font = new Font("Segoe UI", 9.75f) };
         quickToggle.Click += (_, _) => {
             quick.Visible = !quick.Visible; quickToggle.Text = quick.Visible ? "⌄  Quick access" : "›  Quick access";
             quickToggle.AccessibleName = quick.Visible ? "Collapse quick access" : "Expand quick access";
         };
         sidebar.Controls.Add(quickToggle); sidebar.Controls.Add(quick);
         foreach (var item in new[] { ("PowerShell (Admin)", "powershell"), ("CMD (Admin)", "cmd"), ("File Explorer", "explorer"), ("Task Manager", "task-manager"), ("Windows Settings", "settings"), ("Event Viewer", "event-viewer") }) {
-            var shortcut = new HankiButton { Text = item.Item1, Width = 188, Height = 30, Appearance = HankiButtonStyle.Quiet, Font = new Font("Segoe UI", 9) };
+            var shortcut = new HankiButton { Text = item.Item1, Width = 204, Height = 30, Appearance = HankiButtonStyle.Navigation, Font = new Font("Segoe UI", 9.25f), Margin = new Padding(10, 0, 0, 0) };
             shortcut.Click += (_, _) => DesktopShortcuts.Open(this, item.Item2); quick.Controls.Add(shortcut);
         }
-        sidebar.Controls.Add(new Label { Text = "hanki.tools   /   " + AppInfo.Version + "\nAdmin shortcuts use Windows UAC.", AutoSize = true, Font = new Font("Segoe UI", 9), Margin = new Padding(6, 20, 3, 3) });
-        var about = new HankiButton { Text = "About & privacy", Appearance = HankiButtonStyle.Quiet, Width = 192, Height = 32, Font = new Font("Segoe UI", 10) };
+        quick.Controls.Add(new Label { Text = "Admin shortcuts use Windows UAC.", AutoSize = true, Tag = "intro", Font = new Font("Segoe UI", 8.25f), Margin = new Padding(20, 4, 0, 4) });
+        var about = new HankiButton { Text = "About & privacy", Appearance = HankiButtonStyle.Navigation, Width = 214, Height = 34, Font = new Font("Segoe UI", 9.75f), Margin = new Padding(0, 1, 0, 1) };
         about.Click += (_, _) => {
             using var dialog = new Form { Text = "About Hanki Tools", Size = new Size(720, 520), MinimumSize = new Size(500, 350), StartPosition = FormStartPosition.CenterParent, Font = Font, Padding = new Padding(20) };
             var body = Report();
@@ -158,7 +160,8 @@ public sealed class HankiForm : Form
             dialog.Controls.Add(body); dialog.Controls.Add(close); dialog.CancelButton = close; HankiTheme.Apply(dialog); dialog.ShowDialog(this);
         };
         sidebar.Controls.Add(about);
-        var title = new Label { Text = "Overview", Dock = DockStyle.Top, Height = 58, Font = new Font("Segoe UI", 21, FontStyle.Bold), Padding = new Padding(22, 12, 0, 0) };
+        sidebar.Controls.Add(new Label { Text = "v" + AppInfo.Version + "  ·  hanki.tools", AutoSize = true, Tag = "intro", Font = new Font("Segoe UI", 8.25f), Margin = new Padding(14, 8, 0, 4) });
+        var title = new Label { Text = "Overview", Dock = DockStyle.Top, Height = 58, Font = new Font("Segoe UI Semibold", 19f), Padding = new Padding(22, 16, 0, 0), AutoEllipsis = true };
         var routes = new List<ToolLauncher.Route>();
         void AddRoutes(TabControl group, string prefix = "") {
             foreach (TabPage page in group.TabPages) {
@@ -177,29 +180,37 @@ public sealed class HankiForm : Form
             routes.Add(new ToolLauncher.Route(item.Item1, () => DesktopShortcuts.Open(this, item.Item2)));
         }
         void FindTool() { using var launcher = new ToolLauncher(routes); launcher.ShowDialog(this); }
-        var search = new HankiButton { Text = "Find a tool   Ctrl+K", Dock = DockStyle.Right, Width = 205, AccessibleName = "Find a tool, Control K" };
+        var search = new HankiButton { Text = "Find a tool…", Hint = "Ctrl+K", IconKind = "Search", Appearance = HankiButtonStyle.Field,
+            Size = new Size(260, 38), Margin = Padding.Empty, AccessibleName = "Find a tool, Control K", Font = new Font("Segoe UI", 9.75f) };
         search.Click += (_, _) => FindTool();
         KeyPreview = true;
         KeyDown += (_, e) => { if (e.KeyCode == Keys.F1) { Navigate("Help & community"); e.SuppressKeyPress = true; } if (e.Control && e.KeyCode == Keys.K) { FindTool(); e.SuppressKeyPress = true; } };
-        var header = new Panel { Dock = DockStyle.Top, Height = 66, Padding = new Padding(0, 6, 14, 8) };
-        title.Dock = DockStyle.Fill; header.Controls.Add(title); header.Controls.Add(search);
-        var introduction = new Label { Dock = DockStyle.Top, AutoSize = false, Padding = new Padding(22, 0, 22, 14),
-            Font = new Font("Segoe UI", 10.5f), Tag = "intro", AccessibleName = "About this module" };
+        var header = new Panel { Dock = DockStyle.Top, Height = 70, Padding = new Padding(0, 0, 22, 0) };
+        var searchHost = new FlowLayoutPanel { Dock = DockStyle.Right, AutoSize = true, WrapContents = false, Padding = new Padding(0, 18, 0, 0), Margin = Padding.Empty };
+        searchHost.Controls.Add(search);
+        title.Dock = DockStyle.Fill; header.Controls.Add(title); header.Controls.Add(searchHost);
+        var introduction = new Label { Dock = DockStyle.Top, AutoSize = false, Padding = new Padding(24, 0, 24, 16),
+            Font = new Font("Segoe UI", 10f), Tag = "intro", AccessibleName = "About this module" };
         void FitIntroduction() {
             int desired = introduction.GetPreferredSize(new Size(Math.Max(120, introduction.Width), 0)).Height;
             if (introduction.Height != desired) introduction.Height = desired;
         }
         introduction.SizeChanged += (_, _) => FitIntroduction();
         var content = new Panel { Dock = DockStyle.Fill }; content.Controls.Add(tabs); content.Controls.Add(introduction); content.Controls.Add(header);
-        var footer = new Panel { Dock = DockStyle.Bottom, Height = 46, Padding = new Padding(12, 4, 12, 4) };
-        status.Dock = DockStyle.Fill; status.TextAlign = ContentAlignment.MiddleLeft;
-        cancel.Dock = DockStyle.Right; cancel.Width = 110; cancel.Text = "Cancel task";
+        var footer = new Panel { Dock = DockStyle.Bottom, Height = 40, Padding = new Padding(16, 5, 12, 5) };
+        footer.Paint += (_, e) => { if (!SystemInformation.HighContrast) { using var edge = new Pen(HankiTheme.Border); e.Graphics.DrawLine(edge, 0, 0, footer.Width, 0); } };
+        status.Dock = DockStyle.Fill; status.TextAlign = ContentAlignment.MiddleLeft; status.Font = new Font("Segoe UI", 9.25f);
+        cancel.Dock = DockStyle.Right; cancel.Width = 110; cancel.Text = "Cancel task"; cancel.Font = new Font("Segoe UI", 9.25f);
         footer.Controls.Add(status); footer.Controls.Add(cancel);
         void RefreshNavigation() {
-            foreach (var item in navigation) item.Button.Selected = tabs.SelectedTab == item.Page;
-            title.Text = tabs.SelectedTab?.Text == "Home" ? "Welcome to Hanki Tools" : tabs.SelectedTab?.Text;
-            introduction.Text = tabs.SelectedTab?.Text switch {
+            // Before the handle exists SelectedTab can be null although Home is shown.
+            var current = tabs.SelectedTab ?? (tabs.TabCount > 0 ? tabs.TabPages[0] : null);
+            foreach (var item in navigation) item.Button.Selected = current == item.Page;
+            title.Text = current?.Text switch { "Home" => "Welcome to Hanki Tools", "Shield · experimental" => "Shield", var text => text };
+            introduction.Text = current?.Text switch {
                 "Home" => "Your Windows toolbox. Inspect, maintain and troubleshoot your PC from one place.",
+                "Full system scan" => "One read-only pass across Windows, storage, devices, security and performance. Select a result to see what it means and what to do next.",
+                "Diagnostic history" => "Open or compare saved Full System Scan results and manage optional scheduled checks. History stays on this PC.",
                 "Diagnose" => "Explore crash events, inspect dumps and follow guided checks to narrow down possible causes and choose your next troubleshooting step.",
                 "Performance" => "Measure memory and system activity, compare monitoring sessions and review power settings to understand slowdowns before making changes.",
                 "Maintain" => "Find large or duplicate files, review installed apps and manage startup entries to reclaim storage and reduce unnecessary startup activity.",
@@ -214,6 +225,7 @@ public sealed class HankiForm : Form
             FitIntroduction();
         }
         tabs.SelectedIndexChanged += (_, _) => RefreshNavigation(); RefreshNavigation();
+        Shown += (_, _) => RefreshNavigation();
         Controls.Add(content); Controls.Add(sidebar); Controls.Add(footer);
         var iconStream = typeof(HankiForm).Assembly.GetManifestResourceStream("IgezziGuard.Brand.hanki.ico");
         if (iconStream is not null) { using (iconStream) { using var branded = new Icon(iconStream); Icon = (Icon)branded.Clone(); } }
@@ -229,12 +241,12 @@ public sealed class HankiForm : Form
             (networkDeep.IsBusy || networkTools.IsBusy, "Connect"), (ai.IsBusy, "AI request"), (usage.IsBusy, "App observation"),
             (duplicates.IsBusy || startupFolders.IsBusy || tuning.IsBusy || guidance.IsBusy || recovery.IsBusy || diagnosticHistory.IsBusy, "Maintenance / recovery")
         }.Where(t => t.Item1).Select(t => t.Item2).ToArray();
-        var taskStatus = new Label { Dock = DockStyle.Right, Width = 310, TextAlign = ContentAlignment.MiddleLeft, AutoEllipsis = true };
+        var taskStatus = new Label { Dock = DockStyle.Right, Width = 360, TextAlign = ContentAlignment.MiddleRight, AutoEllipsis = true, Font = new Font("Segoe UI", 9.25f), Padding = new Padding(0, 0, 10, 0) };
         footer.Controls.Add(taskStatus); footer.Controls.SetChildIndex(taskStatus, 1);
-        cancel.Text = "Cancel tasks"; cancel.Width = 130;
+        cancel.Text = "Cancel tasks"; cancel.Width = 120;
         var taskTimer = new System.Windows.Forms.Timer { Interval = 500 };
         taskTimer.Tick += (_, _) => {
-            var active = ActiveTasks(); cancel.Enabled = active.Length > 0;
+            var active = ActiveTasks(); cancel.Enabled = cancel.Visible = active.Length > 0;
             taskStatus.Text = active.Length == 0 ? "" : "Running: " + string.Join(", ", active);
         };
         HankiTheme.Apply(taskStatus);
@@ -275,7 +287,7 @@ public sealed class HankiForm : Form
         catch (Exception ex) { status.Text = "Check failed — results incomplete."; MessageBox.Show(this, ex.Message, "Hanki Tools"); }
         finally { running = null; file.Enabled = folder.Enabled = connect.Enabled = maintain.Enabled = true; cancel.Enabled = false; }
     }
-    private TabPage Page(string title) { var page = new TabPage(title) { BackColor = BackColor, Padding = new Padding(14) }; tabs.TabPages.Add(page); return page; }
+    private TabPage Page(string title) { var page = new TabPage(title) { BackColor = BackColor, Padding = new Padding(24, 2, 24, 18) }; tabs.TabPages.Add(page); return page; }
     private static void AttachDetail(TabPage parent, string originalTitle, string addedTitle, Control detail)
     {
         var original = new TabPage(originalTitle) { BackColor = parent.BackColor };
@@ -286,6 +298,11 @@ public sealed class HankiForm : Form
         var added = new TabPage(addedTitle) { BackColor = parent.BackColor }; added.Controls.Add(detail);
         var pages = new HankiTabs { Dock = DockStyle.Fill }; pages.TabPages.AddRange([original, added]); parent.Controls.Add(pages);
     }
-    private static TextBox Report() => new() { Dock = DockStyle.Fill, Multiline = true, ReadOnly = true, ScrollBars = ScrollBars.Vertical,
-        BackColor = Color.FromArgb(24, 36, 52), ForeColor = Color.FromArgb(227, 238, 248), BorderStyle = BorderStyle.None };
+    private static TextBox Report()
+    {
+        var report = new TextBox { Dock = DockStyle.Fill, Multiline = true, ReadOnly = true, ScrollBars = ScrollBars.Vertical,
+            BackColor = HankiTheme.Surface, ForeColor = HankiTheme.Text, BorderStyle = BorderStyle.None };
+        NativeTheme.PadText(report); report.Select(0, 0);
+        return report;
+    }
 }
