@@ -8,27 +8,44 @@ namespace IgezziGuard;
 internal sealed class WindowsSessionSecretStore : ISessionSecretStore
 {
     private const string Target = "HankiTools/Identity/v1";
-    public SessionCredential? Read()
+    public SessionCredential? Read() => WindowsCredentials.Read(Target) is { } value ? new(value) : null;
+    public void Write(SessionCredential credential) => WindowsCredentials.Write(Target, "Hanki session", credential.Value);
+    public void Clear() => WindowsCredentials.Delete(Target);
+}
+
+/// <summary>The Hanki Pro / Technician licence, in Windows Credential Manager for the current Windows user.</summary>
+internal sealed class WindowsLicenseStore : ILicenseStore
+{
+    private const string Target = "HankiTools/License/v1";
+    public StoredLicense? Read() => WindowsCredentials.Read(Target) is { } json ? System.Text.Json.JsonSerializer.Deserialize<StoredLicense>(json) : null;
+    public void Write(StoredLicense license) => WindowsCredentials.Write(Target, "Hanki licence", System.Text.Json.JsonSerializer.Serialize(license));
+    public void Clear() => WindowsCredentials.Delete(Target);
+}
+
+internal static class WindowsCredentials
+{
+    private const int NotFound = 1168;
+    internal static string? Read(string target)
     {
-        if (!CredRead(Target, 1, 0, out var pointer)) {
-            int error = Marshal.GetLastWin32Error(); if (error == 1168) return null;
-            throw new Win32Exception(error, "Could not read the Windows session credential.");
+        if (!CredRead(target, 1, 0, out var pointer)) {
+            int error = Marshal.GetLastWin32Error(); if (error == NotFound) return null;
+            throw new Win32Exception(error, "Could not read the Windows credential.");
         }
         byte[]? bytes = null;
-        try { var value = Marshal.PtrToStructure<Credential>(pointer); if (value.BlobSize > 2560) throw new IOException("Session credential too large.");
-            bytes = new byte[checked((int)value.BlobSize)]; Marshal.Copy(value.Blob, bytes, 0, bytes.Length); return new(Encoding.UTF8.GetString(bytes));
+        try { var value = Marshal.PtrToStructure<Credential>(pointer); if (value.BlobSize > 2560) throw new IOException("Credential too large.");
+            bytes = new byte[checked((int)value.BlobSize)]; Marshal.Copy(value.Blob, bytes, 0, bytes.Length); return Encoding.UTF8.GetString(bytes);
         } finally { if (bytes is not null) CryptographicOperations.ZeroMemory(bytes); CredFree(pointer); }
     }
-    public void Write(SessionCredential credential)
+    internal static void Write(string target, string userName, string text)
     {
-        var bytes = Encoding.UTF8.GetBytes(credential.Value);
+        var bytes = Encoding.UTF8.GetBytes(text);
         if (bytes.Length > 2560) { CryptographicOperations.ZeroMemory(bytes); throw new ArgumentException("Credential exceeds secure-storage limit."); }
         var pinned = GCHandle.Alloc(bytes, GCHandleType.Pinned);
-        try { var value = new Credential { Type = 1, TargetName = Target, BlobSize = (uint)bytes.Length, Blob = pinned.AddrOfPinnedObject(), Persist = 2, UserName = "Hanki session" };
-            if (!CredWrite(ref value, 0)) throw new Win32Exception(Marshal.GetLastWin32Error(), "Could not save the Windows session credential.");
+        try { var value = new Credential { Type = 1, TargetName = target, BlobSize = (uint)bytes.Length, Blob = pinned.AddrOfPinnedObject(), Persist = 2, UserName = userName };
+            if (!CredWrite(ref value, 0)) throw new Win32Exception(Marshal.GetLastWin32Error(), "Could not save the Windows credential.");
         } finally { CryptographicOperations.ZeroMemory(bytes); pinned.Free(); }
     }
-    public void Clear() { if (!CredDelete(Target, 1, 0) && Marshal.GetLastWin32Error() != 1168) throw new Win32Exception(Marshal.GetLastWin32Error(), "Could not remove the Windows session credential."); }
+    internal static void Delete(string target) { if (!CredDelete(target, 1, 0) && Marshal.GetLastWin32Error() != NotFound) throw new Win32Exception(Marshal.GetLastWin32Error(), "Could not remove the Windows credential."); }
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
     private struct Credential {
         public uint Flags, Type; public string? TargetName, Comment; public System.Runtime.InteropServices.ComTypes.FILETIME LastWritten;

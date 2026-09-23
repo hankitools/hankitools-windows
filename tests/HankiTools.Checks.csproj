@@ -13,6 +13,7 @@
     <Compile Include="../src/IgezziGuard/Technician/TechnicianReport.cs" Link="Technician/TechnicianReport.cs" />
     <Compile Include="../src/IgezziGuard/Repairs/RepairGuidance.cs" Link="Repairs/RepairGuidance.cs" />
     <Compile Include="../src/IgezziGuard/Entitlements/Entitlements.cs" Link="Entitlements/Entitlements.cs" />
+    <Compile Include="../src/IgezziGuard/Entitlements/PolarLicensing.cs" Link="Entitlements/PolarLicensing.cs" />
     <Compile Include="../src/IgezziGuard/Identity/IdentitySession.cs" Link="Identity/IdentitySession.cs" />
     <Compile Include="../src/IgezziGuard/Repairs/RepairWorkflow.cs" Link="Repairs/RepairWorkflow.cs" />
     <Compile Include="../src/IgezziGuard/History/DiagnosticHistory.cs" Link="History/DiagnosticHistory.cs" />

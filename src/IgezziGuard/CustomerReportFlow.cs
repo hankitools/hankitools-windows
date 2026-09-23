@@ -11,7 +11,7 @@ internal static class CustomerReportFlow
     internal sealed record BusinessDefaults(string Name, string Contact);
     private static string Folder => Path.Combine(SecurityPaths.Root, "technician");
     private static string DefaultsPath => Path.Combine(Folder, "business.json");
-    internal const string NotAvailable = "Customer reports are part of Hanki Technician. Your scan results, saved history and the Review / share report text remain available in every edition.";
+    internal const string NotAvailable = "Customer reports are part of Hanki Technician. See the Hanki Pro page in the sidebar. Your scan results, saved history and the Review / share report text stay free.";
 
     /// <returns>A status line for the page, or null when the technician cancelled.</returns>
     internal static string? Create(IWin32Window owner, DiagnosticScan scan, RepairReport? repairs)

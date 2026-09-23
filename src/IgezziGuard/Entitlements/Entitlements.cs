@@ -21,7 +21,7 @@ public static class EntitlementComposition
         if (Enum.TryParse<HankiEdition>(Environment.GetEnvironmentVariable("HANKI_DEVELOPMENT_EDITION"), true, out var edition) && Enum.IsDefined(edition))
             return new EditionEntitlements(edition);
 #endif
-        return new EditionEntitlements(HankiEdition.Community);
+        return (IEntitlements?)AppLicensing.Session ?? new EditionEntitlements(HankiEdition.Community);
     }
 }
 public enum LicenseState { Active, OfflineGrace, Expired, Revoked, Unavailable }
@@ -43,10 +43,15 @@ public sealed class LicenseEntitlements(ValidatedLicense? license, Func<DateTime
         return new EditionEntitlements(valid ? license!.Edition : HankiEdition.Community).Allows(capability);
     }
 }
-/// <summary>No provider wired by default. Mutable JSON is never treated as a paid entitlement.</summary>
+/// <summary>
+/// The app wires the Polar provider (AppLicensing). The licence is kept in Windows Credential Manager, never in an editable
+/// file; Hanki is MIT-licensed, so the check serves honest buyers and is not copy protection.
+/// </summary>
 public sealed class LicensingSession(ILicenseProvider provider) : IEntitlements
 {
     private ValidatedLicense? license;
+    /// <summary>Uses an already stored licence without asking the provider (startup, or right after activation).</summary>
+    public void Use(ValidatedLicense? stored) => license = stored;
     public bool Allows(HankiCapability capability) => new LicenseEntitlements(license, () => DateTimeOffset.UtcNow).Allows(capability);
     public async Task RefreshAsync(CancellationToken token)
     {

@@ -25,7 +25,7 @@ public sealed class DiagnosticHistoryPanel : ToolPage
         more.Controls.Add(frequency);
         More("Schedule check", async ()=>{
             var entitlements=EntitlementComposition.Current();
-            if(!entitlements.Allows(HankiCapability.ScheduledChecks)){Output.Text="Scheduled checks are an optional Pro convenience. Manual Full System Scan and saved history remain available. Production licensing is not connected in this candidate.";return;}
+            if(!entitlements.Allows(HankiCapability.ScheduledChecks)){Output.Text="Scheduled checks are part of Hanki Pro. See the Hanki Pro page in the sidebar. Running a Full System Scan yourself and saved history stay free.";return;}
             var selectedFrequency = frequency.SelectedIndex==1?HealthCheckFrequency.Weekly:HealthCheckFrequency.Daily;
             if(!Review($"Create a current-user Windows scheduled task for a {selectedFrequency.ToString().ToLowerInvariant()} local check at 19:00 (weekly: Sunday)? Runs only while signed in, at standard privilege, without external probes or repairs. Keep this application at its current path. Remove schedule here or in Task Scheduler."))return;
             await Run(async t=>{await ScheduledHealthChecks.InstallAsync(selectedFrequency,entitlements,t);return "Schedule registered. Manage or remove it in Windows Task Scheduler; results appear in local diagnostic history.";});

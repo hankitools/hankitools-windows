@@ -22,11 +22,13 @@ public sealed class FullScanPanel : ToolPage
         Bar.Controls.Add(external);
         Button("Review automatic repairs", ReviewRepairs);
         Button("Show scan summary", () => { if (latest is not null) Output.Text = Summary(latest); });
-        if (entitlements.Allows(HankiCapability.CustomerReports))
-            Button("Customer report", () => {
-                if (latest is null) { Output.Text = "Run a full scan first. To report on an earlier scan, open Diagnostic history."; return; }
-                if (CustomerReportFlow.Create(this, latest, repairs) is { } status) Output.Text = status;
-            });
+        // Technician only; the licence can change while Hanki is open, so visibility follows it.
+        var customerReport = Button("Customer report", () => {
+            if (latest is null) { Output.Text = "Run a full scan first. To report on an earlier scan, open Diagnostic history."; return; }
+            if (CustomerReportFlow.Create(this, latest, repairs) is { } status) Output.Text = status;
+        });
+        customerReport.Visible = entitlements.Allows(HankiCapability.CustomerReports);
+        VisibleChanged += (_, _) => { if (Visible) customerReport.Visible = entitlements.Allows(HankiCapability.CustomerReports); };
         findings.SelectedIndexChanged += (_, _) => {
             if (IsBusy || findings.SelectedItem is not DiagnosticResult r) return;
             Output.Text = FindingAnalysis.Describe(r);
@@ -124,7 +126,7 @@ public sealed class FullScanPanel : ToolPage
     {
         if (latest is null) { Output.Text = "Run a full scan first. Manual tools remain available in each module."; return; }
         if (!entitlements.Allows(HankiCapability.AutomaticRepair)) {
-            Output.Text = "Automatic repair is an additive Hanki Pro capability. Production licensing is not connected in this candidate.\r\n\r\nYour scan, findings, manual guidance and existing Community tools remain available without an account. Select a finding to review its manual next steps.";
+            Output.Text = "Automatic repair is part of Hanki Pro. See the Hanki Pro page in the sidebar.\r\n\r\nYour scan, findings and manual guidance stay free. Select a finding to see its manual next steps.";
             return;
         }
         if (RepairGuidance.Stale(latest, repairs is not null, DateTimeOffset.UtcNow) is { } stale) { Output.Text = stale; return; }

@@ -98,6 +98,7 @@ public sealed class HankiForm : Form
         }
         Page("Recovery").Controls.Add(recovery);
         Page("Help & community").Controls.Add(new SupportPanel());
+        Page("Hanki Pro").Controls.Add(new LicensePanel());
         foreach (var extra in ExtraPages) extra.PrepareRequested += Prepare;
         diagnose.PrepareRequested += Prepare; defender.PrepareRequested += Prepare;
         networkDeep.PrepareRequested += Prepare; sampling.PrepareRequested += Prepare;
@@ -112,7 +113,7 @@ public sealed class HankiForm : Form
         sidebar.Controls.Add(new BrandHeader { Margin = new Padding(0, 0, 0, 10) });
         var navigation = new List<(HankiButton Button, TabPage Page)>();
         Label Group(string text) => new() { Text = text, AutoSize = true, Tag = "intro", Font = new Font("Segoe UI", 8.25f, FontStyle.Bold), Margin = new Padding(14, 18, 0, 6) };
-        foreach (var name in new[] { "Home", "Full system scan", "Diagnose", "Performance", "Maintain", "Connect", "Shield · experimental", "Assistant", "Diagnostic history", "Scan history", "Recovery", "Help & community" }) {
+        foreach (var name in new[] { "Home", "Full system scan", "Diagnose", "Performance", "Maintain", "Connect", "Shield · experimental", "Assistant", "Diagnostic history", "Scan history", "Recovery", "Help & community", "Hanki Pro" }) {
             if (name == "Diagnose") sidebar.Controls.Add(Group("TOOLS"));
             if (name == "Diagnostic history") sidebar.Controls.Add(Group("RECORDS & SUPPORT"));
             var page = tabs.TabPages.Cast<TabPage>().Single(p => p.Text == name);
@@ -212,6 +213,7 @@ public sealed class HankiForm : Form
                 "Assistant" => "Prepare and redact diagnostic reports, then use optional AI chat to help explain the evidence and explore next steps.",
                 "Recovery" => "Review recorded changes and undo supported actions when you need to return to a previous configuration.",
                 "Help & community" => "Find guides, join the community, get remote help from someone you trust, prepare a bug report and check your version.",
+                "Hanki Pro" => "Add scheduled checks, automatic repairs and customer reports with a licence key. Every free tool stays free.",
                 "Scan history" => "Review past file-scan summaries to see what was checked, when it ran and how many findings were reported.",
                 _ => ""
             };
@@ -219,6 +221,8 @@ public sealed class HankiForm : Form
         }
         tabs.SelectedIndexChanged += (_, _) => RefreshNavigation(); RefreshNavigation();
         Shown += (_, _) => RefreshNavigation();
+        // Contacts Polar only when a Technician licence is due for its weekly check; offline, the stored licence keeps working.
+        Shown += async (_, _) => { try { await AppLicensing.RefreshAsync(CancellationToken.None); } catch (Exception ex) when (ex is IOException or HttpRequestException or InvalidOperationException) { } };
         Controls.Add(content); Controls.Add(sidebar); Controls.Add(footer);
         var iconStream = typeof(HankiForm).Assembly.GetManifestResourceStream("IgezziGuard.Brand.hanki.ico");
         if (iconStream is not null) { using (iconStream) { using var branded = new Icon(iconStream); Icon = (Icon)branded.Clone(); } }

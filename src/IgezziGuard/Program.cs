@@ -25,6 +25,9 @@ internal static class Program
         try { instance = new FileStream(Path.Combine(SecurityPaths.Root, "app-instance.lock"), FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None); }
         catch (IOException) { MessageBox.Show("Hanki is already open, or its local data folder is unavailable.", "Hanki Tools"); return; }
         using var instanceLock = instance;
+        using var licenceHttp = new HttpClient { Timeout = TimeSpan.FromSeconds(20) };
+        licenceHttp.DefaultRequestHeaders.UserAgent.TryParseAdd("HankiTools/" + AppInfo.Version);
+        AppLicensing.Start(new PolarLicenseProvider(new WindowsLicenseStore(), LicenseStoreConfig.Current(), licenceHttp, () => DateTimeOffset.UtcNow));
         Application.Run(new HankiForm());
     }
 
