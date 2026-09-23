@@ -1,4 +1,14 @@
-# Hanki Tools 0.17.0-rc.4 — roadmap candidate
+# Hanki Tools 0.17.0-rc.5 — roadmap candidate
+
+RC5 adds new read-only checks and remote help:
+
+- Diagnose → Windows Update: when the last Windows update installed (Defender's daily definition updates are ignored), failed updates with plain-language error codes, a pending restart, paused updates and a disabled update service. Driver and app update hiccups are shown separately as information.
+- Performance → Battery & startup: how much of its original capacity a laptop battery still holds, how long since Windows last fully restarted (Fast Startup means Shut down doesn't restart Windows), the last startup, and startup time where Windows records it.
+- Both checks are also part of the Full System Scan.
+- Help & community → Get help from someone you trust: opens Windows' own Quick Assist, with a scam warning first. Hanki doesn't join or record the session.
+- New guided checks: "Windows Update fails or is stuck" and "My laptop battery runs out quickly"; "My PC is slow" suggests a real restart.
+- The Full System Scan's network probe now looks up several names, so a router that blocks one name is no longer reported as a DNS failure.
+- The sidebar carries the Hanki brand line: + A little sisu for your PC.
 
 RC4 fixes issues found in native pre-release testing of RC3 (see VALIDATION-v0.17.md):
 
