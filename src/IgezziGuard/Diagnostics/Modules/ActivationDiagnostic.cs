@@ -104,6 +104,7 @@ internal sealed class ActivationDiagnostic(IDiagnosticProbe? source=null) : IDia
             string explanation;CollectionOutcome outcome;FindingSeverity severity=FindingSeverity.Unknown;
             if(!context.AllowExternalContact){explanation="KMS network checks were not approved. Connect to your organization's approved network/VPN and use the dedicated activation check if needed.";outcome=CollectionOutcome.Unavailable;}
             else {
+                string phase="KMS DNS discovery";
                 try {
                     string? host=kms.KeyManagementServiceMachine;int port=(int)(kms.KeyManagementServicePort??0);if(port==0)port=1688;
                     if(string.IsNullOrWhiteSpace(host)) {
@@ -115,11 +116,12 @@ internal sealed class ActivationDiagnostic(IDiagnosticProbe? source=null) : IDia
                         host=srv.GetProperty("NameTarget").GetString();port=srv.GetProperty("Port").GetInt32();
                     }
                     if(host is null||!ActivationRules.Host(host)||port is <1 or >65535)throw new IOException("KMS endpoint invalid.");
+                    phase="KMS TCP reachability";
                     using var timeout=CancellationTokenSource.CreateLinkedTokenSource(token);timeout.CancelAfter(TimeSpan.FromSeconds(5));using var tcp=new TcpClient();
                     await tcp.ConnectAsync(host,port,timeout.Token);
                     explanation="The Windows-configured or organization-DNS KMS endpoint accepted a TCP connection. This does not verify activation entitlement, KMS count or protocol success.";outcome=CollectionOutcome.Completed;severity=FindingSeverity.Informational;
                 }catch(OperationCanceledException)when(token.IsCancellationRequested){throw;}
-                catch{explanation="KMS discovery or reachability could not be confirmed. Review internal DNS, VPN, firewall and the organization's approved KMS service; no alternate host was used.";outcome=CollectionOutcome.Partial;}
+                catch{explanation=phase+" could not be confirmed. Review internal DNS, VPN, firewall and the organization's approved KMS service; no alternate host was used.";outcome=CollectionOutcome.Partial;}
             }
             results.Add(new(Id,"kms-network",Category,outcome,severity,"Organization KMS connectivity",explanation,start,DateTimeOffset.UtcNow,coverage:"Bounded DNS/TCP probes only; no activation request or configuration change."));
         }

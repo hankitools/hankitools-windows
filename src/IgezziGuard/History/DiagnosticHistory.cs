@@ -68,6 +68,11 @@ public sealed class RepairAudit(string path) : IRepairAudit
         if (doc.Version != 1 || doc.Entries is null || doc.Entries.Count > 1000 || doc.Entries.Any(e => e?.Attempt is null)) throw new IOException("Unsupported repair audit. File preserved.");
         return doc.Entries;
     }
+    public Task<bool> HasUnresolvedAsync(string actionId, CancellationToken token)
+    {
+        token.ThrowIfCancellationRequested();
+        return Task.FromResult(Read().Any(e => e.Attempt.ActionId == actionId && e.Attempt.State is RepairState.Pending or RepairState.Cancelled or RepairState.Failed));
+    }
     public Task RecordAsync(Guid scanId, RepairAttempt attempt, CancellationToken token)
     {
         token.ThrowIfCancellationRequested();

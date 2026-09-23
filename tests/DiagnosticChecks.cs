@@ -48,6 +48,12 @@ internal static class DiagnosticChecks
         Check(provider.Severity == FindingSeverity.Informational, "third-party registration not unprotected verdict");
         var repairable = DiagnosticMapping.Map("dism", DiagnosticCategory.Windows, new("health", "repairable", "ImageHealthState"), now, now);
         Check(repairable.Outcome == CollectionOutcome.Completed && repairable.Severity == FindingSeverity.Warning, "corruption distinct from command failure");
+        Check(DiagnosticMapping.SfcState("Windows Resource Protection did not find any integrity violations.",0)=="healthy", "SFC recognized healthy terminal message");
+        Check(DiagnosticMapping.SfcState("Windows Resource Protection found integrity violations.",0)=="warning", "SFC corruption separate from process failure");
+        Check(DiagnosticMapping.SfcState("Windows Resource Protection found corrupt files and successfully repaired them.",0)=="info", "SFC reported repair evidence not assumed healthy");
+        Check(DiagnosticMapping.SfcState("Windows Resource Protection found corrupt files but was unable to fix some of them.",0)=="warning", "SFC unrepaired evidence");
+        Check(DiagnosticMapping.SfcState("localized or incomplete message",0)=="unknown", "SFC localization-safe fallback");
+        Check(DiagnosticMapping.SfcState("Windows Resource Protection did not find any integrity violations.",5)=="failed", "SFC nonzero exit never healthy");
         var fake = new FixtureProbe();
         foreach(var module in WindowsDiagnosticCatalog.Create(fake).Where(m=>m.Id!="activation")) {
             fake.Json = "[{\"Id\":\"fixture\",\"State\":\"unknown\",\"Evidence\":\"bounded evidence\"}]";

@@ -54,4 +54,4 @@ internal sealed class FakeRepair(RepairDefinition definition) : IRepairAction
 }
 internal sealed class FixtureEnvironment(RepairEnvironment environment) : IRepairEnvironment { public Task<RepairEnvironment> ReadAsync(CancellationToken t)=>Task.FromResult(environment); }
 internal sealed class FixtureRestore(RestoreState state) : IRestoreProtection {public Task<RestoreResult> CreateAsync(CancellationToken t)=>Task.FromResult(new RestoreResult(state,"fixture protection"));}
-internal sealed class FixtureAudit(bool fail) : IRepairAudit {public Task RecordAsync(Guid id,RepairAttempt attempt,CancellationToken t){if(fail)throw new IOException("fixture write failure");return Task.CompletedTask;}}
+internal sealed class FixtureAudit(bool fail) : IRepairAudit {public Task<bool> HasUnresolvedAsync(string actionId,CancellationToken t)=>Task.FromResult(false);public Task RecordAsync(Guid id,RepairAttempt attempt,CancellationToken t){if(fail)throw new IOException("fixture write failure");return Task.CompletedTask;}}

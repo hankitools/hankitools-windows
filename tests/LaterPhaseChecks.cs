@@ -6,6 +6,10 @@ internal static class LaterPhaseChecks
     {
         void Check(bool ok,string text)=>DiagnosticChecks.Check(ok,text);
         var now=DateTimeOffset.UtcNow;
+        var xml=System.Xml.Linq.XDocument.Parse(ScheduledHealthChecks.TaskXml(Path.Combine(root,"Hanki & Tools.exe"),"fixture-user",HealthCheckFrequency.Weekly));
+        System.Xml.Linq.XNamespace ns="http://schemas.microsoft.com/windows/2004/02/mit/task";
+        Check(xml.Descendants(ns+"RunLevel").Single().Value=="LeastPrivilege"&&xml.Descendants(ns+"Arguments").Single().Value=="--scheduled-health-check","schedule uses least privilege and only read-only entry point");
+        Check(xml.Descendants(ns+"Command").Single().Value.EndsWith("Hanki & Tools.exe"),"schedule XML escapes executable path safely");
         var result=new DiagnosticResult("fixture","private-device-id",DiagnosticCategory.Windows,CollectionOutcome.Completed,FindingSeverity.Warning,"private-name","private-path",now,now,"password=secret","token=secret",metadata:new Dictionary<string,string>{{"machine","private-machine"}});
         var payload=ReviewedContext.Prepare([result]);Check(!payload.Contains("private")&&!payload.Contains("secret"),"shared payload allowlist excludes all raw strings");
         var provider=new FixtureExplanation();var service=new OptionalExplanations(provider);

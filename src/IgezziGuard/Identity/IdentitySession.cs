@@ -25,7 +25,9 @@ public sealed class IdentitySession(IIdentityProvider provider, ISessionSecretSt
     {
         if (identity.State != IdentityState.Authenticated || string.IsNullOrWhiteSpace(identity.Subject) || identity.Expires is not { } expires || expires <= DateTimeOffset.UtcNow)
         { store.Clear(); Current = new(identity.State == IdentityState.Revoked ? IdentityState.Revoked : IdentityState.Expired); return; }
-        store.Write(credential); Current = identity;
+        Current = new(IdentityState.Anonymous);
+        try { store.Write(credential); Current = identity; }
+        catch { store.Clear(); throw; }
     }
     public async Task RefreshAsync(CancellationToken token)
     {

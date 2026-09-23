@@ -3,16 +3,19 @@ public sealed class DiagnosticHistoryPanel : ToolPage
 {
     private readonly ComboBox first = new() { Width=270, DropDownStyle=ComboBoxStyle.DropDownList, AccessibleName="Earlier scan" };
     private readonly ComboBox second = new() { Width=270, DropDownStyle=ComboBoxStyle.DropDownList, AccessibleName="Later scan" };
+    private readonly ComboBox frequency = new() { Width=120, DropDownStyle=ComboBoxStyle.DropDownList, AccessibleName="Scheduled check frequency" };
     private IReadOnlyList<DiagnosticScan> scans=[];
     private readonly DiagnosticHistory history=new(Path.Combine(SecurityPaths.Root,"diagnostic-history.json"));
     private readonly RepairAudit audit=new(Path.Combine(SecurityPaths.Root,"repair-audit.json"));
     public DiagnosticHistoryPanel():base("Local scan history keeps up to 30 scans for 90 days, without raw diagnostic evidence. Repair audit is retained separately, including incomplete attempts. No cloud account or upload. Existing scanner history and undo journals remain separate.")
     {
-        Button("Schedule daily check", async ()=>{
+        frequency.Items.AddRange(["Daily", "Weekly"]); frequency.SelectedIndex=0; Bar.Controls.Add(frequency);
+        Button("Schedule check", async ()=>{
             var entitlements=EntitlementComposition.Current();
             if(!entitlements.Allows(HankiCapability.ScheduledChecks)){Output.Text="Scheduled checks are an optional Pro convenience. Manual Full System Scan and saved history remain available. Production licensing is not connected in this candidate.";return;}
-            if(!Review("Create a current-user Windows scheduled task for a daily local check at 19:00? Runs only while signed in, at standard privilege, without external probes or repairs. Keep this application at its current path. Remove schedule here or in Task Scheduler."))return;
-            await Run(async t=>{await ScheduledHealthChecks.InstallAsync(HealthCheckFrequency.Daily,entitlements,t);return "Schedule registered. Manage or remove it in Windows Task Scheduler; results appear in local diagnostic history.";});
+            var selectedFrequency = frequency.SelectedIndex==1?HealthCheckFrequency.Weekly:HealthCheckFrequency.Daily;
+            if(!Review($"Create a current-user Windows scheduled task for a {selectedFrequency.ToString().ToLowerInvariant()} local check at 19:00 (weekly: Sunday)? Runs only while signed in, at standard privilege, without external probes or repairs. Keep this application at its current path. Remove schedule here or in Task Scheduler."))return;
+            await Run(async t=>{await ScheduledHealthChecks.InstallAsync(selectedFrequency,entitlements,t);return "Schedule registered. Manage or remove it in Windows Task Scheduler; results appear in local diagnostic history.";});
         });
         Button("Remove schedule",async()=>{if(!Review("Remove the Hanki local health-check task? Existing history is kept."))return;await Run(async t=>{await ScheduledHealthChecks.RemoveAsync(t);return "Schedule removed.";});});
         Button("Refresh saved scans",RefreshHistory);Bar.Controls.Add(first);Bar.Controls.Add(second);

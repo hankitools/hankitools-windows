@@ -1,13 +1,14 @@
 namespace IgezziGuard;
 
 public enum RepairRisk { Low, Moderate, High }
+public enum RestartRequirement { None, Possible, Required }
 public enum RepairState { Skipped, Blocked, Pending, Executed, Failed, Cancelled }
 public enum VerificationState { Fixed, Improved, Unchanged, Worse, Failed, RequiresRestart, NotRun }
 public enum RestoreState { Created, Unavailable, Failed, Unsupported, NotRequested }
 public sealed record RestoreResult(RestoreState State, string Explanation, string? Reference = null);
 public sealed record RepairDefinition(string Id, string Title, string ChangeDescription, RepairRisk Risk,
     bool RequiresAdministrator, bool RequiresNetwork, bool RecommendRestorePoint, bool RequireRestorePoint,
-    string[] RequiredServices, string VerificationModuleId, string RollbackInformation);
+    string[] RequiredServices, string VerificationModuleId, string RollbackInformation, RestartRequirement Restart = RestartRequirement.Possible);
 public sealed record RepairEnvironment(bool SupportedWindows, bool Administrator, bool RestartPending,
     bool Conflict, IReadOnlySet<string> AvailableServices, bool NetworkApproved);
 public sealed record SafetyDecision(bool Allowed, IReadOnlyList<string> Reasons);
@@ -25,7 +26,7 @@ public interface IRepairAction
 }
 public interface IRepairEnvironment { Task<RepairEnvironment> ReadAsync(CancellationToken token); }
 public interface IRestoreProtection { Task<RestoreResult> CreateAsync(CancellationToken token); }
-public interface IRepairAudit { Task RecordAsync(Guid scanId, RepairAttempt attempt, CancellationToken token); }
+public interface IRepairAudit { Task<bool> HasUnresolvedAsync(string actionId, CancellationToken token); Task RecordAsync(Guid scanId, RepairAttempt attempt, CancellationToken token); }
 
 public static class RepairSafety
 {
@@ -50,6 +51,7 @@ public static class RepairVerification
         var targets = before.Where(r => r.Severity is FindingSeverity.Warning or FindingSeverity.Critical).ToArray();
         if (targets.Length == 0 || after.Any(r => r.Outcome != CollectionOutcome.Completed || r.Severity == FindingSeverity.Unknown)) return VerificationState.Failed;
         var pairs = targets.Select(b => (Before: b, After: after.SingleOrDefault(a => a.ModuleId == b.ModuleId && a.FindingId == b.FindingId))).ToArray();
+        if (after.Any(a => a.Severity is FindingSeverity.Warning or FindingSeverity.Critical && !before.Any(b => b.ModuleId == a.ModuleId && b.FindingId == a.FindingId))) return VerificationState.Worse;
         if (pairs.Any(p => p.After is null)) return VerificationState.Failed;
         if (pairs.Any(p => DiagnosticOrchestrator.Priority(p.After!.Severity) > DiagnosticOrchestrator.Priority(p.Before.Severity))) return VerificationState.Worse;
         if (pairs.All(p => p.After!.Severity == FindingSeverity.Healthy)) return VerificationState.Fixed;
@@ -87,6 +89,7 @@ public sealed class RepairWorkflow(IEnumerable<IRepairAction> actions, IEnumerab
                 if (token.IsCancellationRequested) { attempts.Add(Make(RepairState.Skipped, "Cancelled before this action started.")); continue; }
                 progress?.Report("Checking prerequisites: " + d.Title);
                 try {
+                    if (await audit.HasUnresolvedAsync(id, token)) throw new InvalidOperationException("An unresolved earlier attempt requires manual inspection.");
                     var current = await environment.ReadAsync(token);
                     var safety = RepairSafety.Evaluate(d, current with { NetworkApproved = approval.NetworkApproved });
                     if (!safety.Allowed) attempt = Make(RepairState.Blocked, string.Join(" ", safety.Reasons));

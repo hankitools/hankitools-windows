@@ -22,6 +22,7 @@ internal sealed class WindowsDiagnosticModule(string id, string name, Diagnostic
     DiagnosticRequirements requirements, string script, IDiagnosticProbe probe, int timeout = 60) : IDiagnosticModule
 {
     public string Id => id;
+    internal string Script => script;
     public string DisplayName => name;
     public DiagnosticCategory Category => category;
     public DiagnosticRequirements Requirements => requirements;
@@ -39,6 +40,7 @@ internal static class DiagnosticMapping
 {
     internal static DiagnosticResult Map(string module, DiagnosticCategory category, ProbeValue v, DateTimeOffset start, DateTimeOffset end)
     {
+        if (module == "sfc" && v.State == "sfc-output") v = v with { State = SfcState(v.Evidence, v.Value) };
         var outcome = v.State == "unavailable" ? CollectionOutcome.Unavailable : v.State == "failed" ? CollectionOutcome.Failed : CollectionOutcome.Completed;
         var severity = v.State switch {
             "healthy" => FindingSeverity.Healthy, "warning" or "repairable" => FindingSeverity.Warning,
@@ -85,6 +87,19 @@ internal static class DiagnosticMapping
         return new(module, v.Id, category, outcome, severity, Title(module, v.Id), explanation,
             start, end, v.Evidence ?? "", coverage, confidence, metadata: metadata);
     }
+    internal static string SfcState(string? text, double? exitCode)
+    {
+        if (exitCode is null) return "unknown";
+        if (exitCode != 0) return "failed";
+        var messages = new Dictionary<string,string>(StringComparer.Ordinal) {
+            ["Windows Resource Protection did not find any integrity violations."] = "healthy",
+            ["Windows Resource Protection found integrity violations."] = "warning",
+            ["Windows Resource Protection found corrupt files and successfully repaired them."] = "info",
+            ["Windows Resource Protection found corrupt files but was unable to fix some of them."] = "warning"
+        };
+        var matches = messages.Where(m => (text ?? "").Replace("\0", "").Contains(m.Key, StringComparison.Ordinal)).Select(m => m.Value).Distinct().ToArray();
+        return matches.Length == 1 ? matches[0] : "unknown";
+    }
     internal static string Title(string module, string finding) => (module, finding) switch {
         ("dism", _) => "Windows component store", ("sfc", _) => "Protected system files",
         ("storage", "capacity") => "System-drive free space", ("storage", _) => "Storage health / reliability",
@@ -121,12 +136,7 @@ internal static class WindowsDiagnosticCatalog
                 """, true, 900),
             Module("sfc", "Protected system files (verification only)", DiagnosticCategory.Windows, """
                 $text=(& "$env:SystemRoot\System32\sfc.exe" /verifyonly 2>&1 | Out-String) -replace "`0",''; $code=$LASTEXITCODE;
-                if($code -ne 0){row 'integrity' 'failed' ('SFC exited with code '+$code)}
-                elseif($text.Contains('Windows Resource Protection did not find any integrity violations.')){row 'integrity' 'healthy' $text}
-                elseif($text.Contains('Windows Resource Protection found integrity violations.')){row 'integrity' 'warning' $text}
-                elseif($text.Contains('Windows Resource Protection found corrupt files and successfully repaired them.')){row 'integrity' 'info' $text}
-                elseif($text.Contains('Windows Resource Protection found corrupt files but was unable to fix some of them.')){row 'integrity' 'warning' $text}
-                else {row 'integrity' 'unknown' $text}
+                row 'integrity' 'sfc-output' $text $code
                 """, true, 900),
             Module("update", "Windows Update", DiagnosticCategory.Windows, """
                 foreach($name in @('wuauserv','BITS')) {try {
@@ -143,7 +153,7 @@ internal static class WindowsDiagnosticCatalog
             Module("storage", "Storage capacity and health", DiagnosticCategory.Storage, """
                 try {$d=Get-CimInstance Win32_LogicalDisk -Filter "DeviceID='$env:SystemDrive'";row 'capacity' 'info' 'System-drive free/total bytes' $d.FreeSpace $d.Size}catch{row 'capacity' 'unavailable' 'Capacity unavailable'}
                 try {$disks=@(Get-PhysicalDisk); if($disks.Count -eq 0){row 'health' 'unavailable' 'No physical disks returned'}
-                    else {$bad=@($disks|Where-Object {$_.HealthStatus -ne 'Healthy'});row 'health' $(if($bad.Count -gt 0){'warning'}else{'healthy'}) (($disks|Select-Object FriendlyName,HealthStatus,OperationalStatus|ConvertTo-Json -Depth 3)-join '')}
+                    else {$bad=@($disks|Where-Object {$_.HealthStatus -in 'Warning','Unhealthy'});$unknown=@($disks|Where-Object {$_.HealthStatus -notin 'Healthy','Warning','Unhealthy'});row 'health' $(if($bad.Count -gt 0){'warning'}elseif($unknown.Count -gt 0){'unknown'}else{'healthy'}) (($disks|Select-Object FriendlyName,HealthStatus,OperationalStatus|ConvertTo-Json -Depth 3)-join '')}
                     try {$reliability=@($disks|Get-StorageReliabilityCounter);$known=@($reliability|Where-Object {$null -ne $_.ReadErrorsTotal -or $null -ne $_.WriteErrorsTotal -or $null -ne $_.Wear});
                         if($known.Count -eq 0){row 'reliability' 'unavailable' 'No supported reliability counters'}else{row 'reliability' 'info' ($known|Select-Object DeviceId,ReadErrorsTotal,WriteErrorsTotal,Wear,Temperature|ConvertTo-Json -Depth 3)}
                     }catch{row 'reliability' 'unavailable' 'Reliability counters unsupported or access denied'}
@@ -173,6 +183,7 @@ internal static class WindowsDiagnosticCatalog
                     $state=if($s.RealTimeProtectionEnabled -eq $true){'healthy'}elseif($third -or $s.AMRunningMode -ne 'Normal'){'unknown'}elseif($s.RealTimeProtectionEnabled -eq $false){'warning'}else{'unknown'};
                     row 'realtime' $state ('Defender mode: '+$s.AMRunningMode+'; realtime: '+$s.RealTimeProtectionEnabled+'. Another registered provider or policy can explain inactive Defender.')
                 }catch{row 'realtime' 'unavailable' 'Defender state unavailable'}
+                foreach($name in @('wscsvc','MpsSvc','WinDefend')){try{$svc=Get-CimInstance Win32_Service -Filter "Name='$name'";if($null -eq $svc){row ('service-'+$name) 'unknown' 'Security service not returned'}else{row ('service-'+$name) 'info' ($name+': '+$svc.State+' / '+$svc.StartMode+'. Third-party security products and policy may alter service state.')}}catch{row ('service-'+$name) 'unavailable' 'Security service unavailable'}}
                 try {$profiles=@(Get-NetFirewallProfile);if($profiles.Count -eq 0){row 'firewall' 'unknown' 'No firewall profiles returned'}else{row 'firewall' $(if(@($profiles|Where-Object Enabled -eq $false).Count -gt 0){'warning'}else{'healthy'}) ($profiles|Select-Object Name,Enabled|ConvertTo-Json)}}catch{row 'firewall' 'unavailable' 'Firewall state unavailable'}
                 """),
             Module("performance", "Memory and startup", DiagnosticCategory.Performance, """

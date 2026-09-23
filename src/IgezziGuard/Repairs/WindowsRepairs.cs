@@ -48,6 +48,10 @@ internal sealed class WindowsServicingRepair(RepairDefinition definition) : IRep
     public async Task<RepairExecutionResult> ExecuteAsync(CancellationToken token)
     {
         // Closed allowlist: no command comes from a result, saved report, user input or AI.
+        if (Definition.Id == "dns-cache-flush") {
+            await WindowsCommand.RunCaptured(Path.Combine(Environment.SystemDirectory, "ipconfig.exe"), ["/flushdns"], token, 30);
+            return new(true, false, "Windows DNS-cache refresh command completed. Fresh probes determine whether the observed lookup improved; no persistent resolver setting changed.");
+        }
         if (Definition.Id == "dism-restore") {
             var output = await WindowsCommand.PowerShellCapture("$r=Repair-WindowsImage -Online -RestoreHealth -NoRestart; [pscustomobject]@{Restart=[bool]$r.RestartNeeded}|ConvertTo-Json", token, 1800);
             using var json = JsonDocument.Parse(output.StandardOutput);
@@ -61,6 +65,7 @@ internal sealed class WindowsServicingRepair(RepairDefinition definition) : IRep
         throw new InvalidOperationException("Unsupported servicing action.");
     }
     internal static IRepairAction[] Catalog() => [
+        new WindowsServicingRepair(new("dns-cache-flush", "Refresh Windows DNS cache", "Clear cached DNS resolver entries. Windows repopulates them as needed. Verification queries example.com and performs the disclosed network probes; DNS server configuration stays unchanged.", RepairRisk.Low, true, true, false, false, [], "network-probes", "Transient cache only; no configuration rollback needed. Existing cached entries are not restored.", RestartRequirement.None)),
         new WindowsServicingRepair(new("dism-restore", "Repair Windows component store", "Run DISM RestoreHealth using configured Windows repair sources. It may download replacement components. No automatic restart.", RepairRisk.Moderate, true, true, true, false, ["TrustedInstaller"], "dism", "No per-file Hanki undo. Use Windows recovery/restore options where available; keep a backup.")),
         new WindowsServicingRepair(new("sfc-repair", "Repair protected Windows files", "Run SFC scannow to replace damaged protected system files. No automatic restart.", RepairRisk.Moderate, true, false, true, false, ["TrustedInstaller"], "sfc", "No per-file Hanki undo. Use Windows recovery/restore options where available; keep a backup."))
     ];

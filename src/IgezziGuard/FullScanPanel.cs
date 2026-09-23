@@ -51,10 +51,10 @@ public sealed class FullScanPanel : ToolPage
         using var dialog = new Form { Text = "Review proposed changes", Size = new Size(850,650), MinimumSize = new Size(650,500), StartPosition = FormStartPosition.CenterParent, Padding = new Padding(16) };
         var choices = new CheckedListBox { Dock=DockStyle.Top, Height=100, CheckOnClick=true, AccessibleName="Select repairs to approve" };
         foreach(var action in actions) choices.Items.Add(action.Definition.Title, false);
-        var description = new TextBox { Dock=DockStyle.Fill, Multiline=true, ReadOnly=true, ScrollBars=ScrollBars.Vertical, Text=string.Join("\r\n\r\n",actions.Select(a=>$"{a.Definition.Title} — {a.Definition.Risk} risk\r\n{a.Definition.ChangeDescription}\r\nUndo: {a.Definition.RollbackInformation}")) };
+        var description = new TextBox { Dock=DockStyle.Fill, Multiline=true, ReadOnly=true, ScrollBars=ScrollBars.Vertical, Text=string.Join("\r\n\r\n",actions.Select(a=>$"{a.Definition.Title} — {a.Definition.Risk} risk · Restart: {a.Definition.Restart}\r\n{a.Definition.ChangeDescription}\r\nUndo: {a.Definition.RollbackInformation}")) };
         var settings = new FlowLayoutPanel {Dock=DockStyle.Bottom,AutoSize=true,FlowDirection=FlowDirection.TopDown};
         var noRestore = new CheckBox {AutoSize=true,Text="I accept proceeding if an optional restore point cannot be created"};
-        var network = new CheckBox {AutoSize=true,Text="Allow configured Windows repair sources to use the network"};
+        var network = new CheckBox {AutoSize=true,Text="Allow disclosed verification probes and configured Windows repair sources to use the network"};
         var approve = new HankiButton {Text="Approve selected changes",AutoSize=true,DialogResult=DialogResult.OK};
         var cancel = new HankiButton {Text="Cancel",AutoSize=true,DialogResult=DialogResult.Cancel};
         settings.Controls.AddRange([noRestore,network,approve,cancel]);
@@ -64,9 +64,9 @@ public sealed class FullScanPanel : ToolPage
         var scan=latest;
         var approved=new RepairApproval(scan.Id,choices.CheckedIndices.Cast<int>().Select(i=>actions[i].Definition.Id).ToHashSet(),noRestore.Checked,network.Checked);
         var audit=new RepairAudit(Path.Combine(SecurityPaths.Root,"repair-audit.json"));
-        var workflow=new RepairWorkflow(WindowsServicingRepair.Catalog(),WindowsDiagnosticCatalog.Create(),new WindowsRepairEnvironment(),new WindowsRestoreProtection(),audit,entitlements);
+        var workflow=new RepairWorkflow(WindowsServicingRepair.Catalog(),WindowsDiagnosticCatalog.Create(includeExternal: true),new WindowsRepairEnvironment(),new WindowsRestoreProtection(),audit,entitlements);
         var progress=new Progress<string>(text=>{if(IsBusy)Output.Text=text;});
-        await Run(async token=>RepairReportText.Format(await workflow.RunAsync(scan,approved,Context(false),progress,token)));
+        await Run(async token=>RepairReportText.Format(await workflow.RunAsync(scan,approved,Context(approved.NetworkApproved),progress,token)));
         // Repair evidence is historical; a new scan is required for another proposal.
         latest=null;
     }
