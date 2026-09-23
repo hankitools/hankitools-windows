@@ -187,6 +187,7 @@ internal static class WindowsDiagnosticCatalog
             try {$dns=@(Resolve-DnsName example.com -DnsOnly -QuickTimeout);row 'dns' $(if($dns.Count -gt 0){'healthy'}else{'unknown'}) 'DNS query for example.com completed'}catch{row 'dns' 'warning' 'DNS resolution failed or timed out. Check local DNS, VPN and policy before changing anything.'}
             $tcp=New-Object System.Net.Sockets.TcpClient;try{$t=$tcp.ConnectAsync('example.com',443);if($t.Wait(5000) -and $tcp.Connected){row 'internet' 'healthy' 'example.com:443 TCP reachable; not an HTTPS or whole-internet test'}else{row 'internet' 'unknown' 'TCP probe timed out'}}catch{row 'internet' 'unknown' 'TCP probe failed; proxy, firewall or endpoint conditions may explain this'}finally{$tcp.Dispose()}
             """, external: true));
+        modules.Add(new ActivationDiagnostic(probe));
         return modules.ToArray();
     }
 }

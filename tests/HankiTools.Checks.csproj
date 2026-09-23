@@ -6,6 +6,9 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="../src/IgezziGuard/Diagnostics/Modules/ActivationDiagnostic.cs" Link="Diagnostics/Modules/ActivationDiagnostic.cs" />
+    <Compile Include="../src/IgezziGuard/Sharing/ReviewedContext.cs" Link="Sharing/ReviewedContext.cs" />
+    <Compile Include="../src/IgezziGuard/Technician/TechnicianSession.cs" Link="Technician/TechnicianSession.cs" />
     <Compile Include="../src/IgezziGuard/Entitlements/Entitlements.cs" Link="Entitlements/Entitlements.cs" />
     <Compile Include="../src/IgezziGuard/Identity/IdentitySession.cs" Link="Identity/IdentitySession.cs" />
     <Compile Include="../src/IgezziGuard/Repairs/RepairWorkflow.cs" Link="Repairs/RepairWorkflow.cs" />

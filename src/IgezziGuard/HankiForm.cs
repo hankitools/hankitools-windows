@@ -12,6 +12,7 @@ public sealed class HankiForm : Form
     private readonly Label status = new() { Text = "Ready — no checks run", Dock = DockStyle.Bottom, Height = 32 };
     private CancellationTokenSource? running;
     private readonly DiagnosticHistoryPanel diagnosticHistory = new();
+    private readonly ActivationPanel activation = new();
     private readonly FullScanPanel fullScan = new();
     private readonly MaintainPanel maintain = new();
     private readonly AppsPanel apps = new();
@@ -34,7 +35,7 @@ public sealed class HankiForm : Form
     private readonly DumpAnalysisPanel dumps = new();
     private readonly TroubleshootingPanel guidance = new();
     private readonly RecoveryPanel recovery = new();
-    private ToolPage[] ExtraPages => [diagnosticHistory, fullScan, duplicates, startupFolders, longPerformance, tuning, networkTools, defenderTools, dumps, guidance, recovery];
+    private ToolPage[] ExtraPages => [activation, diagnosticHistory, fullScan, duplicates, startupFolders, longPerformance, tuning, networkTools, defenderTools, dumps, guidance, recovery];
 
     public HankiForm()
     {
@@ -88,7 +89,7 @@ public sealed class HankiForm : Form
         AttachDetail(diagnosePage, "Crash timeline", "Recent Event Logs", diagnose);
         timeline.PrepareRequested += Prepare;
         var diagnoseTabs = diagnosePage.Controls.OfType<TabControl>().Single();
-        AddTab(diagnoseTabs, "Dump analysis", dumps); AddTab(diagnoseTabs, "Guided checks", guidance);
+        AddTab(diagnoseTabs, "Windows Activation", activation); AddTab(diagnoseTabs, "Dump analysis", dumps); AddTab(diagnoseTabs, "Guided checks", guidance);
         AttachDetail(shield, "Scanner", "Defender audit", defender);
         shield.Controls.OfType<TabControl>().Single().SelectedIndex = 1;
         AttachDetail(net, "Basic checks", "Wi-Fi / latency", networkDeep);

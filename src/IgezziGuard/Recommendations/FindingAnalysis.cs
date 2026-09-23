@@ -30,6 +30,8 @@ public static class FindingAnalysis
     public static Recommendation? Recommend(DiagnosticResult r)
     {
         if (r.Outcome is CollectionOutcome.Unavailable or CollectionOutcome.Failed or CollectionOutcome.Cancelled || r.Severity is FindingSeverity.Unknown or FindingSeverity.Healthy) return null;
+        if (r.ModuleId == "activation" && r.Recommendation is not null)
+            return new("activation:"+r.FindingId,r.Explanation,"Windows licensing status is distinct from system health; no activation bypass or automatic key change is offered.",r.Recommendation,null,"Use only your legitimate Microsoft or organization license.","activation");
         (string meaning, string action, string? repair, string prerequisite)? rule = r.ModuleId switch {
             "dism" when r.Metadata.GetValueOrDefault("state") == "repairable" => ("The component store is reported repairable; it may affect servicing but is not proven to cause your symptom.", "Back up important files and review DISM repair with an administrator.", "dism-restore", "Administrator; Windows servicing available; no pending restart; explicit network-source consent."),
             "sfc" when r.Severity == FindingSeverity.Warning => ("Protected system-file integrity needs review.", "Review Windows servicing evidence; repair the component store first if it also reports corruption.", "sfc-repair", "Administrator; Windows servicing available; no pending restart."),

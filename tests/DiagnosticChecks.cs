@@ -49,7 +49,7 @@ internal static class DiagnosticChecks
         var repairable = DiagnosticMapping.Map("dism", DiagnosticCategory.Windows, new("health", "repairable", "ImageHealthState"), now, now);
         Check(repairable.Outcome == CollectionOutcome.Completed && repairable.Severity == FindingSeverity.Warning, "corruption distinct from command failure");
         var fake = new FixtureProbe();
-        foreach(var module in WindowsDiagnosticCatalog.Create(fake)) {
+        foreach(var module in WindowsDiagnosticCatalog.Create(fake).Where(m=>m.Id!="activation")) {
             fake.Json = "[{\"Id\":\"fixture\",\"State\":\"unknown\",\"Evidence\":\"bounded evidence\"}]";
             var results = await DiagnosticExecution.RunAsync(module, new(true,true,false), null, CancellationToken.None);
             Check(results.Single().Outcome == CollectionOutcome.Completed && results.Single().Severity == FindingSeverity.Unknown, "structured Windows adapter " + module.Id);

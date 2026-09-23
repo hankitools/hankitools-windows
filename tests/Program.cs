@@ -271,6 +271,7 @@ try
     Assert(Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(File.ReadAllBytes(packageZip))) == originalZipHash, "archive refuses overwriting an existing package");
     try { Hanki.Build.ArchiveBuilder.Create(packageSource, Path.Combine(packageSource, "bad.zip")); throw new Exception("Nested archive allowed"); } catch (IOException) { Console.WriteLine("PASS archive rejects destination inside source"); }
     await RepairChecks.Run(root);
+    await LaterPhaseChecks.Run(root);
     Console.WriteLine("All non-destructive checks passed. Native Windows operations, counters, debugger and external services still require acceptance tests.");
 }
 finally
