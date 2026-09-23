@@ -9,6 +9,8 @@ public sealed class HankiForm : Form
     private readonly Label status = new() { Text = "Ready — no checks run", Dock = DockStyle.Bottom, Height = 32, Tag = "intro" };
     private readonly DiagnosticHistoryPanel diagnosticHistory = new();
     private readonly ActivationPanel activation = new();
+    private readonly UpdateHealthPanel updateHealth = new();
+    private readonly BatteryStartupPanel batteryStartup = new();
     private readonly FullScanPanel fullScan = new();
     private readonly MaintainPanel maintain = new();
     private readonly AppsPanel apps = new();
@@ -33,7 +35,7 @@ public sealed class HankiForm : Form
     private readonly RecoveryPanel recovery = new();
     /// <summary>Every navigable tool, as listed in Find a tool.</summary>
     internal IReadOnlyList<ToolLauncher.Route> Routes { get; private set; } = [];
-    private ToolPage[] ExtraPages => [activation, diagnosticHistory, fullScan, duplicates, startupFolders, longPerformance, tuning, networkTools, defenderTools, dumps, guidance, recovery, scanner];
+    private ToolPage[] ExtraPages => [activation, updateHealth, batteryStartup, diagnosticHistory, fullScan, duplicates, startupFolders, longPerformance, tuning, networkTools, defenderTools, dumps, guidance, recovery, scanner];
 
     public HankiForm()
     {
@@ -82,7 +84,7 @@ public sealed class HankiForm : Form
         AttachDetail(diagnosePage, "Guided checks", "Crash timeline", timeline);
         timeline.PrepareRequested += Prepare;
         var diagnoseTabs = diagnosePage.Controls.OfType<TabControl>().Single();
-        AddTab(diagnoseTabs, "Recent Event Logs", diagnose); AddTab(diagnoseTabs, "Windows Activation", activation); AddTab(diagnoseTabs, "Dump analysis", dumps);
+        AddTab(diagnoseTabs, "Recent Event Logs", diagnose); AddTab(diagnoseTabs, "Windows Activation", activation); AddTab(diagnoseTabs, "Windows Update", updateHealth); AddTab(diagnoseTabs, "Dump analysis", dumps);
         // Microsoft Defender is the real protection; Hanki's experimental scanner comes last.
         AttachDetail(shield, "Defender audit", "Defender controls / alerts", defenderTools);
         AddTab(shield.Controls.OfType<TabControl>().Single(), "File scanner (experimental)", scanner);
@@ -92,7 +94,7 @@ public sealed class HankiForm : Form
         if (performancePage is not null) {
             AttachDetail(performancePage, "Snapshot / pagefile", "30-second sample", sampling);
             var performanceTabs = performancePage.Controls.OfType<TabControl>().Single();
-            AddTab(performanceTabs, "Long monitoring / saved runs", longPerformance); AddTab(performanceTabs, "Power tuning", tuning);
+            AddTab(performanceTabs, "Long monitoring / saved runs", longPerformance); AddTab(performanceTabs, "Power tuning", tuning); AddTab(performanceTabs, "Battery & startup", batteryStartup);
         }
         Page("Recovery").Controls.Add(recovery);
         Page("Help & community").Controls.Add(new SupportPanel());

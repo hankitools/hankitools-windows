@@ -109,8 +109,7 @@ internal static class DiagnosticMapping
         ("events", _) => "Repeated Windows event signals", ("network", "dns") => "DNS resolution",
         ("network", "gateway") => "Gateway reachability", ("network", "internet") => "External connectivity",
         ("network", "proxy") => "Current-user proxy configuration", ("network", _) => "Local network configuration",
-        ("update", "reboot") => "Windows Update restart state", ("update", "failures") => "Recent Windows Update failures",
-        ("update", _) => "Windows Update services", _ => "Windows diagnostic"
+        _ => "Windows diagnostic"
     };
 }
 
@@ -119,11 +118,14 @@ internal static class WindowsDiagnosticCatalog
     // Each fixed read-only query emits small typed rows. Never interpolate reports or user input into scripts.
     private const string Prelude = "function row($id,$state,$evidence,$value=$null,$total=$null){[pscustomobject]@{Id=$id;State=$state;Evidence=[string]$evidence;Value=$value;Total=$total}}; $rows=@(& { ";
     private const string Suffix = " }); ConvertTo-Json -InputObject @($rows) -Depth 4 -Compress";
+    // The network-probes script lists the same names; a check keeps them in step. Several names,
+    // because routers and filters sometimes block one (a real router refused example.com).
+    internal static readonly string ProbeDisclosure = $"DNS lookups for {string.Join(", ", NetworkDiagnostics.DnsTestNames)} and a TCP connection to port 443 of the first name that resolves disclose your source IP.";
     internal static IDiagnosticModule[] Create(IDiagnosticProbe? probe = null, bool includeExternal = false)
     {
         probe ??= new WindowsDiagnosticProbe();
         IDiagnosticModule Module(string id, string name, DiagnosticCategory c, string script, bool admin = false, int timeout = 60, bool external = false) =>
-            new WindowsDiagnosticModule(id, name, c, new(admin, external, external ? "DNS lookup for example.com and TCP connection to example.com:443 disclose your source IP. Gateway ICMP contacts your local network." : ""), Prelude + script + Suffix, probe, timeout);
+            new WindowsDiagnosticModule(id, name, c, new(admin, external, external ? ProbeDisclosure + " Gateway ICMP contacts your local network." : ""), Prelude + script + Suffix, probe, timeout);
         var modules = new List<IDiagnosticModule> {
             Module("dism", "Windows component store (can take several minutes)", DiagnosticCategory.Windows, """
                 $h=Repair-WindowsImage -Online -ScanHealth -NoRestart;
@@ -138,18 +140,6 @@ internal static class WindowsDiagnosticCatalog
                 $text=(& "$env:SystemRoot\System32\sfc.exe" /verifyonly 2>&1 | Out-String) -replace "`0",''; $code=$LASTEXITCODE;
                 row 'integrity' 'sfc-output' $text $code
                 """, true, 900),
-            Module("update", "Windows Update", DiagnosticCategory.Windows, """
-                foreach($name in @('wuauserv','BITS')) {try {
-                    $s=Get-CimInstance Win32_Service -Filter "Name='$name'";
-                    if($null -eq $s){row ('service-'+$name) 'unavailable' 'Service not returned'}
-                    else { $state=if($s.StartMode -eq 'Disabled'){'warning'}else{'info'};row ('service-'+$name) $state ($name+': '+$s.State+' / '+$s.StartMode+'. A stopped trigger-start service is not by itself a fault.') }
-                }catch{row ('service-'+$name) 'unavailable' 'Service query unavailable'}}
-                try {$pending=Test-Path 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\WindowsUpdate\Auto Update\RebootRequired'; row 'reboot' $(if($pending){'info'}else{'healthy'}) ('Windows Update reboot marker: '+$pending+'. Other restart requirements are not excluded.')}catch{row 'reboot' 'unavailable' 'Restart marker unreadable'}
-                try {$session=New-Object -ComObject Microsoft.Update.Session; $searcher=$session.CreateUpdateSearcher(); $count=[Math]::Min(100,$searcher.GetTotalHistoryCount());$failed=0;
-                    if($count -gt 0){$failed=@($searcher.QueryHistory(0,$count) | Where-Object { $_.Date -gt (Get-Date).AddDays(-7) -and $_.ResultCode -in 4,5 }).Count}
-                    row 'failures' $(if($failed -ge 3){'warning'}elseif($failed -gt 0){'info'}else{'healthy'}) ('Newest 100 history entries, last 7 days. Failed/aborted operations: '+$failed) $failed
-                }catch{row 'failures' 'unavailable' 'Local update history unavailable'}
-                """),
             Module("storage", "Storage capacity and health", DiagnosticCategory.Storage, """
                 try {$d=Get-CimInstance Win32_LogicalDisk -Filter "DeviceID='$env:SystemDrive'";row 'capacity' 'info' 'System-drive free/total bytes' $d.FreeSpace $d.Size}catch{row 'capacity' 'unavailable' 'Capacity unavailable'}
                 try {$disks=@(Get-PhysicalDisk); if($disks.Count -eq 0){row 'health' 'unavailable' 'No physical disks returned'}
@@ -197,9 +187,17 @@ internal static class WindowsDiagnosticCatalog
             try {$gateways=@(Get-NetRoute -DestinationPrefix '0.0.0.0/0'|Select-Object -ExpandProperty NextHop -Unique|Select-Object -First 4);
                 if($gateways.Count -eq 0){row 'gateway' 'unknown' 'No IPv4 default gateway'}else {foreach($gateway in $gateways){$ping=New-Object System.Net.NetworkInformation.Ping;try{$r=$ping.Send($gateway,1500);row ('gateway-'+$gateway) $(if($r.Status -eq 'Success'){'healthy'}else{'unknown'}) ([string]$r.Status+'. ICMP can be blocked without a routing fault.')}finally{$ping.Dispose()}}}
             }catch{row 'gateway' 'unavailable' 'Gateway probe unavailable'}
-            try {$dns=@(Resolve-DnsName example.com -DnsOnly -QuickTimeout);row 'dns' $(if($dns.Count -gt 0){'healthy'}else{'unknown'}) 'DNS query for example.com completed'}catch{row 'dns' 'warning' 'DNS resolution failed or timed out. Check local DNS, VPN and policy before changing anything.'}
-            $tcp=New-Object System.Net.Sockets.TcpClient;try{$t=$tcp.ConnectAsync('example.com',443);if($t.Wait(5000) -and $tcp.Connected){row 'internet' 'healthy' 'example.com:443 TCP reachable; not an HTTPS or whole-internet test'}else{row 'internet' 'unknown' 'TCP probe timed out'}}catch{row 'internet' 'unknown' 'TCP probe failed; proxy, firewall or endpoint conditions may explain this'}finally{$tcp.Dispose()}
+            $names=@('www.microsoft.com','cloudflare.com','example.com');$resolved=@();$failed=@()
+            foreach($n in $names){try{if(@(Resolve-DnsName $n -DnsOnly -QuickTimeout).Count -gt 0){$resolved+=$n}else{$failed+=$n}}catch{$failed+=$n}}
+            if($resolved.Count -eq 0){row 'dns' 'warning' ('None of the test names resolved ('+($names -join ', ')+'). Check local DNS, VPN and policy before changing anything.')}
+            elseif($failed.Count -eq 0){row 'dns' 'healthy' ('DNS resolved every test name: '+($names -join ', '))}
+            else{row 'dns' 'info' ('DNS resolved '+($resolved -join ', ')+' but not '+($failed -join ', ')+'. One unresolved name usually means a filtered network (router, VPN or policy), not a DNS fault.')}
+            if($resolved.Count -eq 0){row 'internet' 'unknown' 'TCP probe skipped: no test name resolved'}
+            else{$target=$resolved[0];$tcp=New-Object System.Net.Sockets.TcpClient;try{$t=$tcp.ConnectAsync($target,443);if($t.Wait(5000) -and $tcp.Connected){row 'internet' 'healthy' ($target+':443 TCP reachable; not an HTTPS or whole-internet test')}else{row 'internet' 'unknown' ('TCP probe to '+$target+':443 timed out')}}catch{row 'internet' 'unknown' 'TCP probe failed; proxy, firewall or endpoint conditions may explain this'}finally{$tcp.Dispose()}}
             """, external: true));
+        // Plain-language modules shared with their own pages (Diagnose → Windows Update, Performance → Battery & startup).
+        modules.Insert(2, new WindowsUpdateDiagnostic(probe));
+        modules.Add(new BatteryStartupDiagnostic(probe));
         modules.Add(new ActivationDiagnostic(probe));
         return modules.ToArray();
     }

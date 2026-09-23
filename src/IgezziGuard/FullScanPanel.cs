@@ -101,7 +101,7 @@ public sealed class FullScanPanel : ToolPage
     private async void StartScan()
     {
         bool contact = external.Checked;
-        if (contact && !Review("Include gateway ICMP, example.com DNS lookup and TCP connection to example.com:443? Installed KMS clients may also query your organization DNS and contact the Windows-configured KMS host. These endpoints and your DNS resolver can see your source IP. No report is uploaded. You can run without these checks by clearing Include network probes.")) return;
+        if (contact && !Review("Include network probes? Gateway ICMP contacts your local network. " + WindowsDiagnosticCatalog.ProbeDisclosure + " Installed KMS clients may also query your organization DNS and contact the Windows-configured KMS host. These endpoints and your DNS resolver can see your source IP. No report is uploaded. You can run without these checks by clearing Include network probes.")) return;
         latest = null; ShowFindings();
         var context = Context(contact);
         var progress = new Progress<ScanProgressUpdate>(p => { if (IsBusy) Output.Text = $"{p.CompletedModules}/{p.TotalModules} checks finished\r\n{p.Activity}\r\n\r\nUnavailable checks remain unknown. Cancel preserves results from completed checks."; });

@@ -55,7 +55,7 @@ internal static class DiagnosticChecks
         Check(DiagnosticMapping.SfcState("localized or incomplete message",0)=="unknown", "SFC localization-safe fallback");
         Check(DiagnosticMapping.SfcState("Windows Resource Protection did not find any integrity violations.",5)=="failed", "SFC nonzero exit never healthy");
         var fake = new FixtureProbe();
-        foreach(var module in WindowsDiagnosticCatalog.Create(fake).Where(m=>m.Id!="activation")) {
+        foreach(var module in WindowsDiagnosticCatalog.Create(fake).OfType<WindowsDiagnosticModule>()) {
             fake.Json = "[{\"Id\":\"fixture\",\"State\":\"unknown\",\"Evidence\":\"bounded evidence\"}]";
             var results = await DiagnosticExecution.RunAsync(module, new(true,true,false), null, CancellationToken.None);
             Check(results.Single().Outcome == CollectionOutcome.Completed && results.Single().Severity == FindingSeverity.Unknown, "structured Windows adapter " + module.Id);

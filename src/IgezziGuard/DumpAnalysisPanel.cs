@@ -69,6 +69,14 @@ public sealed class TroubleshootingPanel : ToolPage
             new("Trim startup apps", "Fewer apps launching at sign-in means a faster start. Every change can be undone.", "Maintain  /  Startup / undo", "Open Startup entries"),
             new("Free up disk space", "A nearly full system drive slows Windows and blocks updates.", "Maintain  /  Files & storage", "Open Files"),
             new("Check the power plan", "Battery-saving plans limit speed; you can switch and undo.", "Performance  /  Power tuning", "Open Power tuning"),
+            new("Check when Windows last restarted", "With Fast Startup, Shut down doesn't restart Windows. A real restart finishes updates and clears memory.", "Performance  /  Battery & startup", "Open Battery & startup"),
+        ]),
+        ("My laptop battery runs out quickly", [
+            new("Check battery health", "Shows how much of its original capacity the battery still holds.", "Performance  /  Battery & startup", "Open Battery & startup"),
+            new("See what keeps the processor busy", "A processor that stays busy in the background drains the battery.", "Performance  /  30-second sample", "Open Quick sample"),
+            new("Trim startup apps", "Apps that start with Windows keep running in the background. Every change can be undone.", "Maintain  /  Startup / undo", "Open Startup entries"),
+            new("Check the power plan", "A high-performance plan uses more power; you can switch and undo.", "Performance  /  Power tuning", "Open Power tuning"),
+            new("See Windows' battery usage", "Settings → System → Power & battery → Battery usage shows which apps use the most battery."),
         ]),
         ("The internet is slow or keeps dropping", [
             new("Check the basic connection", "Tests your adapter, router, name lookups (DNS) and internet access, and says which step fails.", "Connect  /  Basic checks", "Open Basic checks"),
@@ -86,7 +94,14 @@ public sealed class TroubleshootingPanel : ToolPage
             new("Check Defender's protection", "Confirms real-time protection and other safeguards are on.", "Shield · experimental  /  Defender audit", "Open Defender audit"),
             new("Run a scan and review detections", "Start a Defender quick scan and see anything found in the last 30 days.", "Shield · experimental  /  Defender controls / alerts", "Open Scans & alerts"),
             new("Review startup apps", "Unknown programs that launch at sign-in are worth a look.", "Maintain  /  Startup / undo", "Open Startup entries"),
-            new("Keep Windows updated", "Updates close security holes. Avoid adding antivirus exclusions you don't understand."),
+            new("Keep Windows updated", "Updates close security holes. Check that they're installing, and avoid antivirus exclusions you don't understand.", "Diagnose  /  Windows Update", "Open Windows Update check"),
+        ]),
+        ("Windows Update fails or is stuck", [
+            new("Check Windows Update", "Shows when updates last installed, which ones failed and what their error codes mean, and whether a restart is waiting.", "Diagnose  /  Windows Update", "Open Windows Update check"),
+            new("Free up disk space", "Updates need several gigabytes free on the system drive.", "Maintain  /  Files & storage", "Open Files"),
+            new("Restart, then try again", "Use Restart, not Shut down: with Fast Startup, Shut down doesn't finish pending updates.", "Performance  /  Battery & startup", "Open Battery & startup"),
+            new("Check Windows' own files", "A damaged component store blocks updates. The full scan checks it when Hanki runs as administrator.", "Full system scan", "Open Full system scan"),
+            new("Use Windows' own troubleshooter", "Settings → System → Troubleshoot → Other troubleshooters → Windows Update."),
         ]),
         ("Windows says it isn't activated", [
             new("Check activation status", "Explains what Windows reports about its license, in plain language. No keys are collected.", "Diagnose  /  Windows Activation", "Open Windows Activation"),

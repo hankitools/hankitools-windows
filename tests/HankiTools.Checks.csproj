@@ -37,6 +37,8 @@
     <Compile Include="../src/IgezziGuard/MaintainInsights.cs" Link="MaintainInsights.cs" />
     <Compile Include="../src/IgezziGuard/DefenderAuditSummary.cs" Link="DefenderAuditSummary.cs" />
     <Compile Include="../src/IgezziGuard/ChangeJournal.cs" Link="ChangeJournal.cs" />
+    <Compile Include="../src/IgezziGuard/UpdateHealth.cs" Link="UpdateHealth.cs" />
+    <Compile Include="../src/IgezziGuard/BatteryStartup.cs" Link="BatteryStartup.cs" />
     <Compile Include="../src/IgezziGuard/DuplicateFinder.cs" Link="DuplicateFinder.cs" />
     <Compile Include="../src/IgezziGuard/DumpInspector.cs" Link="DumpInspector.cs" />
     <Compile Include="../src/IgezziGuard/DefenderReview.cs" Link="DefenderReview.cs" />

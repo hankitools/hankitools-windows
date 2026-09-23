@@ -4,7 +4,7 @@ internal static class WindowsScriptChecks
 {
     private static async Task<IReadOnlyList<DiagnosticResult>> Fixture(string id,string mock)
     {
-        var module=WindowsDiagnosticCatalog.Create().OfType<WindowsDiagnosticModule>().Single(m=>m.Id==id);
+        var module=WindowsDiagnosticCatalog.Create(includeExternal:true).OfType<WindowsDiagnosticModule>().Single(m=>m.Id==id);
         // Function stubs shadow every native provider used by the selected script. Use the production probe so stray stderr fails here too.
         var json=await new WindowsDiagnosticProbe().ReadAsync(mock+"\n"+module.Script,20,CancellationToken.None);
         var rows=System.Text.Json.JsonSerializer.Deserialize<List<ProbeValue>>(json)!;
@@ -44,8 +44,25 @@ internal static class WindowsScriptChecks
             function Get-NetFirewallProfile { [pscustomobject]@{Name='Fixture';Enabled=$true} }
             """);
         DiagnosticChecks.Check(security.Single(r=>r.FindingId=="realtime").Severity==FindingSeverity.Unknown,"inactive Defender with third-party antivirus is not unprotected verdict");
+        // Network probes: several DNS names, so one name blocked by a router is not reported as a DNS failure.
+        var probeScript=WindowsDiagnosticCatalog.Create(includeExternal:true).OfType<WindowsDiagnosticModule>().Single(m=>m.Id=="network-probes").Script;
+        DiagnosticChecks.Check(NetworkDiagnostics.DnsTestNames.All(n=>probeScript.Contains("'"+n+"'") && WindowsDiagnosticCatalog.ProbeDisclosure.Contains(n)),"network probes and their disclosure use the Connect DNS test names");
+        const string noGateway="function Get-NetRoute { @() }";
+        // TcpClient stand-in: the fixture never opens a real connection.
+        const string fakeTcp="""
+            function New-Object { param($TypeName) if($TypeName -eq 'System.Net.Sockets.TcpClient'){$o=[pscustomobject]@{Connected=$true};$o|Add-Member ScriptMethod ConnectAsync { param($h,$p) [System.Threading.Tasks.Task]::CompletedTask };$o|Add-Member ScriptMethod Dispose {};return $o}; Microsoft.PowerShell.Utility\New-Object @args }
+            """;
+        var allFail=await Fixture("network-probes",noGateway+"\nfunction Resolve-DnsName { throw 'Fixture NXDOMAIN' }");
+        var dnsDown=allFail.Single(r=>r.FindingId=="dns");
+        DiagnosticChecks.Check(dnsDown.Severity==FindingSeverity.Warning && allFail.Single(r=>r.FindingId=="internet").Severity==FindingSeverity.Unknown && FindingAnalysis.Recommend(dnsDown)?.RepairActionId=="dns-cache-flush","no name resolves: DNS warning, TCP skipped, DNS-cache refresh proposed");
+        var filtered=await Fixture("network-probes",noGateway+"\n"+fakeTcp+"\nfunction Resolve-DnsName { param($Name) if($Name -eq 'example.com'){throw 'Fixture NXDOMAIN'}; [pscustomobject]@{Name=$Name} }");
+        var dnsPartial=filtered.Single(r=>r.FindingId=="dns");
+        DiagnosticChecks.Check(dnsPartial.Severity==FindingSeverity.Informational && dnsPartial.Evidence.Contains("example.com") && FindingAnalysis.Recommend(dnsPartial)?.RepairActionId is null,"one blocked name (real router case): information only, no DNS repair proposed");
+        DiagnosticChecks.Check(filtered.Single(r=>r.FindingId=="internet") is {Severity:FindingSeverity.Healthy} tcp && tcp.Evidence.Contains("www.microsoft.com:443"),"TCP probe uses the first name that resolved");
+        var allOk=await Fixture("network-probes",noGateway+"\n"+fakeTcp+"\nfunction Resolve-DnsName { param($Name) [pscustomobject]@{Name=$Name} }");
+        DiagnosticChecks.Check(allOk.Single(r=>r.FindingId=="dns").Severity==FindingSeverity.Healthy,"every name resolves: DNS healthy");
         // Parse fixed scripts using the Windows PowerShell parser; never invoke any of their commands.
-        foreach(var script in WindowsDiagnosticCatalog.Create(includeExternal:true).OfType<WindowsDiagnosticModule>().Select(m=>m.Script).Append(ActivationDiagnostic.Script)){
+        foreach(var script in WindowsDiagnosticCatalog.Create(includeExternal:true).OfType<WindowsDiagnosticModule>().Select(m=>m.Script).Append(ActivationDiagnostic.Script).Append(UpdateHealth.Script).Append(BatteryStartup.Script)){
             var encoded=Convert.ToBase64String(Encoding.UTF8.GetBytes(script));
             var parse="$s=[Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('"+encoded+"'));$tokens=$null;$errors=$null;[void][System.Management.Automation.Language.Parser]::ParseInput($s,[ref]$tokens,[ref]$errors);if($errors.Count -gt 0){throw ($errors.Message -join '; ')};'Parsed'";
             var result=await WindowsCommand.PowerShellCapture(parse,CancellationToken.None,20);

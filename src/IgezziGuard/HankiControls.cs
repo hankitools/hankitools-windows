@@ -417,8 +417,8 @@ internal sealed class Dashboard : UserControl
             Font = new Font("Segoe UI", 8.25f, FontStyle.Bold), TextAlign = ContentAlignment.BottomLeft, Padding = new Padding(2, 0, 0, 8) };
         var cards = new FlowLayoutPanel { Dock = DockStyle.Top, AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink, Padding = Padding.Empty, Margin = Padding.Empty };
         var items = new[] {
-            ("Diagnose", "Diagnose", "Follow the crash timeline, read event logs, inspect dumps and check Windows activation."),
-            ("Performance", "Performance", "Track CPU, memory, disk and GPU. Save comparisons and review power tuning."),
+            ("Diagnose", "Diagnose", "Follow the crash timeline, read event logs, inspect dumps, and check Windows Update and activation."),
+            ("Performance", "Performance", "Track CPU, memory, disk and GPU, check battery health and startup, and review power tuning."),
             ("Maintain", "Maintain", "Find large and duplicate files, review apps and manage startup entries."),
             ("Connect", "Connect", "Compare DNS, trace routes, measure transfers and review reversible DNS changes."),
             ("Shield · experimental", "Shield", "Review Microsoft Defender, run scans and inspect findings. File scanner is experimental."),
