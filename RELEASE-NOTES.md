@@ -1,3 +1,12 @@
+# Hanki Tools 0.17.0-rc.1 — roadmap candidate
+
+- Added free Full System Scan with structured results, visible unknown/partial states, cancellation and deterministic guidance.
+- Added Windows Activation troubleshooting with safe licensing-state/error explanations and optional organization KMS checks. No full product keys or activation changes.
+- Added minimized local diagnostic history and comparisons alongside existing scanner history and recovery tools.
+- Added development foundations for explicitly reviewed repairs, verification/audits, additive Pro/Technician capabilities, scheduling, secure sessions and minimized provider consent.
+- Release builds remain Community; no production licensing, identity, cloud report or new AI explanation provider is connected. Existing manual tools remain available without an account.
+- Native Windows acceptance and exact signed-executable release checks remain required. This is not a public-release approval. Cloud report sharing still requires an approved backend and server-side validation.
+
 ## App polish and community support
 
 - Added Help & community (F1) with hanki.tools, Discord, user guide, privacy information and GitHub links.

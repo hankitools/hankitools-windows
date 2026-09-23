@@ -64,7 +64,7 @@ $payload = @($payloadPaths | ForEach-Object { @{ Path=$_; SHA256=(Get-FileHash -
 $exeHash = (Get-FileHash -LiteralPath $exe -Algorithm SHA256).Hash
 @{ Version=$version; Runtime=$runtime; Sdk=$sdk; BuiltAt=(Get-Date).ToUniversalTime().ToString('o'); ExeSHA256=$exeHash;
     Signed=[bool]$CertificateThumbprint; UiSmokePassed=$true; PublicReleaseApproved=$false; Payload=$payload } | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $publishDirectory 'build-info.json') -Encoding UTF8
-$required = @('clean-install-launch','dpi-keyboard-contrast','all-module-navigation','readonly-diagnostics','scan-cancel-history','cleanup-recycle-restore','startup-and-undo','power-dns-and-undo','defender-controls','monitor-save-load','ai-consent-cancel','upgrade-data-retention')
+$required = @('clean-install-launch','dpi-keyboard-contrast','all-module-navigation','readonly-diagnostics','scan-cancel-history','cleanup-recycle-restore','startup-and-undo','power-dns-and-undo','defender-controls','monitor-save-load','ai-consent-cancel','upgrade-data-retention','full-system-scan-activation','diagnostic-history-privacy','community-edition-boundaries')
 @{ ExeSHA256=$exeHash; Tester=''; TestedAt=''; WindowsVersion=''; Checks=@($required | ForEach-Object { @{Id=$_; Passed=$false; Notes=''} }) } |
     ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $publishDirectory 'acceptance.json') -Encoding UTF8
 $zip = "$publishDirectory-candidate.zip"

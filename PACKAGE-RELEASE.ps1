@@ -18,7 +18,7 @@ if ((Get-Date).ToUniversalTime() -ge [datetime]'2026-11-10T00:00:00Z') { throw '
 [Net.ServicePointManager]::SecurityProtocol=[Net.SecurityProtocolType]::Tls12
 $metadata=Invoke-RestMethod 'https://dotnetcli.blob.core.windows.net/dotnet/release-metadata/8.0/releases.json' -TimeoutSec 30
 if ($build.Runtime -ne $metadata.'latest-runtime') { throw 'Bundled runtime is no longer current. Rebuild, sign and repeat acceptance.' }
-$required=@('clean-install-launch','dpi-keyboard-contrast','all-module-navigation','readonly-diagnostics','scan-cancel-history','cleanup-recycle-restore','startup-and-undo','power-dns-and-undo','defender-controls','monitor-save-load','ai-consent-cancel','upgrade-data-retention')
+$required=@('clean-install-launch','dpi-keyboard-contrast','all-module-navigation','readonly-diagnostics','scan-cancel-history','cleanup-recycle-restore','startup-and-undo','power-dns-and-undo','defender-controls','monitor-save-load','ai-consent-cancel','upgrade-data-retention','full-system-scan-activation','diagnostic-history-privacy','community-edition-boundaries')
 if ([string]::IsNullOrWhiteSpace($acceptance.Tester) -or [string]::IsNullOrWhiteSpace($acceptance.WindowsVersion) -or [string]::IsNullOrWhiteSpace($acceptance.TestedAt)) { throw 'Record the tester, Windows version and test date.' }
 foreach ($id in $required) {
     $matches=@($acceptance.Checks | Where-Object { $_.Id -eq $id })

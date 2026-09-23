@@ -25,6 +25,7 @@ internal static class ScheduledHealthChecks
         using var identity=System.Security.Principal.WindowsIdentity.GetCurrent();
         var exe=Environment.ProcessPath ?? throw new IOException("Executable path unavailable.");
         if(!File.Exists(exe))throw new IOException("Executable not found.");
+        if(Path.GetFileNameWithoutExtension(exe).Equals("dotnet",StringComparison.OrdinalIgnoreCase))throw new IOException("Launch the Hanki executable directly before creating a schedule.");
         var directory=Path.Combine(SecurityPaths.Root,"scheduling");Directory.CreateDirectory(directory);
         var path=Path.Combine(directory,Guid.NewGuid().ToString("N")+".xml");
         try { await File.WriteAllTextAsync(path,TaskXml(exe,identity.User?.Value ?? throw new IOException("Current-user identity unavailable."),frequency),token);

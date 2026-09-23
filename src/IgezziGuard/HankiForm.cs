@@ -224,10 +224,10 @@ public sealed class HankiForm : Form
             sampling.Cancel(); ai.Cancel(); timeline.Cancel(); usage.Stop(); defenderTools.StopMonitoring(); foreach (var page in ExtraPages) page.Cancel();
         }
         string[] ActiveTasks() => new[] {
-            (running is not null, "Scan / network check"), (maintain.IsBusy, "Files"), (apps.IsBusy, "Apps"), (performance.IsBusy || sampling.IsBusy || longPerformance.IsBusy, "Performance"),
-            (diagnose.IsBusy || timeline.IsBusy || dumps.IsBusy, "Diagnose"), (defender.IsBusy || defenderTools.IsBusy || defenderTools.MonitoringBusy, "Defender"),
+            (fullScan.IsBusy, "Full system scan / repair"), (running is not null, "Scan / network check"), (maintain.IsBusy, "Files"), (apps.IsBusy, "Apps"), (performance.IsBusy || sampling.IsBusy || longPerformance.IsBusy, "Performance"),
+            (diagnose.IsBusy || timeline.IsBusy || dumps.IsBusy || activation.IsBusy, "Diagnose"), (defender.IsBusy || defenderTools.IsBusy || defenderTools.MonitoringBusy, "Defender"),
             (networkDeep.IsBusy || networkTools.IsBusy, "Connect"), (ai.IsBusy, "AI request"), (usage.IsBusy, "App observation"),
-            (duplicates.IsBusy || startupFolders.IsBusy || tuning.IsBusy || guidance.IsBusy || recovery.IsBusy, "Maintenance / recovery")
+            (duplicates.IsBusy || startupFolders.IsBusy || tuning.IsBusy || guidance.IsBusy || recovery.IsBusy || diagnosticHistory.IsBusy, "Maintenance / recovery")
         }.Where(t => t.Item1).Select(t => t.Item2).ToArray();
         var taskStatus = new Label { Dock = DockStyle.Right, Width = 310, TextAlign = ContentAlignment.MiddleLeft, AutoEllipsis = true };
         footer.Controls.Add(taskStatus); footer.Controls.SetChildIndex(taskStatus, 1);

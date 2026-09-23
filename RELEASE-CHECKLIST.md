@@ -17,6 +17,18 @@ Use disposable files and a test PC/VM for actions that change settings. Record W
 | ai-consent-cancel | On a test API account with synthetic text only: verify all prior turns appear in review, declining sends nothing, approved request reaches the fixed endpoint, missing/invalid key and timeout are clear, cancellation retains draft. Never put the key in evidence notes. |
 | upgrade-data-retention | Upgrade from the previous package with test history/journals. Confirm data remains readable, pending supported changes can be reconciled, and removing the application folder does not remove recovery data. Restore test settings before cleanup. |
 
+| full-system-scan-activation | Start/cancel Community Full System Scan as standard user and administrator. Check partial/unknown/error counts and retained completed results; compare actual Windows states. Verify optional network/KMS contact is consent-bound, Activation remains free, no full product key appears, and global Cancel/close handles the new pages. Validate supported locales or document Unknown fallbacks. No repair runs during scanning. |
+| diagnostic-history-privacy | Save/reopen/compare local scans, verify missing findings are not called resolved, inspect that raw paths/network/device IDs and keys are absent, test a corrupt disposable copy and explicit clear. Existing recovery and scanner history must remain intact. |
+| community-edition-boundaries | On this exact Release executable set the development-edition environment variable and verify it cannot unlock paid automation. No startup login wall. Existing manual tools, full scan, raw findings, guidance and local history remain available. Confirm this candidate has no production license/identity/cloud/AI-explanation provider configured and makes no hidden upload. |
+
+The 0.17 candidate's public Release scope is Community. Automated repair, scheduled
+checks and Technician workflows are additive development paths until a production
+entitlement source and their native acceptance are supplied. Before enabling them
+in a distributable build, add mandatory action/restore/verification, task lifecycle,
+credential-store and customer-export acceptance to the exact-executable package
+gate; do not treat the three Community checks above as proof of those features.
+See [the roadmap acceptance ledger](docs/ROADMAP-IMPLEMENTATION.md).
+
 ## Publisher checks before upload
 
 1. Supply a real publisher identity, support/security/privacy contact and HTTPS download destination. Confirm logo/name/domain usage rights; no legal verification is claimed here.

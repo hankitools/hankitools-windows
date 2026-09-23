@@ -48,3 +48,13 @@ The experimental file scanner has a bundled EICAR test signature and simple heur
 The .NET 8 target reaches end of support on 10 November 2026. Build against the current servicing patch; migrate to a supported LTS before that date. The release script enforces this branch's deadline. A .NET 10 migration has not been validated here. Official reference: https://dotnet.microsoft.com/en-us/platform/support/policy/dotnet-core
 
 The project namespace/data directory retains the original IgezziGuard name for compatibility. Previous UX/version notes describe history, not current release validation. MIT license; see LICENSE.
+
+## Diagnostic roadmap candidate (0.17)
+
+Full System Scan, Windows Activation and Diagnostic history are Community tools.
+New automation is additive; Release currently stays Community until production
+licensing is connected. Existing manual tools and recovery remain available.
+
+Implementation and acceptance details: [roadmap ledger](docs/ROADMAP-IMPLEMENTATION.md),
+[privacy](docs/DIAGNOSTIC-PRIVACY.md), [capabilities and identity](docs/ENTITLEMENTS-AND-IDENTITY.md),
+and [activation diagnostics](docs/ACTIVATION-DIAGNOSTICS.md).
