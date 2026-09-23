@@ -12,10 +12,12 @@ internal static class WindowsCommand
     }
     public static async Task<string> PowerShell(string script, CancellationToken token, int seconds = 60) =>
         (await PowerShellCapture(script, token, seconds)).DisplayText;
+    // Windows PowerShell serializes progress records (e.g. "Preparing modules for first use.") to redirected stderr as CLIXML;
+    // suppress them so stderr carries only genuine errors.
     public static Task<CommandOutput> PowerShellCapture(string script, CancellationToken token, int seconds = 60) => RunCaptured(
         Path.Combine(Environment.SystemDirectory, @"WindowsPowerShell\v1.0\powershell.exe"),
         ["-NoLogo", "-NoProfile", "-NonInteractive", "-EncodedCommand", Convert.ToBase64String(Encoding.Unicode.GetBytes(
-            "[Console]::OutputEncoding=[System.Text.UTF8Encoding]::new(); $ErrorActionPreference='Stop'; try { " + script + " } catch { [Console]::Error.WriteLine($_.Exception.Message); exit 1 }"))], token, seconds, true);
+            "[Console]::OutputEncoding=[System.Text.UTF8Encoding]::new(); $ProgressPreference='SilentlyContinue'; $ErrorActionPreference='Stop'; try { " + script + " } catch { [Console]::Error.WriteLine($_.Exception.Message); exit 1 }"))], token, seconds, true);
     public static async Task<string> Run(string exe, string[] args, CancellationToken token, int seconds = 60, bool utf8 = false, string? workingDirectory = null, bool isolateDebugger = false)
         => (await RunCaptured(exe, args, token, seconds, utf8, workingDirectory, isolateDebugger)).DisplayText;
     internal static async Task<CommandOutput> RunCaptured(string exe, string[] args, CancellationToken token, int seconds = 60, bool utf8 = false, string? workingDirectory = null, bool isolateDebugger = false)

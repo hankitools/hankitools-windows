@@ -5,14 +5,17 @@ internal static class WindowsScriptChecks
     private static async Task<IReadOnlyList<DiagnosticResult>> Fixture(string id,string mock)
     {
         var module=WindowsDiagnosticCatalog.Create().OfType<WindowsDiagnosticModule>().Single(m=>m.Id==id);
-        // Function stubs shadow every native provider used by the selected script.
-        var captured=await WindowsCommand.PowerShellCapture(mock+"\n"+module.Script,CancellationToken.None,20);
-        var rows=System.Text.Json.JsonSerializer.Deserialize<List<ProbeValue>>(captured.StandardOutput)!;
+        // Function stubs shadow every native provider used by the selected script. Use the production probe so stray stderr fails here too.
+        var json=await new WindowsDiagnosticProbe().ReadAsync(mock+"\n"+module.Script,20,CancellationToken.None);
+        var rows=System.Text.Json.JsonSerializer.Deserialize<List<ProbeValue>>(json)!;
         var now=DateTimeOffset.UtcNow;
         return rows.Select(r=>DiagnosticMapping.Map(id,module.Category,r,now,now)).ToArray();
     }
     internal static async Task Run()
     {
+        // Read-only native call that triggers module auto-loading; progress records must not reach stderr.
+        var native=await WindowsCommand.PowerShellCapture("Get-CimInstance Win32_OperatingSystem | Out-Null; 'ok'",CancellationToken.None,60);
+        DiagnosticChecks.Check(native.StandardOutput.Trim()=="ok" && native.StandardError.Length==0,"PowerShell progress records do not reach collector stderr");
         var storage=await Fixture("storage", """
             function Get-CimInstance { [pscustomobject]@{FreeSpace=20;Size=100} }
             function Get-PhysicalDisk { [pscustomobject]@{HealthStatus='Unknown';OperationalStatus='Unknown';FriendlyName='Fixture'} }

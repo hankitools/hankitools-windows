@@ -56,7 +56,7 @@ internal static class ReadOnlyDiagnostics
     private static Task<string> PowerShell(string script, CancellationToken token) => Command(
         Path.Combine(Environment.SystemDirectory, "WindowsPowerShell", "v1.0", "powershell.exe"),
         ["-NoLogo", "-NoProfile", "-NonInteractive", "-EncodedCommand", Convert.ToBase64String(Encoding.Unicode.GetBytes(
-            "[Console]::OutputEncoding=[System.Text.UTF8Encoding]::new(); " + script))], token);
+            "[Console]::OutputEncoding=[System.Text.UTF8Encoding]::new(); $ProgressPreference='SilentlyContinue'; " + script))], token);
 
     // Only fixed internal read-only commands call this method. No log/user content is interpolated.
     private static async Task<string> Command(string executable, string[] arguments, CancellationToken token)
