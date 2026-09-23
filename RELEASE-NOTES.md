@@ -1,4 +1,12 @@
-# Hanki Tools 0.17.0-rc.2 — roadmap candidate
+# Hanki Tools 0.17.0-rc.3 — roadmap candidate
+
+RC3 explains results in plain language. Diagnose, Performance, Maintain, Connect and Shield now lead with a headline and color-coded cards (Looks OK / Worth reviewing / Needs attention / Not available) with next steps; the full technical report remains under View technical details. Missing or failed evidence is never shown as healthy.
+
+- Diagnose: Guided checks start from a symptom and open the right tool for each step. Event logs explain common Windows events, separate harmless noise, and name crashed apps and failed services. The crash timeline opens with a short summary.
+- Connect: the basic check says whether the adapter, router, DNS or internet is the problem. It tests several names, so a router that filters one domain is noted rather than reported as a DNS failure. Wi-Fi / latency compares your router with the internet and reads signal strength.
+- Performance: clear verdicts for memory, drive space, the 30-second sample and monitoring, with plain comparisons against your baseline.
+- Maintain: space-by-type chips after a file scan, advice for each startup entry, reclaimable space for duplicates, and app size totals.
+- Shield: summaries for Defender protection, definitions, recent scans and detections. Microsoft Defender comes first; the experimental file scanner has its own page.
 
 RC2 fixes Full System Scan modules being reported as Failed on Windows PowerShell 5.1. Harmless progress records ("Preparing modules for first use.") reached collector stderr and were treated as tool errors. Progress output is now suppressed so stderr carries only genuine errors, and a native check guards against regressions.
 
