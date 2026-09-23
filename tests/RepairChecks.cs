@@ -44,6 +44,14 @@ internal static class RepairChecks
         Check(File.ReadAllText(path)=="broken","corrupt diagnostic history preserved");
         var audit=new RepairAudit(Path.Combine(root,"repair-audit.json"));await audit.RecordAsync(scan.Id,success.Report.Attempts.Single(),CancellationToken.None);
         Check(audit.Read().Single().Attempt.Verification==VerificationState.Fixed,"repair verification persisted locally");
+        var pending = success.Report.Attempts.Single() with { Started=now.AddSeconds(1), State=RepairState.Pending };
+        await audit.RecordAsync(scan.Id,pending,CancellationToken.None);
+        Check(await audit.HasUnresolvedAsync("sfc-repair",CancellationToken.None),"pending repair audit blocks retry");
+        await audit.RecordAsync(scan.Id,pending with {State=RepairState.Executed},CancellationToken.None);
+        Check(!await audit.HasUnresolvedAsync("sfc-repair",CancellationToken.None),"terminal entry replaces same pending attempt");
+        var additional = new DiagnosticResult("sfc","new-fault",DiagnosticCategory.Windows,CollectionOutcome.Completed,FindingSeverity.Critical,"New fault","fixture",now,now);
+        Check(RepairVerification.Compare([before],[after,additional],false)==VerificationState.Worse,"new post-repair critical finding prevents fixed verdict");
+        Check(!DiagnosticPrivacy.Redact("Authorization: Bearer fixture-secret").Contains("fixture-secret"),"authorization header secret masked");
     }
 }
 internal sealed class FakeRepair(RepairDefinition definition) : IRepairAction

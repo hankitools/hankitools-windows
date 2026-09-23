@@ -167,7 +167,9 @@ internal static class WindowsDiagnosticCatalog
                 $all=@(Get-CimInstance Win32_PnPEntity); $bad=@($all|Where-Object {$null -eq $_.ConfigManagerErrorCode -or $_.ConfigManagerErrorCode -ne 0});
                 if($all.Count -eq 0){row 'devices' 'unavailable' 'No devices returned'}
                 elseif($bad.Count -eq 0){row 'devices' 'healthy' ('No problem codes in '+$all.Count+' enumerated devices')}
-                else {foreach($d in $bad|Select-Object -First 100){$state=if($null -eq $d.ConfigManagerErrorCode){'unknown'}elseif($d.ConfigManagerErrorCode -eq 22){'info'}else{'warning'};row $d.DeviceID $state ($d|Select-Object Name,PNPClass,DeviceID,Status,ConfigManagerErrorCode,Service,Manufacturer|ConvertTo-Json)}
+                else {$drivers=@{};try{Get-CimInstance Win32_PnPSignedDriver|ForEach-Object{if($_.DeviceID){$drivers[$_.DeviceID]=$_}}}catch{}
+                    foreach($d in $bad|Select-Object -First 100){$driver=$drivers[$d.DeviceID];$state=if($null -eq $d.ConfigManagerErrorCode){'unknown'}elseif($d.ConfigManagerErrorCode -eq 22){'info'}else{'warning'};
+                        row $d.DeviceID $state ([pscustomobject]@{Name=$d.Name;Class=$d.PNPClass;DeviceID=$d.DeviceID;Status=$d.Status;ProblemCode=$d.ConfigManagerErrorCode;DriverVersion=$driver.DriverVersion;DriverProvider=$driver.DriverProviderName;DriverDate=$driver.DriverDate}|ConvertTo-Json)}
                     if($bad.Count -gt 100){row 'coverage' 'unknown' 'Only first 100 problem devices included'}}
                 """),
             Module("events", "Repeated event signals", DiagnosticCategory.Windows, """

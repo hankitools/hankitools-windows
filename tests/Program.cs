@@ -5,6 +5,7 @@ if (args.Length == 1 && args[0] == "--json-notes-fixture") {
     Console.Error.WriteLine("Test warning from PowerShell error stream");
     return;
 }
+if (args.Length == 1 && args[0] == "--failure-fixture") { Console.Error.WriteLine("fixture failure"); Environment.ExitCode = 9; return; }
 if (args.Length == 1 && args[0] == "--timeout-fixture") { await Task.Delay(30000); return; }
 
 // Non-destructive to user data. All disk fixtures are under a unique temporary directory.
@@ -22,6 +23,9 @@ try
     var jsonFixtureArgs = Path.GetFileNameWithoutExtension(host).Equals("dotnet", StringComparison.OrdinalIgnoreCase)
         ? new[] { typeof(WindowsCommand).Assembly.Location, "--json-notes-fixture" }
         : new[] { "--json-notes-fixture" };
+    var failureArgs = jsonFixtureArgs.Select(a => a == "--json-notes-fixture" ? "--failure-fixture" : a).ToArray();
+    try { await WindowsCommand.RunCaptured(host, failureArgs, CancellationToken.None, workingDirectory: root); throw new Exception("Nonzero process accepted"); }
+    catch (IOException ex) { Assert(ex.Message.Contains("exit 9"), "process failure retains exit evidence"); }
     var captured = await WindowsCommand.RunCaptured(host, jsonFixtureArgs, CancellationToken.None, workingDirectory: root);
     var capturedAudit = DefenderAuditSummary.Format(captured.StandardOutput, captured.StandardError);
     Assert(capturedAudit.Contains("Antivirus: Enabled"), "audit parses JSON with separate process stderr");

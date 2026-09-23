@@ -6,7 +6,9 @@ namespace IgezziGuard;
 public static partial class DiagnosticPrivacy
 {
     // Opt-in exports still require human review. Pattern masking is not proof that arbitrary logs are anonymous.
-    public static string Redact(string text) => Secret().Replace(AssistantPrompt.MaskCommon(text), "$1[redacted]");
+    public static string Redact(string text) => Secret().Replace(Authorization().Replace(AssistantPrompt.MaskCommon(text), "$1[redacted]"), "$1[redacted]");
+    [GeneratedRegex(@"(?im)(authorization\s*[:=]\s*)(?:bearer\s+)?[^\r\n,]+") ]
+    private static partial Regex Authorization();
     [GeneratedRegex(@"(?i)(\b(?:authorization|api[_-]?key|password|token|secret)\s*[:=]\s*)([^\s,;]+)")]
     private static partial Regex Secret();
     public static DiagnosticResult Minimize(DiagnosticResult r) => new(r.ModuleId,
