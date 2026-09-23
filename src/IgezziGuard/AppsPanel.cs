@@ -63,8 +63,11 @@ public sealed class AppsPanel : UserControl
         list.EndUpdate();
         string[] titles = ["App", "Publisher", "Version", "Reported size", "Install date", "Usage", "Source"];
         for (int i = 0; i < titles.Length; i++) list.Columns[i].Text = titles[i] + (i == sortColumn ? descending ? " ↓" : " ↑" : "");
-        status.Text = $"{list.Items.Count} shown / {apps.Count} desktop-app registrations; {errors} read errors. Click Refresh to collect current data.\n" +
-            "Reported sizes/dates may be missing or stale; dates can reflect servicing. Map executables for opt-in observation in Usage review. This inventory does not measure usage. Store/MSIX and portable apps may be absent.";
+        long reported = apps.Where(a => a.EstimatedBytes.HasValue).Sum(a => a.EstimatedBytes!.Value);
+        var biggest = apps.Where(a => a.EstimatedBytes.HasValue).OrderByDescending(a => a.EstimatedBytes).Take(3).Select(a => $"{a.Name} ({MaintainPanel.SizeText(a.EstimatedBytes!.Value)})").ToArray();
+        status.Text = apps.Count == 0 ? "Click Refresh installed apps to list desktop apps and their reported sizes. To remove one, select it and choose Review / uninstall in Windows.\nStore apps and portable apps may not appear here."
+            : $"{list.Items.Count} of {apps.Count} apps shown · about {MaintainPanel.SizeText(reported)} reported in total" + (biggest.Length > 0 ? " · largest: " + string.Join(", ", biggest) : "") + (errors > 0 ? $" · {errors} could not be read" : "") + ".\n" +
+              "Sizes and dates come from each app's installer and can be missing or out of date. Uninstalling happens in Windows Settings, never automatically. Store and portable apps may be missing.";
     }
     private string Key(InstalledApp app) => sortColumn switch { 1 => app.Publisher, 2 => app.Version, 5 => app.Usage, 6 => app.Source, _ => app.Name };
 }

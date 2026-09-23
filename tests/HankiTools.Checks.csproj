@@ -30,6 +30,11 @@
     <Compile Include="../src/IgezziGuard/HistoryStore.cs" Link="HistoryStore.cs" />
 
     <Compile Include="../src/IgezziGuard/ResultPresentation.cs" Link="ResultPresentation.cs" />
+    <Compile Include="../src/IgezziGuard/NetworkDiagnostics.cs" Link="NetworkDiagnostics.cs" />
+    <Compile Include="../src/IgezziGuard/EventInsights.cs" Link="EventInsights.cs" />
+    <Compile Include="../src/IgezziGuard/ShieldInsights.cs" Link="ShieldInsights.cs" />
+    <Compile Include="../src/IgezziGuard/PerformanceInsights.cs" Link="PerformanceInsights.cs" />
+    <Compile Include="../src/IgezziGuard/MaintainInsights.cs" Link="MaintainInsights.cs" />
     <Compile Include="../src/IgezziGuard/DefenderAuditSummary.cs" Link="DefenderAuditSummary.cs" />
     <Compile Include="../src/IgezziGuard/ChangeJournal.cs" Link="ChangeJournal.cs" />
     <Compile Include="../src/IgezziGuard/DuplicateFinder.cs" Link="DuplicateFinder.cs" />

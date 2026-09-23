@@ -26,6 +26,9 @@ internal static class HankiTheme
             FindingSeverity.Critical => Critical, FindingSeverity.Warning => Warning,
             FindingSeverity.Healthy => Success, FindingSeverity.Informational => Accent, _ => Muted };
 
+    internal static Color StatusColor(CardStatus status) => status switch {
+        CardStatus.Good => Success, CardStatus.Review => Warning, CardStatus.Problem => Critical, CardStatus.Unknown => Muted, _ => Accent };
+
     internal static string SeverityLabel(FindingSeverity severity, CollectionOutcome outcome) => outcome switch {
         CollectionOutcome.Failed => "Failed", CollectionOutcome.Unavailable => "Unavailable", CollectionOutcome.Cancelled => "Cancelled",
         _ => severity switch { FindingSeverity.Critical => "Critical", FindingSeverity.Warning => "Warning",
@@ -46,7 +49,10 @@ internal static class HankiTheme
         bool pine = IsPine(root);
         bool cardSurface = root.Tag as string == "card" || root.Parent?.Tag as string == "card";
         root.BackColor = highContrast ? SystemColors.Control : pine ? Pine : cardSurface ? Surface : Canvas;
-        root.ForeColor = highContrast ? SystemColors.ControlText : root.Tag switch { "intro" => Muted, "accent" => Accent, _ => Text };
+        root.ForeColor = highContrast ? SystemColors.ControlText : root.Tag switch {
+            "intro" => Muted, "accent" => Accent,
+            "status-good" => Success, "status-review" => Warning, "status-problem" => Critical, "status-unknown" => Muted,
+            _ => Text };
         switch (root)
         {
             case Label label:

@@ -1,5 +1,3 @@
-using System.Globalization;
-
 namespace IgezziGuard;
 
 public sealed class MaintainPanel : UserControl
@@ -25,7 +23,10 @@ public sealed class MaintainPanel : UserControl
     private CancellationTokenSource? running;
     private int sortColumn = 1;
     private bool descending = true, topOnly;
-    private string scanSummary = "Choose a folder or drive. Nothing is selected for cleanup automatically.";
+    private string scanSummary = "Choose a folder or drive to see what's using space. Nothing is selected or deleted automatically.";
+    // Space by file type after a scan; clicking a chip filters the list to that type.
+    private readonly FlowLayoutPanel categories = new() { AutoSize = true, Dock = DockStyle.Fill, WrapContents = true, Visible = false, Padding = new Padding(0, 4, 0, 6) };
+    private string? category;
     public bool IsBusy => running is not null;
     public event Action<bool>? BusyChanged;
     public void Cancel() => running?.Cancel();
@@ -34,7 +35,8 @@ public sealed class MaintainPanel : UserControl
     {
         Dock = DockStyle.Fill;
         ForeColor = Color.WhiteSmoke;
-        var layout = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 4 };
+        var layout = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 5 };
+        layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
@@ -46,8 +48,9 @@ public sealed class MaintainPanel : UserControl
         preset.Items.AddRange(["All file types / ages", "Not modified in 90+ days", "Installers / archives", "Large files (250+ MiB)"]); preset.SelectedIndex = 0;
         preset.SelectedIndexChanged += (_, _) => RefreshView();
         filters.Controls.AddRange([preset, query, extension, new Label { Text = "Min MiB:", AutoSize = true }, minimum, apply]);
-        layout.Controls.Add(bar, 0, 0); layout.Controls.Add(filters, 0, 1); var fileArea = new Panel { Dock = DockStyle.Fill }; fileArea.Controls.Add(list); fileArea.Controls.Add(selectionActions);
-        layout.Controls.Add(fileArea, 0, 2); layout.Controls.Add(summary, 0, 3);
+        layout.Controls.Add(bar, 0, 0); layout.Controls.Add(filters, 0, 1); layout.Controls.Add(categories, 0, 2);
+        var fileArea = new Panel { Dock = DockStyle.Fill }; fileArea.Controls.Add(list); fileArea.Controls.Add(selectionActions);
+        layout.Controls.Add(fileArea, 0, 3); layout.Controls.Add(summary, 0, 4);
         Controls.Add(layout);
         list.Columns.Add("Name", 220); list.Columns.Add("Size ↓", 110); list.Columns.Add("Type", 75);
         list.Columns.Add("Modified", 160); list.Columns.Add("Full path", 550);
@@ -87,9 +90,10 @@ public sealed class MaintainPanel : UserControl
             });
             var result = await Task.Run(() => FileInventory.Scan(chooser.SelectedPath, progress, cts.Token), cts.Token);
             inventory = result.Files;
-            scanSummary = $"{chooser.SelectedPath}: {inventory.Count:N0} files · {SizeText(result.Bytes)} logical size · {result.Errors} errors · {result.Skipped} skipped" +
-                (result.Limited ? " · PARTIAL: 100,000-file cap; choose a smaller folder." : "");
-            RefreshView();
+            scanSummary = $"{chooser.SelectedPath}: {inventory.Count:N0} files · {SizeText(result.Bytes)} in total · {result.Errors} unreadable · {result.Skipped} skipped" +
+                (result.Limited ? " · PARTIAL: stopped at 100,000 files; choose a smaller folder for a complete picture." : "");
+            sortColumn = 1; descending = true; category = null;
+            ShowCategories(); RefreshView();
         }
         catch (OperationCanceledException) { scanSummary = "Scan cancelled; incomplete inventory discarded. Choose a folder to scan again."; }
         catch (Exception ex) { scanSummary = "Scan failed: " + ex.Message; }
@@ -105,6 +109,7 @@ public sealed class MaintainPanel : UserControl
         IEnumerable<InventoryFile> matches = inventory.Where(f => f.Bytes >= minBytes &&
             f.Name.Contains(text, StringComparison.OrdinalIgnoreCase) &&
             (ext.Length == 0 || f.Extension.Equals(ext, StringComparison.OrdinalIgnoreCase)));
+        if (category is not null) matches = matches.Where(f => FileCategories.Of(f.Extension) == category);
         matches = preset.SelectedIndex switch {
             1 => matches.Where(f => f.LastWriteUtc < DateTime.UtcNow.AddDays(-90)),
             2 => matches.Where(f => new[] { ".msi", ".exe", ".zip", ".7z", ".rar", ".iso" }.Contains(f.Extension, StringComparer.OrdinalIgnoreCase)),
@@ -123,13 +128,29 @@ public sealed class MaintainPanel : UserControl
         for (var i = 0; i < headers.Length; i++) list.Columns[i].Text = headers[i] + (sortColumn == i ? descending ? " ↓" : " ↑" : "");
         UpdateSummary();
     }
+    private void ShowCategories()
+    {
+        foreach (Control old in categories.Controls.Cast<Control>().ToArray()) old.Dispose();
+        var totals = FileCategories.Totals(inventory);
+        categories.Visible = totals.Count > 0;
+        if (totals.Count == 0) return;
+        categories.Controls.Add(new Label { Text = "Space by type:", AutoSize = true, Tag = "intro", Margin = new Padding(0, 10, 8, 0) });
+        foreach (var (name, files, bytes) in totals.Take(7)) {
+            var chip = new HankiButton { Text = $"{name}  {SizeText(bytes)}", AutoSize = true, Primary = category == name, Margin = new Padding(0, 3, 6, 3),
+                AccessibleName = $"Show only {name}: {files:N0} files, {SizeText(bytes)}", AccessibleDescription = category == name ? "Filter active; click to clear" : "" };
+            chip.Click += (_, _) => { category = category == name ? null : name; ShowCategories(); RefreshView(); };
+            categories.Controls.Add(chip);
+        }
+        HankiTheme.Apply(categories);
+    }
     private string TextKey(InventoryFile f) => sortColumn switch { 2 => f.Extension, 4 => f.FullPath, _ => f.Name };
     private InventoryFile[] Selected() => list.SelectedIndices.Cast<int>().Where(i => i < visible.Length).Select(i => visible[i]).ToArray();
     private void UpdateSummary()
     {
         if (IsBusy) return;
         var selected = Selected();
-        summary.Text = scanSummary + $"\nShowing {visible.Length:N0}; selected {selected.Length:N0} ({SizeText(selected.Sum(f => f.Bytes))}). Age/type are review filters, not proof a file is unused. Recycling does not immediately free disk space.";
+        summary.Text = scanSummary + $"\nShowing {visible.Length:N0}" + (category is null ? "" : $" {category.ToLowerInvariant()}") + $" · selected {selected.Length:N0} ({SizeText(selected.Sum(f => f.Bytes))}). " +
+            "Filters help you review; they don't prove a file is unneeded. Cleaned-up files go to the Recycle Bin, so space is freed when you empty it.";
         selectionActions.Visible = selected.Length > 0;
         selectionHint.Text = $"{selected.Length:N0} selected · {SizeText(selected.Sum(f => f.Bytes))}";
         reveal.Visible = selected.Length == 1;
@@ -206,10 +227,5 @@ public sealed class MaintainPanel : UserControl
         BusyChanged?.Invoke(value);
     }
     private static HankiButton Button(string title) => new() { Text = title, AutoSize = true, Primary = title == "Choose folder / drive", Appearance = title == "Open location" ? HankiButtonStyle.Quiet : HankiButtonStyle.Secondary, ForeColor = Color.Black, Margin = new Padding(3, 5, 3, 5) };
-    internal static string SizeText(long bytes)
-    {
-        var size = (double)bytes; string[] units = ["B", "KiB", "MiB", "GiB", "TiB"]; int i = 0;
-        while (size >= 1024 && i < units.Length - 1) { size /= 1024; i++; }
-        return size.ToString("0.##", CultureInfo.CurrentCulture) + " " + units[i];
-    }
+    internal static string SizeText(long bytes) => ByteSize.Text(bytes);
 }

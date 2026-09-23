@@ -8,13 +8,11 @@ namespace IgezziGuard;
 
 internal static class ReadOnlyDiagnostics
 {
-    public static async Task<string> CrashLogs(CancellationToken token)
-    {
-        const string script = "& { $ErrorActionPreference='Stop'; foreach($log in @('System','Application')) { 'LOG: '+$log; try { Get-WinEvent -FilterHashtable @{LogName=$log;Level=1,2,3;StartTime=(Get-Date).AddDays(-7)} -MaxEvents 50 | ForEach-Object { $m=$_.Message; if($m -and $m.Length -gt 500){$m=$m.Substring(0,500)+' [truncated]'}; [pscustomobject]@{Time=$_.TimeCreated.ToString('o');Provider=$_.ProviderName;Id=$_.Id;Level=$_.LevelDisplayName;RecordId=$_.RecordId;Message=$m} } | ConvertTo-Json -Depth 3 } catch { 'Log query unavailable or no matching events: '+$_.Exception.Message } } }";
-        return $"Hanki Diagnose • {DateTimeOffset.Now:O}\r\nLast 7 days; newest 50 warning/error/critical events per System and Application log. Messages capped at 500 characters. Not a complete event export.\r\n" +
-            "Interpretation: Kernel-Power 41 records an unclean shutdown, not its root cause. Look for correlated bugcheck, WHEA, storage or driver events near the crash time. Warnings alone are not proof of a fault. No dump analysis or repair is performed.\r\n" +
-            "Reports can contain usernames, computer names, paths and application/customer data. Review before sharing.\r\n\r\n" + await PowerShell(script, token);
-    }
+    public static Task<Diagnosis> EventLogs(CancellationToken token) => Task.Run(() => {
+        var now = DateTimeOffset.Now;
+        var (events, coverage) = CrashEventReader.Read(now.AddDays(-7), now, false, token);
+        return EventInsights.Summarize(events, coverage, now);
+    }, token);
     public static async Task<string> Defender(CancellationToken token)
     {
         const string script = "& { $s=$null; $p=$null; $se=$null; $pe=$null; try { $s=Get-MpComputerStatus | Select-Object AMRunningMode,AMServiceEnabled,AntivirusEnabled,RealTimeProtectionEnabled,BehaviorMonitorEnabled,IoavProtectionEnabled,NISEnabled,IsTamperProtected,AntivirusSignatureVersion,AntivirusSignatureLastUpdated } catch { $se=$_.Exception.Message }; try { $p=Get-MpPreference | Select-Object DisableRealtimeMonitoring,DisableBehaviorMonitoring,DisableIOAVProtection,DisableScriptScanning,ExclusionPath,ExclusionProcess,ExclusionExtension,ExclusionIpAddress } catch { $pe=$_.Exception.Message }; [pscustomobject]@{Status=$s;Preferences=$p;StatusError=$se;PreferencesError=$pe} | ConvertTo-Json -Depth 5 }";
@@ -22,12 +20,14 @@ internal static class ReadOnlyDiagnostics
         return $"Checked {DateTimeOffset.Now:f}\r\n\r\n" + DefenderAuditSummary.Format(result.StandardOutput, result.StandardError);
     }
 
-    public static async Task<string> Network(CancellationToken token)
+    public static async Task<Diagnosis> Network(CancellationToken token)
     {
         var report = new StringBuilder($"Hanki Connect — Wi-Fi & ICMP • {DateTimeOffset.Now:O}\r\n");
         report.AppendLine("Wi-Fi output below is native, localised Windows text. It may expose SSID/BSSID, MAC and network names. Location permission may be required; no permissions are changed by Hanki.");
-        report.AppendLine(await Command(Path.Combine(Environment.SystemDirectory, "netsh.exe"), ["wlan", "show", "interfaces"], token));
-        var targets = new HashSet<IPAddress> { IPAddress.Parse("1.1.1.1") };
+        var netsh = await Command(Path.Combine(Environment.SystemDirectory, "netsh.exe"), ["wlan", "show", "interfaces"], token);
+        report.AppendLine(netsh);
+        var internet = IPAddress.Parse("1.1.1.1");
+        var targets = new HashSet<IPAddress> { internet };
         foreach (var adapter in NetworkInterface.GetAllNetworkInterfaces())
         {
             token.ThrowIfCancellationRequested();
@@ -47,17 +47,13 @@ internal static class ReadOnlyDiagnostics
                 catch (PingException) { errors++; }
                 if (i < 9) await Task.Delay(250, token);
             }
-            return $"{target}: {DiagnosticRules.PingSummary(sent, replies)} Local ping errors: {errors}.";
+            return (Stats: new PingStats(target.ToString(), !target.Equals(internet), sent, replies),
+                Line: $"{target}: {DiagnosticRules.PingSummary(sent, replies)} Local ping errors: {errors}.");
         }));
-        foreach (var line in results) report.AppendLine(line);
+        foreach (var result in results) report.AppendLine(result.Line);
         report.AppendLine("No throughput/speed test or traceroute. VPNs, firewalls and multiple adapters affect routes. A good gateway response and poor external response narrow investigation but do not identify the cause.");
-        return report.ToString();
+        return ConnectionVerdict.Latency(results.Select(r => r.Stats).ToArray(), NetworkDiagnostics.ParseWifi(netsh), report.ToString());
     }
-    private static Task<string> PowerShell(string script, CancellationToken token) => Command(
-        Path.Combine(Environment.SystemDirectory, "WindowsPowerShell", "v1.0", "powershell.exe"),
-        ["-NoLogo", "-NoProfile", "-NonInteractive", "-EncodedCommand", Convert.ToBase64String(Encoding.Unicode.GetBytes(
-            "[Console]::OutputEncoding=[System.Text.UTF8Encoding]::new(); $ProgressPreference='SilentlyContinue'; " + script))], token);
-
     // Only fixed internal read-only commands call this method. No log/user content is interpolated.
     private static async Task<string> Command(string executable, string[] arguments, CancellationToken token)
     {

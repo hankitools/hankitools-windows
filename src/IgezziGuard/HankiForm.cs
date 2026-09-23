@@ -3,14 +3,10 @@ namespace IgezziGuard;
 public sealed class HankiForm : Form
 {
     private readonly WorkspacePages tabs = new() { Dock = DockStyle.Fill };
-    private readonly TextBox scan = Report();
-    private readonly TextBox network = Report();
-    private readonly HankiButton file = new() { Text = "Scan file", AutoSize = true, Primary = true };
-    private readonly HankiButton folder = new() { Text = "Scan folder", AutoSize = true };
-    private readonly HankiButton connect = new() { Text = "Run network checks", AutoSize = true, Primary = true };
+    private readonly ScannerPanel scanner = new();
+    private readonly DiagnosticPanel connection = new("Check my connection", "Checks your network adapter, router, name lookups (DNS for www.microsoft.com, cloudflare.com and example.com) and whether Cloudflare (1.1.1.1) and the first site that resolves answer on port 443. Those servers can see your IP address. Nothing is uploaded and no settings are changed.", "What this checks", NetworkDiagnostics.Check);
     private readonly HankiButton cancel = new() { Text = "Cancel", Dock = DockStyle.Bottom, Enabled = false, Visible = false };
     private readonly Label status = new() { Text = "Ready — no checks run", Dock = DockStyle.Bottom, Height = 32, Tag = "intro" };
-    private CancellationTokenSource? running;
     private readonly DiagnosticHistoryPanel diagnosticHistory = new();
     private readonly ActivationPanel activation = new();
     private readonly FullScanPanel fullScan = new();
@@ -21,9 +17,9 @@ public sealed class HankiForm : Form
     private readonly AiChatPanel ai = new();
     private readonly UsagePanel usage = new();
     private readonly StartupPanel startup = new();
-    private readonly DiagnosticPanel diagnose = new("Read recent Event Logs", "Reads up to 50 recent warning/error/critical events per System and Application log (7 days). Reports can contain private data. No logs cleared or settings changed.", ReadOnlyDiagnostics.CrashLogs);
-    private readonly DiagnosticPanel defender = new("Audit Defender settings", "Reads Defender status and configured exclusions using built-in PowerShell. No changes or auto-elevation. Exclusion paths may contain private data.", ReadOnlyDiagnostics.Defender, ResultPresentation.Defender);
-    private readonly DiagnosticPanel networkDeep = new("Run Wi-Fi / latency checks", "Reads Wi-Fi interfaces and sends 10 ICMP probes each to 1.1.1.1 and up to four active IPv4 gateways. Remote endpoint sees your source IP. Reports can contain SSID/BSSID/MAC and IP addresses. No settings changes.", ReadOnlyDiagnostics.Network);
+    private readonly DiagnosticPanel diagnose = new("Check the last 7 days", "Reads warnings, errors and restart records from the Windows System and Application logs for the last 7 days, then explains the common ones in plain language: what they mean, whether they matter, and what to do. The report can contain names and paths. Nothing is cleared or changed.", "What this checks", ReadOnlyDiagnostics.EventLogs);
+    private readonly DiagnosticPanel defender = new("Audit Defender settings", "Reads Defender status and configured exclusions using built-in PowerShell. No changes or auto-elevation. Exclusion paths may contain private data.", "What this checks", async token => ResultPresentation.DefenderDiagnosis(await ReadOnlyDiagnostics.Defender(token)));
+    private readonly DiagnosticPanel networkDeep = new("Test Wi-Fi and response times", "Reads your Wi-Fi signal and sends 10 pings each to your router and to Cloudflare (1.1.1.1), so you can see whether delays start at home or further out. Cloudflare sees your IP address. The report can contain network names and addresses. No settings are changed.", "What this checks", ReadOnlyDiagnostics.Network);
     private readonly SamplingPanel sampling = new();
     private readonly CrashTimelinePanel timeline = new();
     private readonly DuplicatePanel duplicates = new();
@@ -35,7 +31,9 @@ public sealed class HankiForm : Form
     private readonly DumpAnalysisPanel dumps = new();
     private readonly TroubleshootingPanel guidance = new();
     private readonly RecoveryPanel recovery = new();
-    private ToolPage[] ExtraPages => [activation, diagnosticHistory, fullScan, duplicates, startupFolders, longPerformance, tuning, networkTools, defenderTools, dumps, guidance, recovery];
+    /// <summary>Every navigable tool, as listed in Find a tool.</summary>
+    internal IReadOnlyList<ToolLauncher.Route> Routes { get; private set; } = [];
+    private ToolPage[] ExtraPages => [activation, diagnosticHistory, fullScan, duplicates, startupFolders, longPerformance, tuning, networkTools, defenderTools, dumps, guidance, recovery, scanner];
 
     public HankiForm()
     {
@@ -51,14 +49,8 @@ public sealed class HankiForm : Form
         Page("Full system scan").Controls.Add(fullScan);
         Page("Diagnostic history").Controls.Add(diagnosticHistory);
         var shield = Page("Shield · experimental");
-        shield.Controls.Add(scan);
-        var bar = new FlowLayoutPanel { Dock = DockStyle.Top, Height = 48 };
-        bar.Controls.AddRange([file, folder]); shield.Controls.Add(bar);
-        scan.Text = "Experimental: bundled EICAR test signature and simple heuristics, not a malware signature feed.\r\nRead-only scanner. No quarantine actions. Files over 512 MB are skipped; archives are not unpacked.\r\nFindings require human review.";
-        var net = Page("Connect"); net.Controls.Add(network);
-        var netBar = new FlowLayoutPanel { Dock = DockStyle.Top, Height = 48 };
-        netBar.Controls.Add(connect); net.Controls.Add(netBar);
-        network.Text = "Lists local network adapters, addresses, gateways and DNS servers.\r\n\r\nRun sends DNS requests for example.com and TCP probes to example.com:443 and 1.1.1.1:443.\r\nThese endpoints can observe your source IP. No report or files are uploaded.\r\n\r\nNo settings changes, resets, speed tests or automatic repairs.";
+        shield.Controls.Add(defender);
+        var net = Page("Connect"); net.Controls.Add(connection);
         var history = Page("Scan history"); var historyText = Report(); history.Controls.Add(historyText);
         tabs.SelectedIndexChanged += (_, _) => {
             if (tabs.SelectedTab == history) {
@@ -85,16 +77,17 @@ public sealed class HankiForm : Form
         void SelectInner(Control control) { if (control.Parent is TabPage page && page.Parent is TabControl inner) inner.SelectedTab = page; }
         assistant.AiRequested += text => { if (ai.LoadDraft(text)) SelectInner(ai); };
         void Prepare(string text) { if (assistant.LoadReport(text)) { tabs.SelectedTab = assistantPage; SelectInner(assistant); } }
-        var diagnosePage = Page("Diagnose"); diagnosePage.Controls.Add(timeline);
-        AttachDetail(diagnosePage, "Crash timeline", "Recent Event Logs", diagnose);
+        // Guided checks lead: people start from a symptom, then open the tool each step points to.
+        var diagnosePage = Page("Diagnose"); diagnosePage.Controls.Add(guidance);
+        AttachDetail(diagnosePage, "Guided checks", "Crash timeline", timeline);
         timeline.PrepareRequested += Prepare;
         var diagnoseTabs = diagnosePage.Controls.OfType<TabControl>().Single();
-        AddTab(diagnoseTabs, "Windows Activation", activation); AddTab(diagnoseTabs, "Dump analysis", dumps); AddTab(diagnoseTabs, "Guided checks", guidance);
-        AttachDetail(shield, "Scanner", "Defender audit", defender);
-        shield.Controls.OfType<TabControl>().Single().SelectedIndex = 1;
+        AddTab(diagnoseTabs, "Recent Event Logs", diagnose); AddTab(diagnoseTabs, "Windows Activation", activation); AddTab(diagnoseTabs, "Dump analysis", dumps);
+        // Microsoft Defender is the real protection; Hanki's experimental scanner comes last.
+        AttachDetail(shield, "Defender audit", "Defender controls / alerts", defenderTools);
+        AddTab(shield.Controls.OfType<TabControl>().Single(), "File scanner (experimental)", scanner);
         AttachDetail(net, "Basic checks", "Wi-Fi / latency", networkDeep);
         AddTab(net.Controls.OfType<TabControl>().Single(), "Advanced / DNS repair", networkTools);
-        AddTab(shield.Controls.OfType<TabControl>().Single(), "Defender controls / alerts", defenderTools);
         var performancePage = performance.Parent as TabPage;
         if (performancePage is not null) {
             AttachDetail(performancePage, "Snapshot / pagefile", "30-second sample", sampling);
@@ -107,13 +100,7 @@ public sealed class HankiForm : Form
         diagnose.PrepareRequested += Prepare; defender.PrepareRequested += Prepare;
         networkDeep.PrepareRequested += Prepare; sampling.PrepareRequested += Prepare;
         performance.PrepareRequested += Prepare;
-        var prepareScan = new HankiButton { Text = "Prepare for ChatGPT…", Appearance = HankiButtonStyle.Quiet, AutoSize = true };
-        prepareScan.Click += (_, _) => { if (running is null) Prepare(scan.Text); };
-        bar.Controls.Add(prepareScan);
-        var prepareNetwork = new HankiButton { Text = "Prepare for ChatGPT…", Appearance = HankiButtonStyle.Quiet, AutoSize = true };
-        prepareNetwork.Click += (_, _) => { if (running is null) Prepare(network.Text); };
-        netBar.Controls.Add(prepareNetwork);
-        maintain.BusyChanged += busy => { file.Enabled = folder.Enabled = connect.Enabled = !busy; };
+        connection.PrepareRequested += Prepare;
         var sidebar = new FlowLayoutPanel { Tag = "pine", Dock = DockStyle.Left, Width = 240, FlowDirection = FlowDirection.TopDown,
             AutoScroll = true, WrapContents = false, Padding = new Padding(12, 6, 12, 12) };
         sidebar.Paint += (_, e) => {
@@ -175,6 +162,8 @@ public sealed class HankiForm : Form
             }
         }
         AddRoutes(tabs);
+        Routes = routes;
+        guidance.OpenRequested += name => routes.FirstOrDefault(r => r.Name == name)?.Open();
         foreach (var shortcut in new[] { ("Windows / Task Manager", "task-manager"), ("Windows / Event Viewer", "event-viewer"), ("Windows / Settings", "settings"), ("Windows / File Explorer", "explorer") }) {
             var item = shortcut;
             routes.Add(new ToolLauncher.Route(item.Item1, () => DesktopShortcuts.Open(this, item.Item2)));
@@ -232,13 +221,13 @@ public sealed class HankiForm : Form
         HankiTheme.Apply(this);
         defenderTools.ProtectionAlert += message => status.Text = message;
         void CancelTasks() {
-            running?.Cancel(); maintain.Cancel(); apps.Cancel(); performance.Cancel(); diagnose.Cancel(); defender.Cancel(); networkDeep.Cancel();
+            connection.Cancel(); maintain.Cancel(); apps.Cancel(); performance.Cancel(); diagnose.Cancel(); defender.Cancel(); networkDeep.Cancel();
             sampling.Cancel(); ai.Cancel(); timeline.Cancel(); usage.Stop(); defenderTools.StopMonitoring(); foreach (var page in ExtraPages) page.Cancel();
         }
         string[] ActiveTasks() => new[] {
-            (fullScan.IsBusy, "Full system scan / repair"), (running is not null, "Scan / network check"), (maintain.IsBusy, "Files"), (apps.IsBusy, "Apps"), (performance.IsBusy || sampling.IsBusy || longPerformance.IsBusy, "Performance"),
+            (fullScan.IsBusy, "Full system scan / repair"), (scanner.IsBusy, "File scan"), (maintain.IsBusy, "Files"), (apps.IsBusy, "Apps"), (performance.IsBusy || sampling.IsBusy || longPerformance.IsBusy, "Performance"),
             (diagnose.IsBusy || timeline.IsBusy || dumps.IsBusy || activation.IsBusy, "Diagnose"), (defender.IsBusy || defenderTools.IsBusy || defenderTools.MonitoringBusy, "Defender"),
-            (networkDeep.IsBusy || networkTools.IsBusy, "Connect"), (ai.IsBusy, "AI request"), (usage.IsBusy, "App observation"),
+            (connection.IsBusy || networkDeep.IsBusy || networkTools.IsBusy, "Connect"), (ai.IsBusy, "AI request"), (usage.IsBusy, "App observation"),
             (duplicates.IsBusy || startupFolders.IsBusy || tuning.IsBusy || guidance.IsBusy || recovery.IsBusy || diagnosticHistory.IsBusy, "Maintenance / recovery")
         }.Where(t => t.Item1).Select(t => t.Item2).ToArray();
         var taskStatus = new Label { Dock = DockStyle.Right, Width = 360, TextAlign = ContentAlignment.MiddleRight, AutoEllipsis = true, Font = new Font("Segoe UI", 9.25f), Padding = new Padding(0, 0, 10, 0) };
@@ -252,14 +241,7 @@ public sealed class HankiForm : Form
         HankiTheme.Apply(taskStatus);
         taskTimer.Start(); Disposed += (_, _) => taskTimer.Dispose();
         cancel.Click += (_, _) => CancelTasks();
-        file.Click += async (_, _) => { using var d = new OpenFileDialog(); if (d.ShowDialog(this) == DialogResult.OK) await Scan(d.FileName); };
-        folder.Click += async (_, _) => { using var d = new FolderBrowserDialog(); if (d.ShowDialog(this) == DialogResult.OK) await Scan(d.SelectedPath); };
-        connect.Click += async (_, _) => await Run(async token => {
-            network.Clear();
-            var progress = new Progress<string>(line => network.AppendText(line + "\r\n"));
-            await Task.Run(() => NetworkDiagnostics.Run(progress, token), token);
-        });
-        FormClosing += (_, e) => { usage.Stop(); defenderTools.StopMonitoring(); if (running is not null || maintain.IsBusy || apps.IsBusy || performance.IsBusy || diagnose.IsBusy || defender.IsBusy || networkDeep.IsBusy || sampling.IsBusy || ai.IsBusy || usage.IsBusy || timeline.IsBusy || ExtraPages.Any(p => p.IsBusy) || defenderTools.MonitoringBusy) { e.Cancel = true; running?.Cancel(); maintain.Cancel(); apps.Cancel(); performance.Cancel(); diagnose.Cancel(); defender.Cancel(); networkDeep.Cancel(); sampling.Cancel(); ai.Cancel(); timeline.Cancel(); foreach (var extra in ExtraPages) extra.Cancel(); status.Text = "Cancelling; close again when finished."; } };
+        FormClosing += (_, e) => { usage.Stop(); defenderTools.StopMonitoring(); if (connection.IsBusy || maintain.IsBusy || apps.IsBusy || performance.IsBusy || diagnose.IsBusy || defender.IsBusy || networkDeep.IsBusy || sampling.IsBusy || ai.IsBusy || usage.IsBusy || timeline.IsBusy || ExtraPages.Any(p => p.IsBusy) || defenderTools.MonitoringBusy) { e.Cancel = true; connection.Cancel(); maintain.Cancel(); apps.Cancel(); performance.Cancel(); diagnose.Cancel(); defender.Cancel(); networkDeep.Cancel(); sampling.Cancel(); ai.Cancel(); timeline.Cancel(); foreach (var extra in ExtraPages) extra.Cancel(); status.Text = "Cancelling; close again when finished."; } };
     }
     protected override void OnSystemColorsChanged(EventArgs e)
     {
@@ -267,26 +249,6 @@ public sealed class HankiForm : Form
         if (IsHandleCreated && !Disposing) HankiTheme.Apply(this);
     }
     private static void AddTab(TabControl tabs, string title, Control content) { var page = new TabPage(title); page.Controls.Add(content); tabs.TabPages.Add(page); }
-    private Task Scan(string path) => Run(async token => {
-        scan.Clear();
-        var progress = new Progress<ScanProgress>(p => status.Text = $"{p.FilesScanned:N0} scanned · {p.Detections} findings · {p.Errors} errors");
-        var summary = await Task.Run(() => new ScannerService(SignatureDatabase.Load()).ScanAsync(path, progress, token), token);
-        scan.Text = $"Finished: {summary.FilesScanned} files; {summary.Skipped} skipped; {summary.Errors} errors.\r\nNo findings does not prove safety.\r\n\r\n" +
-            string.Join("\r\n\r\n", summary.Findings.Select(f => $"{f.Severity}: {f.DetectionName}\r\n{f.FilePath}\r\n{f.Details}\r\nSHA-256: {f.Sha256}"));
-        try { new HistoryStore().Add(summary); }
-        catch (IOException ex) { scan.AppendText("\r\n\r\nScan completed, but its history could not be saved: " + ex.Message); }
-    });
-    private async Task Run(Func<CancellationToken, Task> action)
-    {
-        if (running is not null || maintain.IsBusy) return;
-        using var cts = new CancellationTokenSource(); running = cts;
-        file.Enabled = folder.Enabled = connect.Enabled = maintain.Enabled = false; cancel.Enabled = true;
-        status.Text = "Running…";
-        try { await action(cts.Token); status.Text = "Finished — review results and limitations."; }
-        catch (OperationCanceledException) { status.Text = "Cancelled — results incomplete; no safety conclusion."; }
-        catch (Exception ex) { status.Text = "Check failed — results incomplete."; MessageBox.Show(this, ex.Message, "Hanki Tools"); }
-        finally { running = null; file.Enabled = folder.Enabled = connect.Enabled = maintain.Enabled = true; cancel.Enabled = false; }
-    }
     private TabPage Page(string title) { var page = new TabPage(title) { BackColor = BackColor, Padding = new Padding(24, 2, 24, 18) }; tabs.TabPages.Add(page); return page; }
     private static void AttachDetail(TabPage parent, string originalTitle, string addedTitle, Control detail)
     {

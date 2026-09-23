@@ -11,6 +11,9 @@ public class ToolPage : UserControl
     private readonly Label state = new() { Text = "Ready when you are", AutoSize = true, Tag = "intro", Margin = new Padding(0, 7, 12, 0), Font = new Font("Segoe UI Semibold", 9.75f) };
     private readonly TextBox find = new() { Width = 200, PlaceholderText = "Find in report  (Ctrl+F)", AccessibleName = "Find in report", Margin = new Padding(8, 3, 0, 0) };
     private readonly Label matches = new() { AutoSize = true, Tag = "intro", Margin = new Padding(8, 7, 0, 0) };
+    private readonly SummaryView summary = new() { Visible = false };
+    private readonly HankiButton details = new() { Text = "View technical details", Appearance = HankiButtonStyle.Quiet, AutoSize = true, Visible = false };
+    private RoundedPanel report = null!;
     private string? previousReport;
     private string previousState = "";
     private CancellationTokenSource? pending;
@@ -22,7 +25,7 @@ public class ToolPage : UserControl
     {
         Dock = DockStyle.Fill; Padding = new Padding(0, 4, 0, 0); Output.Text = disclosure;
         var footer = new FlowLayoutPanel { Dock = DockStyle.Bottom, AutoSize = true, Padding = new Padding(0, 10, 0, 0) };
-        footer.Controls.AddRange([export, assistant, previous]);
+        footer.Controls.AddRange([details, export, assistant, previous]);
         // Report card: status and cancel on the left, search tools on the right, report below.
         var statusBar = new FlowLayoutPanel { AutoSize = true, WrapContents = false, Tag = "card", Margin = Padding.Empty, Anchor = AnchorStyles.Left | AnchorStyles.Top };
         statusBar.Controls.AddRange([state, stop]);
@@ -36,9 +39,13 @@ public class ToolPage : UserControl
         var divider = new Panel { Dock = DockStyle.Top, Height = 1, Tag = "divider" };
         divider.Paint += (_, e) => { if (!SystemInformation.HighContrast) e.Graphics.Clear(HankiTheme.Border); };
         var spacer = new Panel { Dock = DockStyle.Top, Height = 12, Tag = "card" };
-        var report = new RoundedPanel { Dock = DockStyle.Fill, Padding = new Padding(18, 12, 12, 12) };
+        report = new RoundedPanel { Dock = DockStyle.Fill, Padding = new Padding(18, 12, 12, 12) };
         report.Controls.Add(Output); report.Controls.Add(spacer); report.Controls.Add(divider); report.Controls.Add(header);
-        Controls.Add(report); Controls.Add(Bar); Controls.Add(footer);
+        // The body holds either the plain-language summary or the technical report; subclasses insert above it at index 1.
+        var body = new Panel { Dock = DockStyle.Fill };
+        body.Controls.Add(report); body.Controls.Add(summary);
+        Controls.Add(body); Controls.Add(Bar); Controls.Add(footer);
+        details.Click += (_, _) => SetSummaryVisible(!summary.Visible);
         // TextBox selects everything when focus arrives (for example when action buttons are disabled); a read-only report should not look selected.
         Output.Select(0, 0);
         Output.GotFocus += (_, _) => BeginInvoke(() => { if (Output.TextLength > 0 && Output.SelectionLength == Output.TextLength) Output.Select(0, 0); });
@@ -54,10 +61,14 @@ public class ToolPage : UserControl
         };
         Output.TextChanged += (_, _) => {
             matches.Text = "";
-            if (!IsBusy) state.Text = "Report updated · " + DateTime.Now.ToString("t");
+            if (IsBusy) return;
+            state.Text = "Report updated · " + DateTime.Now.ToString("t");
+            // A direct message (outside a run) replaces the previous result, so its summary no longer applies.
+            hasSummary = details.Visible = false; SetSummaryVisible(false);
         };
         previous.Click += (_, _) => {
             if (IsBusy || previousReport is null) return;
+            SetSummaryVisible(false);
             string currentState = state.Text;
             (previousReport, Output.Text) = (Output.Text, previousReport);
             (previousState, state.Text) = (currentState, previousState);
@@ -67,7 +78,7 @@ public class ToolPage : UserControl
 
     protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
     {
-        if (keyData == (Keys.Control | Keys.F)) { find.Focus(); find.SelectAll(); return true; }
+        if (keyData == (Keys.Control | Keys.F)) { SetSummaryVisible(false); find.Focus(); find.SelectAll(); return true; }
         if (keyData == Keys.F3) { FindNext(); return true; }
         return base.ProcessCmdKey(ref msg, keyData);
     }
@@ -118,9 +129,32 @@ public class ToolPage : UserControl
     }
     protected bool Review(string text) => MessageBox.Show(this, text, "Review action", MessageBoxButtons.OKCancel, MessageBoxIcon.Information, MessageBoxDefaultButton.Button2) == DialogResult.OK;
 
+    /// <summary>Show a plain-language summary in place of the report; the report stays one click away.</summary>
+    protected void ShowSummary(Diagnosis diagnosis)
+    {
+        summary.Show(diagnosis.Status, diagnosis.Headline, diagnosis.Cards);
+        hasSummary = details.Visible = true; SetSummaryVisible(true);
+    }
+    private bool hasSummary;
+    private void SetSummaryVisible(bool visible)
+    {
+        // A field, not details.Visible: Visible reads false whenever this page's tab is not shown.
+        visible &= hasSummary;
+        summary.Visible = visible; report.Visible = !visible;
+        details.Text = visible ? "View technical details" : "Back to summary";
+    }
+    /// <summary>Runs structured work: the report fills the technical view and the summary is shown first.</summary>
+    protected async Task Run(Func<CancellationToken, Task<Diagnosis>> work)
+    {
+        Diagnosis? result = null;
+        await Run(async token => { result = await work(token); return result.Report; });
+        if (result is not null && !IsDisposed) ShowSummary(result);
+    }
+
     protected async Task Run(Func<CancellationToken, Task<string>> work)
     {
         if (IsBusy) return;
+        hasSummary = details.Visible = false; SetSummaryVisible(false);
         previousReport = Output.Text; previousState = state.Text; previous.Text = "Previous report";
         using var cts = new CancellationTokenSource(); pending = cts;
         var elapsed = System.Diagnostics.Stopwatch.StartNew();

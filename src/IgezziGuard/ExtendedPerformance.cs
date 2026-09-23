@@ -6,7 +6,7 @@ public sealed class ExtendedPerformancePanel : ToolPage
 {
     private readonly ComboBox duration = new() { DropDownStyle = ComboBoxStyle.DropDownList, Width = 160 };
     private SavedSession? latest, baseline;
-    public ExtendedPerformancePanel() : base("Long monitoring: CPU/memory about every second, physical-disk throughput and busiest GPU engine about every five seconds. WMI/driver support required; missing counters stay unknown. Save sessions to compare later. GPU reports the busiest engine, not summed utilization across GPUs. Collectors add some overhead.") {
+    public ExtendedPerformancePanel() : base("Monitor your PC while you do the thing that feels slow: processor and memory about every second, disk and graphics about every five seconds. Afterwards you get a plain summary of what was busiest. Save a run as a baseline, change one thing, and monitor again to compare. Some PCs don't report disk or GPU counters; those stay unknown. Monitoring adds a little load of its own.") {
         duration.Items.AddRange(["30 seconds", "1 minute", "5 minutes", "15 minutes"]); duration.SelectedIndex = 1; Bar.Controls.Add(duration);
         Button("Start monitoring", async () => {
             int seconds = new[] { 30, 60, 300, 900 }[duration.SelectedIndex]; SavedSession? complete = null;
@@ -14,7 +14,8 @@ public sealed class ExtendedPerformancePanel : ToolPage
             await Run(async token => {
                 var cpu = PerformanceSession.Sample(token, seconds, progress); var devices = Devices(seconds, token);
                 await Task.WhenAll(cpu, devices); complete = new(1, Environment.MachineName, await cpu, await devices);
-                return Describe(complete) + (baseline is null ? "\r\nNo baseline selected. Save this run or use it as baseline." : Compare(baseline, complete));
+                var report = Describe(complete) + (baseline is null ? "\r\nNo baseline selected. Save this run or use it as baseline." : Compare(baseline, complete));
+                return PerformanceInsights.Monitoring(complete, baseline, report);
             }); latest = complete;
         });
         Button("Use last run as baseline", () => { if (latest is not null) { baseline = latest; Output.Text = "Baseline selected.\r\n" + Describe(baseline); } });

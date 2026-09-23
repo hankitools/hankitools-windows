@@ -2,7 +2,7 @@ namespace IgezziGuard;
 
 public sealed class PerformancePanel : UserControl
 {
-    private readonly HankiButton refresh = new() { Text = "Take / refresh snapshot", Primary = true, AutoSize = true };
+    private readonly HankiButton refresh = new() { Text = "Check memory now", Primary = true, AutoSize = true };
     private readonly TextBox report = TextArea();
     private CancellationTokenSource? pending;
     public bool IsBusy => pending is not null;
@@ -15,7 +15,7 @@ public sealed class PerformancePanel : UserControl
         var results = new ResultCardsView(report); overview.Controls.Add(results);
         var bar = new FlowLayoutPanel { Dock = DockStyle.Top, AutoSize = true };
         bar.Controls.Add(refresh);
-        var prepare = new HankiButton { Text = "Prepare for ChatGPT…", Appearance = HankiButtonStyle.Quiet, AutoSize = true, Enabled = false };
+        var prepare = new HankiButton { Text = "Prepare for Assistant…", Appearance = HankiButtonStyle.Quiet, AutoSize = true, Enabled = false };
         prepare.Click += (_, _) => { if (!IsBusy) PrepareRequested?.Invoke(report.Text); };
         bar.Controls.Add(prepare); overview.Controls.Add(bar);
         var settings = new HankiButton { Text = "Windows pagefile settings…", Appearance = HankiButtonStyle.Quiet, AutoSize = true };
@@ -46,14 +46,17 @@ public sealed class PerformancePanel : UserControl
             HankiTheme.Apply(dialog); dialog.ShowDialog(this);
         };
         bar.Controls.Add(help); Controls.Add(overview);
-        report.Text = "No performance data collected yet. Click Take / refresh snapshot.\r\n\r\nReads memory counters, active pagefiles, configured pagefile/dump settings, fixed-drive free space and process working sets.\r\nNo report is uploaded and no settings or processes are changed.";
-        results.ShowCards([new("Understand memory use", report.Text)], false);
+        report.Text = "No performance data collected yet. Click Check memory now.\r\n\r\nReads memory counters, active pagefiles, configured pagefile/dump settings, fixed-drive free space and process working sets.\r\nNo report is uploaded and no settings or processes are changed.";
+        results.ShowCards([new("What this checks", "Shows how much memory is free right now, which apps use the most, how full your drives are, and whether the pagefile needs attention. Nothing is changed or uploaded.")], false);
         refresh.Click += async (_, _) => {
             if (pending is not null) return;
             using var cts = new CancellationTokenSource(); pending = cts; refresh.Enabled = prepare.Enabled = false;
             results.ShowCards([new("Collecting your snapshot…", "Reading memory, pagefiles and process working sets. No settings are changed.")], false);
             report.Text = "Collecting read-only snapshot…";
-            try { report.Text = await Task.Run(() => PerformanceSnapshot.Collect(cts.Token), cts.Token); results.ShowCards(ResultPresentation.Performance(report.Text)); prepare.Enabled = true; }
+            try {
+                report.Text = await Task.Run(() => PerformanceSnapshot.Collect(cts.Token), cts.Token);
+                results.Show(ResultPresentation.PerformanceDiagnosis(report.Text)); prepare.Enabled = true;
+            }
             catch (OperationCanceledException) { report.Text = "Snapshot cancelled; incomplete data discarded."; results.ShowCards([new("Snapshot cancelled", report.Text)], false); }
             catch (Exception ex) { report.Text = "Snapshot unavailable: " + ex.Message + "\r\nNo settings changed."; results.ShowCards([new("Snapshot unavailable", report.Text)]); }
             finally { pending = null; refresh.Enabled = true; }

@@ -9,7 +9,7 @@ public sealed class DuplicatePanel : ToolPage
         Button("Find duplicates in folder…", async () => {
             using var picker = new FolderBrowserDialog(); if (picker.ShowDialog(this) != DialogResult.OK) return;
             var folder = picker.SelectedPath; DuplicateResult? collected = null;
-            await Run(t => { collected = DuplicateFinder.Scan(folder, t); return Task.FromResult(collected.Coverage + "\r\n\r\n" + string.Join("\r\n\r\n", collected.Groups.Select(g => $"{g.Files.Count} copies × {g.Files[0].Bytes:N0} bytes\r\nSHA-256 {g.Hash}\r\n" + string.Join("\r\n", g.Files.Select(f => f.FullPath))))); });
+            await Run(t => { collected = DuplicateFinder.Scan(folder, t); return Task.FromResult(DuplicateInsights.Summarize(collected, collected.Coverage + "\r\n\r\n" + string.Join("\r\n\r\n", collected.Groups.Select(g => $"{g.Files.Count} copies × {g.Files[0].Bytes:N0} bytes\r\nSHA-256 {g.Hash}\r\n" + string.Join("\r\n", g.Files.Select(f => f.FullPath)))))); });
             result = collected; groups.Items.Clear(); files.Items.Clear();
             if (result is not null) foreach (var g in result.Groups) groups.Items.Add($"{g.Files.Count} copies × {MaintainPanel.SizeText(g.Files[0].Bytes)}");
         });

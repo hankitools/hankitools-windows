@@ -39,7 +39,12 @@ public sealed class StartupPanel : UserControl
         actions = new(backend, Path.Combine(SecurityPaths.Root, "startup-actions.json"));
         var pages = new HankiTabs { Dock = DockStyle.Fill };
         var startup = new TabPage("Startup entries"); var journal = new TabPage("Action history / undo");
-        entries.Columns.Add("Name", 220); entries.Columns.Add("Registered command (never executed by Hanki)", 600);
+        entries.Columns.Add("Name", 200); entries.Columns.Add("What it is", 120); entries.Columns.Add("Advice", 380); entries.Columns.Add("Command (never run by Hanki)", 520);
+        entries.SelectedIndexChanged += (_, _) => {
+            if (entries.SelectedItems.Count != 1 || entries.SelectedItems[0].Tag is not StartupValue value) return;
+            var (kind, advice) = StartupAdvice.Describe(value.Name, value.Command);
+            status.Text = $"{value.Name} — {kind}. {advice}\nThis is a hint from the name and command, not a verdict. Disabling only stops it launching at sign-in; nothing is uninstalled, and you can restore it under Action history / undo.";
+        };
         history.Columns.Add("Time", 165); history.Columns.Add("Name", 200); history.Columns.Add("State", 150); history.Columns.Add("Saved command", 420);
         var scope = new ComboBox { Width = 210, DropDownStyle = ComboBoxStyle.DropDownList };
         scope.Items.AddRange(["Current user", "All users (64-bit)", "All users (32-bit)"]); scope.SelectedIndex = 0;
@@ -56,7 +61,7 @@ public sealed class StartupPanel : UserControl
         var undoBar = new FlowLayoutPanel { Dock = DockStyle.Top, AutoSize = true }; undoBar.Controls.Add(undo);
         startup.Controls.Add(entries); startup.Controls.Add(bar); journal.Controls.Add(history); journal.Controls.Add(undoBar);
         pages.TabPages.AddRange([startup, journal]); Controls.Add(pages); Controls.Add(status);
-        status.Text = "Click Refresh. User and machine Run registry entries are managed by scope; listed does not mean enabled in Windows Startup settings.\nDisabling removes the selected registration for future sign-ins, not the running process. Machine-wide changes may require administrator rights. Startup-folder files are in their own tab; scheduled tasks remain in Windows. Backups contain command paths and must be kept for undo.";
+        status.Text = "Click Refresh to list apps that launch when you sign in. Choose Current user or All users above.\nDisabling removes the registration for future sign-ins; it doesn't close or uninstall anything. All-users changes may need administrator rights. Startup-folder files have their own tab. Hanki keeps a backup so you can undo.";
         refresh.Click += (_, _) => Run(RefreshData);
         windows.Click += (_, _) => DesktopShortcuts.Open(this, "startup");
         disable.Click += (_, _) => {
@@ -76,7 +81,9 @@ public sealed class StartupPanel : UserControl
     private void RefreshData() {
         var values = backend.All(); var saved = actions.ReadHistory();
         entries.Items.Clear(); history.Items.Clear();
-        foreach (var v in values) entries.Items.Add(new ListViewItem([v.Name, v.Command]) { Tag = v });
+        foreach (var v in values) { var (kind, advice) = StartupAdvice.Describe(v.Name, v.Command); entries.Items.Add(new ListViewItem([v.Name, kind, advice, v.Command]) { Tag = v }); }
+        status.Text = values.Count == 0 ? "No startup entries in this scope. Check the other scopes, Startup folders, or Windows Settings → Apps → Startup."
+            : $"{values.Count} app(s) launch at sign-in from this scope. Select one to see advice. Fewer startup apps usually means a faster start; every change can be undone.";
         foreach (var a in saved.OrderByDescending(a => a.At)) history.Items.Add(new ListViewItem([a.At.ToString("g"), a.Original.Name, a.State, a.Original.Command]) { Tag = a });
     }
     private static ListView List() => new() { Dock = DockStyle.Fill, View = View.Details, FullRowSelect = true, MultiSelect = false, HideSelection = false };

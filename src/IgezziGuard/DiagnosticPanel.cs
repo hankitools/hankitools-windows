@@ -8,32 +8,47 @@ public sealed class DiagnosticPanel : UserControl
     public bool IsBusy => pending is not null;
     public void Cancel() => pending?.Cancel();
     public event Action<string>? PrepareRequested;
-    public DiagnosticPanel(string label, string disclosure, Func<CancellationToken, Task<string>> collect, Func<string, ResultCard[]>? present = null)
+
+    /// <summary>Text report, optionally summarized into cards by <paramref name="present"/>.</summary>
+    public DiagnosticPanel(string label, string disclosure, Func<CancellationToken, Task<string>> collect, Func<string, ResultCard[]>? present = null, string introTitle = "Before you start")
+        : this(label, disclosure, present is null ? null : introTitle, async token => {
+            var text = await collect(token);
+            return present is null ? new Diagnosis(text, CardStatus.Info, "", []) : Diagnosis.From(text, present(text));
+        }) { }
+
+    /// <summary>Structured result: plain-language summary first, technical report on request.</summary>
+    public DiagnosticPanel(string label, string disclosure, string? introTitle, Func<CancellationToken, Task<Diagnosis>> diagnose)
     {
         Dock = DockStyle.Fill;
         output.Text = disclosure;
-        ResultCardsView? results = present is null ? null : new ResultCardsView(output);
-        results?.ShowCards([new("Start with a protection review", disclosure)], false);
+        ResultCardsView? results = introTitle is null ? null : new ResultCardsView(output);
+        results?.ShowCards([new(introTitle!, disclosure)], false);
         var bar = new FlowLayoutPanel { Dock = DockStyle.Top, AutoSize = true };
-        var run = new HankiButton { Text = label, AutoSize = true, Primary = true }; var stop = new HankiButton { Text = "Cancel", Enabled = false };
+        var run = new HankiButton { Text = label, AutoSize = true, Primary = true }; var stop = new HankiButton { Text = "Cancel", Enabled = false, AutoSize = true };
         var export = new HankiButton { Text = "Review / export…", Appearance = HankiButtonStyle.Quiet, AutoSize = true, Enabled = false };
-        var assistant = new HankiButton { Text = "Prepare for ChatGPT…", Appearance = HankiButtonStyle.Quiet, AutoSize = true, Enabled = false };
-        var activity = new Label { Text = "Ready • Start a check to see results", Dock = DockStyle.Top, Height = 38, Padding = new Padding(8), AccessibleRole = AccessibleRole.StatusBar };
+        var assistant = new HankiButton { Text = "Prepare for Assistant…", Appearance = HankiButtonStyle.Quiet, AutoSize = true, Enabled = false };
+        var activity = new Label { Text = "Ready • Start the check to see results", Dock = DockStyle.Top, Height = 34, Padding = new Padding(2, 6, 2, 6), Tag = "intro", AccessibleRole = AccessibleRole.StatusBar };
         var progress = new ProgressBar { Dock = DockStyle.Top, Height = 3, Style = ProgressBarStyle.Marquee, Visible = false };
         output.BorderStyle = BorderStyle.None;
-        bar.Padding = new Padding(0, 4, 0, 10);
+        NativeTheme.PadText(output); output.Select(0, 0);
+        bar.Padding = new Padding(0, 0, 0, 6);
         bar.Controls.AddRange([run, stop, export, assistant]); Controls.Add((Control?)results ?? output); Controls.Add(activity); Controls.Add(progress); Controls.Add(bar);
         stop.Click += (_, _) => Cancel();
         run.Click += async (_, _) => {
             if (pending is not null) return;
             using var cts = new CancellationTokenSource(); pending = cts;
             run.Enabled = export.Enabled = assistant.Enabled = false; stop.Enabled = true;
-            activity.Text = "Collecting • You can cancel this check"; progress.Visible = true;
-            results?.ShowCards([new("Reading protection status…", "The check is running. You can cancel from the toolbar.")], false);
+            activity.Text = "Checking… You can cancel at any time"; progress.Visible = true;
+            results?.ShowCards([new("Checking…", "This usually takes a few seconds. Nothing on your PC is changed.")], false);
             output.Text = "Collecting…\r\n" + disclosure;
-            try { output.Text = await Task.Run(() => collect(cts.Token), cts.Token); if (present is not null) results!.ShowCards(present(output.Text)); export.Enabled = assistant.Enabled = true; activity.Text = $"Check finished at {DateTime.Now:t} • Review the findings below"; }
-            catch (OperationCanceledException) { output.Text = "Cancelled — incomplete report discarded."; activity.Text = "Cancelled • Run the check again when ready"; results?.ShowCards([new("Check cancelled", output.Text)], false); }
-            catch (Exception ex) { activity.Text = "Could not complete the check • See details below"; output.Text = "Collection failed: " + ex.Message + "\r\nNo settings changed."; results?.ShowCards([new("Check unavailable", output.Text)]); }
+            try {
+                var result = await Task.Run(() => diagnose(cts.Token), cts.Token);
+                output.Text = result.Report;
+                results?.Show(result);
+                export.Enabled = assistant.Enabled = true; activity.Text = $"Finished at {DateTime.Now:t}" + (results is null ? "" : " • Summary below; the full report is under View technical details");
+            }
+            catch (OperationCanceledException) { output.Text = "Cancelled — incomplete report discarded."; activity.Text = "Cancelled • Run the check again when ready"; results?.ShowCards([new("Check cancelled", output.Text, CardStatus.Unknown)], false); }
+            catch (Exception ex) { activity.Text = "Could not complete the check"; output.Text = "Collection failed: " + ex.Message + "\r\nNo settings changed."; results?.ShowCards([new("Check unavailable", output.Text, CardStatus.Unknown)]); }
             finally { progress.Visible = false; pending = null; run.Enabled = true; stop.Enabled = false; }
         };
         assistant.Click += (_, _) => PrepareRequested?.Invoke(output.Text);

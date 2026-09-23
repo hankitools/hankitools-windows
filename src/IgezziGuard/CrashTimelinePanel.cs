@@ -26,14 +26,16 @@ public sealed class CrashTimelinePanel : UserControl
         controls.Controls.AddRange([new Label { Text = "Local time", AutoSize = true, Margin = new Padding(4, 12, 4, 4) }, center,
             new Label { Text = "± minutes", AutoSize = true, Margin = new Padding(4, 12, 4, 4) }, minutes, collect, stop, export, assistant]);
         Controls.Add(report); Controls.Add(controls); Controls.Add(top); Controls.Add(status);
-        report.Text = "FOLLOW THE EVIDENCE\r\n\r\n1. Find restart markers from the last seven days.\r\n2. Select a marker, or enter the actual crash time if known.\r\n3. Build a chronological window of nearby System and Application events.\r\n\r\nKernel-Power 41 is not a diagnosis. WHEA, storage, dump and driver events are clues that need verification. No automatic repairs or uploads.";
+        report.Text = "SEE WHAT HAPPENED BEFORE A CRASH\r\n\r\n1. Click Find restart markers to list unexpected restarts and blue screens from the last 7 days.\r\n2. Pick one, or type the time you remember the problem happening.\r\n3. Click Build timeline to see everything Windows logged in the minutes around it, with a plain explanation of each event.\r\n\r\nThe restart record itself isn't the cause. Look for disk, hardware or driver events just before it. Nothing is changed or uploaded.";
         load.Click += async (_, _) => await Run(async token => {
             var end = DateTimeOffset.Now;
             var result = await Task.Run(() => CrashEventReader.Read(end.AddDays(-7), end, true, token), token);
             found = result.Events.OrderByDescending(e => e.Time).ToList(); markers.Items.Clear();
-            foreach (var e in found) markers.Items.Add($"{e.Time.ToLocalTime():yyyy-MM-dd HH:mm:ss}  ·  {e.Provider} / {e.Id}");
+            foreach (var e in found) markers.Items.Add($"{e.Time.ToLocalTime():ddd d MMM  HH:mm:ss}  ·  {EventKnowledge.Describe(e.Provider, e.Id).Name}");
             if (found.Count > 0) markers.SelectedIndex = 0;
-            report.Text = $"{found.Count} restart/bugcheck markers returned. Multiple markers can describe the same restart.\r\n{result.Coverage}\r\n\r\nSelect a marker and Build timeline. No marker does not rule out a crash; use a known time if needed.";
+            report.Text = found.Count == 0
+                ? $"No unexpected restarts or blue screens were recorded in the last 7 days.\r\n\r\nIf you know roughly when something went wrong, set that time below and click Build timeline.\r\n\r\n{result.Coverage}"
+                : $"Found {found.Count} restart record(s) in the last 7 days; the newest is selected. One restart often leaves two records.\r\n\r\nNext: click Build timeline to see what Windows logged in the minutes around it.\r\n\r\n{result.Coverage}";
         });
         markers.SelectedIndexChanged += (_, _) => { if (markers.SelectedIndex >= 0) center.Value = found[markers.SelectedIndex].Time.LocalDateTime; };
         collect.Click += async (_, _) => await Run(async token => {

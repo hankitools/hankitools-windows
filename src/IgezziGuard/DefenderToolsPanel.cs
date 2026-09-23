@@ -41,9 +41,18 @@ public sealed class DefenderToolsPanel : ToolPage
         catch (Exception ex) { Output.Text = ex.Message; }
     }
     private static Task<string> Status(CancellationToken token) => WindowsCommand.PowerShell("Get-MpComputerStatus | Select-Object AMRunningMode,AMServiceEnabled,AntivirusEnabled,RealTimeProtectionEnabled,BehaviorMonitorEnabled,IsTamperProtected,AntivirusSignatureAge,AntivirusSignatureLastUpdated,QuickScanStartTime,QuickScanEndTime,FullScanStartTime,FullScanEndTime | ConvertTo-Json", token);
-    private static async Task<string> Report(CancellationToken token) {
+    private static async Task<Diagnosis> Report(CancellationToken token) {
         var json = await Status(token); using var doc = JsonDocument.Parse(json);
-        var findings = await WindowsCommand.PowerShell("$detections=@(Get-MpThreatDetection | Sort-Object InitialDetectionTime -Descending | Select-Object -First 30 ThreatID,InitialDetectionTime,LastThreatStatusChangeTime,ActionSuccess,ThreatStatusID,Resources); $threats=@(Get-MpThreat | Select-Object ThreatID,ThreatName,SeverityID,IsActive,DidThreatExecute); [pscustomobject]@{Detections=$detections;ThreatNames=$threats} | ConvertTo-Json -Depth 5", token);
-        return $"DEFENDER REVIEW {DateTimeOffset.Now:O}\r\n{DefenderReview.Alerts(doc.RootElement)}\r\n\r\nSTATUS\r\n{json}\r\n\r\nRECENT FINDINGS (up to 30 detections, plus threat-name mapping)\r\n{findings}\r\nEmpty findings are not proof of a clean computer. Resource paths may contain private data. ActionSuccess describes the reported action; inspect Windows Protection History before drawing conclusions. Another antivirus or policy may explain disabled flags.";
+        var capture = await WindowsCommand.PowerShellCapture("$detections=@(Get-MpThreatDetection | Sort-Object InitialDetectionTime -Descending | Select-Object -First 30 ThreatID,InitialDetectionTime,LastThreatStatusChangeTime,ActionSuccess,ThreatStatusID,Resources); $threats=@(Get-MpThreat | Select-Object ThreatID,ThreatName,SeverityID,IsActive,DidThreatExecute); [pscustomobject]@{Detections=$detections;ThreatNames=$threats} | ConvertTo-Json -Depth 5", token);
+        var findings = capture.DisplayText;
+        var report = $"DEFENDER REVIEW {DateTimeOffset.Now:O}\r\n{DefenderReview.Alerts(doc.RootElement)}\r\n\r\nSTATUS\r\n{json}\r\n\r\nRECENT FINDINGS (up to 30 detections, plus threat-name mapping)\r\n{findings}\r\nEmpty findings are not proof of a clean computer. Resource paths may contain private data. ActionSuccess describes the reported action; inspect Windows Protection History before drawing conclusions. Another antivirus or policy may explain disabled flags.";
+        // Unreadable detection output stays unknown in the summary rather than reading as "no detections".
+        try { using var detections = JsonDocument.Parse(capture.StandardOutput); return ShieldInsights.Defender(doc.RootElement, detections.RootElement, report, DateTimeOffset.Now); }
+        catch (JsonException) {
+            var summary = ShieldInsights.Defender(doc.RootElement, default, report, DateTimeOffset.Now);
+            var cards = summary.Cards.Select(c => c.Title == "Detections in the last 30 days" ? c with { Body = "Detection history could not be read. Check Windows Security → Protection history.", Status = CardStatus.Unknown } : c).ToArray();
+            return summary with { Cards = cards, Status = Diagnosis.Worst(cards.Select(c => c.Status)),
+                Headline = summary.Headline.EndsWith("no recent detections", StringComparison.Ordinal) ? "Defender is on, but its detection history could not be read" : summary.Headline };
+        }
     }
 }

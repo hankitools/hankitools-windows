@@ -24,6 +24,10 @@ internal static class UiSmokeTest
                 }
                 foreach (var size in new[] { new Size(1320, 880), new Size(1120, 740) }) { form.Size = size; Visit(form, size.Width + "px/"); }
                 if (visited.Count < 50) throw new IOException("Fewer workspace views than expected were visited.");
+                // Guided checks open tools by route name; a renamed tab must not silently break a step.
+                var missing = TroubleshootingPanel.Guides.SelectMany(g => g.Steps).Select(s => s.Route).OfType<string>()
+                    .Where(route => form.Routes.All(r => r.Name != route)).Distinct().ToArray();
+                if (missing.Length > 0) throw new IOException("Guided check routes not found: " + string.Join("; ", missing));
             }
             catch (Exception ex) { error = ex.ToString(); }
             finally {

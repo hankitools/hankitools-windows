@@ -34,23 +34,73 @@ public sealed class DumpAnalysisPanel : ToolPage
     }
 }
 
+/// <summary>One troubleshooting step; <see cref="Route"/> names the Hanki tool that performs it, if any.</summary>
+public sealed record GuideStep(string Title, string Why, string? Route = null, string? ActionLabel = null);
+
 public sealed class TroubleshootingPanel : ToolPage
 {
-    private readonly ComboBox symptom = new() { Width = 360, DropDownStyle = ComboBoxStyle.DropDownList };
-    private readonly CheckedListBox steps = new() { Dock = DockStyle.Right, Width = 350, CheckOnClick = true };
-    public TroubleshootingPanel() : base("Choose a symptom for a local investigation checklist. These are read-only evidence-gathering steps; completing a checklist does not establish a diagnosis. Checklist ticks stay in memory until exit.") {
-        symptom.Items.AddRange(["Unexpected restart / blue screen", "Freeze / black screen", "Memory / pagefile pressure", "Slow network / DNS errors", "Security concern"]); symptom.SelectedIndex = 0; Bar.Controls.Add(symptom);
-        Button("Build guided checklist", () => {
-            string[] items = symptom.SelectedIndex switch {
-                0 => ["Record actual crash time and symptom", "Build Diagnose timeline around that time", "Review bugcheck / WHEA / storage / volmgr evidence", "Inspect available dump locally", "Compare repeated failures and recent changes", "Change one supported setting only; retain undo"],
-                1 => ["Record whether audio/input continue during the freeze", "Inspect Display, WHEA and storage events", "Monitor same workload for 5–15 minutes", "Compare GPU engines / disk activity / commit", "Check vendor driver history and temperatures separately", "Capture a dump if Windows generated one"],
-                2 => ["Take snapshot during representative heavy use", "Inspect current commit headroom and peak since boot", "Review process working sets without summing shared pages", "Check pagefile configuration and drive free space", "Use system-managed sizing as starting point", "Retest the same workload; do not disable pagefile for FPS"],
-                3 => ["Run basic Connect and Wi-Fi checks", "Compare gateway / external ICMP results", "Trace route without treating missing hops as proof", "Compare DNS answers and timings", "Run bounded speed test if data usage is acceptable", "Review selected adapter DNS; use Recovery if worse"],
-                _ => ["Refresh Defender protection status", "Read recent detections and resource paths", "Run an appropriate Defender scan", "Review Windows Protection History", "Keep protection enabled; do not add broad exclusions", "Escalate persistent findings to a trusted administrator"]
-            };
-            steps.Items.Clear(); steps.Items.AddRange(items);
-            Output.Text = symptom.Text + "\r\n\r\n" + string.Join("\r\n", items.Select((s, i) => $"{i + 1}. {s}")) + "\r\n\r\nNearby events and individual measurements are clues, not proof. Do not run untrusted commands copied from logs or AI output.";
-        });
-        Controls.Add(steps); Controls.SetChildIndex(steps, 1);
+    private readonly ComboBox symptom = new() { Width = 380, DropDownStyle = ComboBoxStyle.DropDownList, AccessibleName = "What's happening?", Margin = new Padding(0, 6, 8, 0) };
+    /// <summary>Raised with a tool route name, for example "Diagnose  /  Crash timeline".</summary>
+    public event Action<string>? OpenRequested;
+    public TroubleshootingPanel() : base("Pick what's happening to get a short, ordered plan. Each step explains why it helps and opens the right tool. Steps only read information unless you choose a change yourself, and every supported change can be undone in Recovery.") {
+        Bar.Controls.Add(new Label { Text = "What's happening?", AutoSize = true, Margin = new Padding(0, 10, 8, 0) });
+        symptom.Items.AddRange(Guides.Select(g => g.Symptom).ToArray()); Bar.Controls.Add(symptom);
+        symptom.SelectedIndexChanged += (_, _) => ShowGuide();
+        symptom.SelectedIndex = 0;
+    }
+    internal static readonly (string Symptom, GuideStep[] Steps)[] Guides = [
+        ("My PC restarted by itself or showed a blue screen", [
+            new("Check what Windows recorded", "Looks for unexpected restarts, blue screens and disk or hardware errors in the last 7 days.", "Diagnose  /  Recent Event Logs", "Open Event logs"),
+            new("See what happened just before", "Builds a timeline of events around the restart so you can spot a failing driver, disk or device.", "Diagnose  /  Crash timeline", "Open Crash timeline"),
+            new("Run a full system scan", "Checks storage, devices, Windows files and security in one pass.", "Full system scan", "Open Full system scan"),
+            new("Look inside the crash dump (advanced)", "If Windows saved a dump, Microsoft's debugger can name the module involved.", "Diagnose  /  Dump analysis", "Open Dump analysis"),
+            new("Think about recent changes", "New drivers, hardware, updates or overclocking are the most common causes. Undo one change at a time and note what you did."),
+        ]),
+        ("My PC freezes or the screen goes black", [
+            new("Check for graphics and disk problems", "Graphics driver recoveries and storage resets are common causes of short freezes and black screens.", "Diagnose  /  Recent Event Logs", "Open Event logs"),
+            new("Measure while it happens", "Monitor CPU, memory, disk and GPU during the activity that freezes to see what is maxed out.", "Performance  /  Long monitoring / saved runs", "Open Monitoring"),
+            new("Check memory right now", "Running out of memory makes Windows stall.", "Performance  /  Snapshot / pagefile", "Open Performance overview"),
+            new("Update graphics and storage drivers", "Get drivers from your PC or graphics card maker. Also check temperatures if freezes happen under load."),
+        ]),
+        ("My PC is slow", [
+            new("See what's using memory now", "Shows how much memory is free and the biggest users.", "Performance  /  Snapshot / pagefile", "Open Performance overview"),
+            new("Measure CPU for 30 seconds", "Shows whether the processor is busy even when you aren't doing much.", "Performance  /  30-second sample", "Open Quick sample"),
+            new("Trim startup apps", "Fewer apps launching at sign-in means a faster start. Every change can be undone.", "Maintain  /  Startup / undo", "Open Startup entries"),
+            new("Free up disk space", "A nearly full system drive slows Windows and blocks updates.", "Maintain  /  Files & storage", "Open Files"),
+            new("Check the power plan", "Battery-saving plans limit speed; you can switch and undo.", "Performance  /  Power tuning", "Open Power tuning"),
+        ]),
+        ("The internet is slow or keeps dropping", [
+            new("Check the basic connection", "Tests your adapter, router, name lookups (DNS) and internet access, and says which step fails.", "Connect  /  Basic checks", "Open Basic checks"),
+            new("Test Wi-Fi and response times", "Compares your router with the internet to show whether trouble starts at home or further out.", "Connect  /  Wi-Fi / latency", "Open Wi-Fi / latency"),
+            new("Measure speed and compare DNS", "Runs a bounded speed test and compares DNS servers.", "Connect  /  Advanced / DNS repair", "Open Network tools"),
+            new("Restart your router", "Unplug it for 30 seconds. This clears many home network problems."),
+        ]),
+        ("I'm running out of disk space", [
+            new("Find the biggest files", "Choose your drive, then use Largest 100. Nothing is deleted without your review.", "Maintain  /  Files & storage", "Open Files"),
+            new("Find duplicate files", "Finds identical copies so you can keep one.", "Maintain  /  Duplicates", "Open Duplicates"),
+            new("Review large apps", "Sort installed apps by size and uninstall ones you don't use in Windows.", "Maintain  /  Apps & storage", "Open Apps"),
+            new("Empty the Recycle Bin", "Recycled files still use space until the Recycle Bin is emptied."),
+        ]),
+        ("I'm worried about viruses or security", [
+            new("Check Defender's protection", "Confirms real-time protection and other safeguards are on.", "Shield · experimental  /  Defender audit", "Open Defender audit"),
+            new("Run a scan and review detections", "Start a Defender quick scan and see anything found in the last 30 days.", "Shield · experimental  /  Defender controls / alerts", "Open Scans & alerts"),
+            new("Review startup apps", "Unknown programs that launch at sign-in are worth a look.", "Maintain  /  Startup / undo", "Open Startup entries"),
+            new("Keep Windows updated", "Updates close security holes. Avoid adding antivirus exclusions you don't understand."),
+        ]),
+        ("Windows says it isn't activated", [
+            new("Check activation status", "Explains what Windows reports about its license, in plain language. No keys are collected.", "Diagnose  /  Windows Activation", "Open Windows Activation"),
+            new("Use Windows' own activation settings", "Windows Settings → System → Activation offers troubleshooting and lets you enter a genuine product key."),
+        ]),
+    ];
+    private void ShowGuide()
+    {
+        if (symptom.SelectedIndex < 0) return;
+        var (name, steps) = Guides[symptom.SelectedIndex];
+        Output.Text = name + "\r\n\r\n" + string.Join("\r\n", steps.Select((s, i) => $"{i + 1}. {s.Title} — {s.Why}")) +
+            "\r\n\r\nNearby events and individual measurements are clues, not proof. Do not run untrusted commands copied from logs or AI output.";
+        var cards = steps.Select((s, i) => new ResultCard($"Step {i + 1}: {s.Title}", s.Why, CardStatus.Info,
+            s.Route is null ? null : s.ActionLabel, s.Route is { } route ? () => OpenRequested?.Invoke(route) : null)).ToList();
+        cards.Add(new("Good to know", "Work through the steps in order and change one thing at a time. Results are clues, not proof. Hanki records every supported change in Recovery so you can undo it."));
+        ShowSummary(new Diagnosis(Output.Text, CardStatus.Info, name, cards));
     }
 }

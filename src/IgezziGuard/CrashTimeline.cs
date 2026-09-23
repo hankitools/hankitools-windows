@@ -31,10 +31,19 @@ public static class CrashTimeline
         return events.Where(e => e.Time >= center.AddMinutes(-minutes) && e.Time <= center.AddMinutes(minutes))
             .OrderBy(e => e.Time).ThenBy(e => e.Log).ThenBy(e => e.RecordId).ToArray();
     }
+    /// <summary>One plain line naming what the window contains, most serious first.</summary>
+    public static string Summary(IReadOnlyList<CrashEvent> selected)
+    {
+        var groups = selected.Where(e => e.Level != "Information" || IsMarker(e))
+            .GroupBy(e => EventKnowledge.Describe(e.Provider, e.Id))
+            .OrderBy(g => g.Key.Impact).ThenByDescending(g => g.Count()).ToArray();
+        return groups.Length == 0 ? "IN SHORT: No warnings, errors or restart markers were recorded in this window."
+            : "IN SHORT: " + string.Join("; ", groups.Select(g => g.Key.Impact == EventImpact.Other ? $"{g.Count()} other warning/error event(s)" : $"{g.Key.Name} ({g.Count()}×)")) + ".";
+    }
     public static string Report(IEnumerable<CrashEvent> events, DateTimeOffset center, int minutes, string coverage)
     {
         var selected = Window(events, center, minutes);
-        var result = new StringBuilder($"HANKI / CRASH TIMELINE\r\nWindow: {center.AddMinutes(-minutes):O} to {center.AddMinutes(minutes):O}\r\n{coverage}\r\n\r\n");
+        var result = new StringBuilder($"HANKI / CRASH TIMELINE\r\nWindow: {center.AddMinutes(-minutes):O} to {center.AddMinutes(minutes):O}\r\n\r\n{Summary(selected)}\r\n\r\n{coverage}\r\n\r\n");
         result.AppendLine("Times below are event recording times, shown in this PC's local timezone. Restart markers can be recorded after the actual crash. Nearby events are context, not a causal diagnosis. No dump analysis or repairs performed. Reports may contain private paths, names and application data.");
         if (selected.Length == 0) result.AppendLine("No matching events returned. This does not prove the PC was healthy; logs may be unavailable, cleared or incomplete.");
         foreach (var e in selected) {
