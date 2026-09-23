@@ -4,11 +4,11 @@
 
 A Windows toolkit for understanding your PC, reviewing maintenance and investigating problems. Hanki diagnoses common Windows problems, explains results in plain language and offers reviewed, reversible fixes. It is not a vulnerability scanner.
 
-**Status: 0.17 release candidate.** GitHub Actions builds every commit on Windows, runs the automated checks and a UI smoke test. Pre-release testing on Windows 11 is recorded in [VALIDATION-v0.17.md](VALIDATION-v0.17.md). Publisher signing and final acceptance are still required before a verified release; see [RELEASE-STATUS.md](RELEASE-STATUS.md).
+**Status: 0.17.0, not code-signed yet.** GitHub Actions builds every commit on Windows, runs the automated checks and a UI smoke test. Pre-release testing on Windows 11 is recorded in [VALIDATION-v0.17.md](VALIDATION-v0.17.md). Code signing through the SignPath Foundation program is pending; until then Windows SmartScreen warns before the first run.
 
 ## Download
 
-Builds are published on [GitHub Releases](https://github.com/hankitools/hankitools-windows/releases). Until code signing is in place, releases are **unsigned previews** and are labelled that way: Windows SmartScreen will warn before the first run. Each release lists a SHA-256 checksum; compare it before running. Hanki is a portable app: extract the ZIP and run `HankiTools.exe`.
+Builds are published on [GitHub Releases](https://github.com/hankitools/hankitools-windows/releases). Until code signing is in place, releases are **not code-signed** and are labelled that way: Windows SmartScreen will warn before the first run. Each release lists a SHA-256 checksum; compare it before running. Hanki is a portable app: extract the ZIP and run `HankiTools.exe`.
 
 ## Code signing policy
 
@@ -70,7 +70,7 @@ The .NET 8 target reaches end of support on 10 November 2026. Build against the 
 
 The project namespace/data directory retains the original IgezziGuard name for compatibility. Previous UX/version notes describe history, not current release validation. MIT license; see LICENSE.
 
-## Diagnostic roadmap candidate (0.17)
+## Diagnostics in 0.17
 
 Full System Scan, Windows Activation and Diagnostic history are Community tools.
 New automation is additive; Release currently stays Community until production

@@ -1,3 +1,21 @@
+# Hanki Tools 0.17.0
+
+Hanki Tools 0.17 is the first full release of the 0.17 series. It is not code-signed yet: signing through the SignPath Foundation program is pending, so Windows SmartScreen warns before the first run. Compare the published SHA-256 checksum before running it.
+
+What's in 0.17:
+
+- Full System Scan: one read-only pass across Windows, storage, devices, security and performance, saved to Diagnostic history so you can compare scans.
+- Plain-language results: every tool leads with a headline and color-coded cards (Looks OK / Worth reviewing / Needs attention / Not available) and a next step; technical details stay one click away. Missing evidence is never shown as healthy.
+- Guided checks for nine common problems, from a slow PC and crashes to Windows Update failures and a draining laptop battery, with steps that open the right tool.
+- Diagnose: Windows Update check, crash timeline, event logs explained, dump inspection and Windows Activation.
+- Performance: memory and drive-space summaries, samples and saved monitoring runs, pagefile guidance, power plans, and Battery & startup (battery wear, restarts and startup records).
+- Maintain, Connect and Shield: large and duplicate files, startup entries with undo, a connection check that tests several DNS names, and Microsoft Defender explained.
+- Help & community: remote help from someone you trust through Windows' own Quick Assist, with a scam warning first.
+- Recovery keeps a record of supported changes and undoes them where Windows allows.
+
+Testing: the automated checks and a UI smoke test pass on GitHub Actions for this build. Pre-release testing on Windows 11 is recorded in VALIDATION-v0.17.md; the Windows Update and Battery & startup checks were also run on a Windows 11 desktop and laptop. Some acceptance items, such as 150% and 200% display scaling, High Contrast and a clean-account run, are still partial.
+
+Notes from the release candidates follow.
 # Hanki Tools 0.17.0-rc.5 — roadmap candidate
 
 RC5 adds new read-only checks and remote help:

@@ -1,3 +1,5 @@
+> **Historical:** this describes 0.16.0-rc.3. For the current release, see README.md, RELEASE-NOTES.md and VALIDATION-v0.17.md.
+
 # Release status • 0.16.0-rc.3
 
 Prepared 22 September 2026. **Ready for Windows release-candidate testing; not yet cleared for public distribution.** No public upload, certificate signing or native Windows action was performed in this environment.
