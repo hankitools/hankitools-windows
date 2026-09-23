@@ -34,7 +34,7 @@ public sealed class TechnicianSessions(IEntitlements entitlements)
     {
         if(!entitlements.Allows(HankiCapability.CustomerReports))throw new InvalidOperationException("Customer-report capability unavailable.");
         if(session.ScanId!=session.Scan.Id||session.Repairs is not null&&session.Repairs.ScanId!=session.ScanId)throw new ArgumentException("Report evidence does not match this session.");
-        var report=new StringBuilder($"{Label(business.DisplayName)} — PC service report\r\n{Label(business.Contact)}\r\n\r\nJob: {Label(session.CustomerLabel)} · Device: {Label(session.DeviceLabel)}\r\nChecked: {session.Scan.Ended:g}\r\n\r\n");
+        var report=new StringBuilder($"{Label(business.DisplayName)} — PC service report\r\n{Label(business.Contact)}\r\n\r\nJob: {Label(session.CustomerLabel)} · Device: {Label(session.DeviceLabel)}\r\nChecked: {session.Scan.Ended.ToLocalTime():g}\r\n\r\n");
         report.AppendLine("Observations and next steps");
         foreach(var r in session.Scan.Results){report.AppendLine($"{r.Title}: {r.Severity} ({r.Outcome})");report.AppendLine(FindingAnalysis.Recommend(r)?.ManualAction??"Review incomplete evidence or the individual check as needed.");}
         report.AppendLine("\r\nRepairs and verification");

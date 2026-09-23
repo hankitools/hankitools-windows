@@ -86,6 +86,8 @@ public sealed class FullScanPanel : ToolPage
         findings.EndUpdate();
         bool any = findings.Items.Count > 0;
         results.Visible = resultsGap.Visible = any;
+        // The strip is painted, so screen readers get the same counts as text.
+        counts.AccessibleName = latest is null ? "" : $"{latest.Results.Count} results: " + string.Join(", ", StatusChips.Count(latest.Results).Select(c => c.Text));
         FitResults(); counts.Invalidate();
     }
     // Findings get at most half the page so the selected result's explanation stays readable.
@@ -154,7 +156,7 @@ public sealed class FullScanPanel : ToolPage
     internal static string Summary(DiagnosticScan scan)
     {
         var text = new StringBuilder(scan.Cancelled ? "Scan cancelled — completed evidence retained.\r\n" : scan.Complete ? "Scan finished.\r\n" : "Scan finished with gaps — review unavailable or failed checks.\r\n");
-        text.AppendLine($"{scan.CompletedModules}/{scan.PlannedModules} checks finished · {scan.Started:g} — {scan.Ended:g}");
+        text.AppendLine($"{scan.CompletedModules}/{scan.PlannedModules} checks finished · {scan.Started.ToLocalTime():g} — {scan.Ended.ToLocalTime():g}");
         foreach (var severity in Enum.GetValues<FindingSeverity>()) text.AppendLine($"{severity}: {scan.Results.Count(r => r.Severity == severity)}");
         text.AppendLine("\r\nSelect a finding for explanation and technical evidence. No changes made. These checks do not prove overall PC health.");
         foreach (var r in scan.Results) text.AppendLine($"\r\n{r.Title} · {r.Severity} · {r.Outcome}\r\n{r.Explanation}");

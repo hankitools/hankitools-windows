@@ -4,6 +4,7 @@ namespace IgezziGuard;
 
 public sealed class ExtendedPerformancePanel : ToolPage
 {
+    protected override bool ReadOnlyTool => true;
     private readonly ComboBox duration = new() { DropDownStyle = ComboBoxStyle.DropDownList, Width = 160 };
     private SavedSession? latest, baseline;
     public ExtendedPerformancePanel() : base("Monitor your PC while you do the thing that feels slow: processor and memory about every second, disk and graphics about every five seconds. Afterwards you get a plain summary of what was busiest. Save a run as a baseline, change one thing, and monitor again to compare. Some PCs don't report disk or GPU counters; those stay unknown. Monitoring adds a little load of its own.") {

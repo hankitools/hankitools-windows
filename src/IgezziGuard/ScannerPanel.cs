@@ -2,6 +2,7 @@ namespace IgezziGuard;
 
 public sealed class ScannerPanel : ToolPage
 {
+    protected override bool ReadOnlyTool => true;
     public ScannerPanel() : base("Experimental file scanner: checks files against a bundled test signature (EICAR) and simple heuristics. It is not a malware signature feed and does not replace Microsoft Defender. Read-only: nothing is quarantined or deleted. Files over 512 MB are skipped; archives are not unpacked. Findings need human review.")
     {
         Button("Scan a file…", async () => { using var d = new OpenFileDialog(); if (d.ShowDialog(this) == DialogResult.OK) await Scan(d.FileName); });

@@ -19,7 +19,12 @@ public static class DumpInspector
         uint count = U32(8), directory = U32(12);
         if (count > 4096) throw new IOException("Excessive stream count."); Range(directory, count * 12L);
         var streams = new Dictionary<uint, (uint Size, uint Rva)>();
-        for (int i = 0; i < count; i++) { long at = directory + i * 12L; var type = U32(at); var size = U32(at + 4); var rva = U32(at + 8); Range(rva, size); if (!streams.TryAdd(type, (size, rva))) throw new IOException("Duplicate stream type; inspect with debugger."); }
+        for (int i = 0; i < count; i++) {
+            long at = directory + i * 12L; var type = U32(at); var size = U32(at + 4); var rva = U32(at + 8); Range(rva, size);
+            // UnusedStream (0) entries are reserved padding; Windows Error Reporting dumps routinely contain several.
+            if (type == 0) continue;
+            if (!streams.TryAdd(type, (size, rva))) throw new IOException("Duplicate stream type; inspect with debugger.");
+        }
         var report = new StringBuilder($"MDMP minidump: {count} streams, {file.Length:N0} bytes\r\nHeader timestamp: {DateTimeOffset.FromUnixTimeSeconds(U32(20)):O}\r\n");
         ulong? address = null;
         if (streams.TryGetValue(6, out var exception)) {

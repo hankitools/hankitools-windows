@@ -91,7 +91,7 @@ public sealed class RecoveryPanel : ToolPage
             await Run(async token => { await WindowsSettings.Journal().Undo(e.Id, token); return "Restore verified. Refresh history for the updated state."; });
         });
     }
-    private void RefreshHistory() { try { records = WindowsSettings.Journal().Read().OrderByDescending(e => e.At).ToList(); entries.Items.Clear(); foreach (var e in records) entries.Items.Add($"{e.At:g} / {e.Kind} / {e.Status}"); Output.Text = string.Join("\r\n\r\n", records.Select(e => $"{e.At:O} {e.Kind} {e.Target}\r\n{e.Before} → {e.After}\r\n{e.Status}")); } catch (Exception ex) { Output.Text = ex.Message; } }
+    private void RefreshHistory() { try { records = WindowsSettings.Journal().Read().OrderByDescending(e => e.At).ToList(); entries.Items.Clear(); foreach (var e in records) entries.Items.Add($"{e.At.ToLocalTime():g} / {e.Kind} / {e.Status}"); Output.Text = string.Join("\r\n\r\n", records.Select(e => $"{e.At:O} {e.Kind} {e.Target}\r\n{e.Before} → {e.After}\r\n{e.Status}")); } catch (Exception ex) { Output.Text = ex.Message; } }
 }
 
 public sealed class TuningPanel : ToolPage
@@ -112,13 +112,18 @@ public sealed class TuningPanel : ToolPage
 
 public sealed class StartupFoldersPanel : ToolPage
 {
+    internal static bool IsFolderMetadata(string path) =>
+        Path.GetFileName(path).Equals("desktop.ini", StringComparison.OrdinalIgnoreCase) ||
+        (File.GetAttributes(path) & (FileAttributes.Hidden | FileAttributes.System)) == (FileAttributes.Hidden | FileAttributes.System);
     private readonly ComboBox files = new() { Width = 600, DropDownStyle = ComboBoxStyle.DropDownList };
     private readonly List<string> paths = [];
     public StartupFoldersPanel() : base("Manage files in current-user and all-users Startup folders. Disabling moves the file into Hanki's local backup folder; Recovery restores it without overwriting a newer file. All-users changes may need administrator rights. No shortcut is executed. Scheduled tasks and services are outside this tool.") {
         Bar.Controls.Add(files); Button("Read startup folders", () => { try {
             paths.Clear(); files.Items.Clear();
             foreach (var folder in new[] { Environment.GetFolderPath(Environment.SpecialFolder.Startup), Environment.GetFolderPath(Environment.SpecialFolder.CommonStartup) }) if (Directory.Exists(folder)) {
-                CleanupPolicy.RejectReparseAncestors(folder); foreach (var file in Directory.EnumerateFiles(folder)) { paths.Add(file); files.Items.Add(file); }
+                // desktop.ini and other hidden system files hold folder settings; they are not startup programs.
+                CleanupPolicy.RejectReparseAncestors(folder);
+                foreach (var file in Directory.EnumerateFiles(folder).Where(f => !IsFolderMetadata(f))) { paths.Add(file); files.Items.Add(file); }
             }
             Output.Text = $"{paths.Count} startup files found. Select and review one; nothing selected automatically.";
         } catch (Exception ex) { Output.Text = ex.Message; } });

@@ -200,6 +200,14 @@ try
     Assert(settings.State == "after" && changes.Read().Last().Status == "Pending / inspect", "interrupted setting write retains pending recovery entry");
     settings.InterruptAfterWrite = false; await changes.Undo(changes.Read().Last().Id, CancellationToken.None);
     Assert(settings.State == "before", "undo recovers a setting applied before interruption");
+    // Found in native testing: a DNS change denied without admin rights stayed "Pending / inspect" although nothing changed.
+    settings.DenyWrite = true;
+    try { await changes.Apply("fixture", "target", "before", "after", CancellationToken.None); throw new Exception("Denied write reported success"); } catch (UnauthorizedAccessException) { }
+    Assert(settings.State == "before" && changes.Read().Last().Status == ChangeJournal.NotApplied, "refused write with unchanged state is closed as not applied");
+    try { await changes.Undo(changes.Read().Last().Id, CancellationToken.None); throw new Exception("Undo of a never-applied change accepted"); } catch (IOException ex) when (ex.Message.Contains("never applied")) { Console.WriteLine("PASS never-applied change is not offered for undo"); }
+    settings.DenyWrite = false; await changes.Apply("fixture", "target", "before", "after", CancellationToken.None);
+    Assert(settings.State == "after" && changes.Read().Last().Status == "Applied", "a not-applied entry does not block a later change");
+    await changes.Undo(changes.Read().Last().Id, CancellationToken.None);
     try { await changes.Apply("fixture", "target", "stale", "after", CancellationToken.None); throw new Exception("Stale setting accepted"); } catch (IOException) { }
     Assert(settings.State == "before", "stale setting preview cannot mutate current state");
     var cannotSave = Path.Combine(root, "journal-directory"); Directory.CreateDirectory(cannotSave);
@@ -214,6 +222,15 @@ try
     mdmp.Position = 40; writer.Write(999999u);
     try { DumpInspector.Inspect(mdmp); throw new Exception("Out-of-bounds dump accepted"); } catch (IOException) { Console.WriteLine("PASS malformed dump RVA rejected"); }
     using (var emptyDump = new MemoryStream(new byte[4])) { try { DumpInspector.Inspect(emptyDump); throw new Exception("Truncated dump accepted"); } catch (IOException) { Console.WriteLine("PASS truncated dump rejected"); } }
+    // Windows Error Reporting minidumps carry several UnusedStream (type 0) padding entries.
+    byte[] Minidump(params uint[] types) {
+        var bytes = new byte[400]; using var w = new BinaryWriter(new MemoryStream(bytes));
+        w.Write(0x504d444du); w.Write(0xA793u); w.Write((uint)types.Length); w.Write(32u); w.Write(0u); w.Write(1700000000u);
+        w.BaseStream.Position = 32; foreach (var type in types) { w.Write(type); w.Write(type == 6 ? 168u : 0u); w.Write(type == 6 ? 200u : 0u); }
+        w.BaseStream.Position = 208; w.Write(0xc0000005u); return bytes;
+    }
+    using (var padded = new MemoryStream(Minidump(0, 6, 0, 0, 0))) Assert(DumpInspector.Inspect(padded).Contains("0xC0000005"), "minidump with UnusedStream padding entries is inspected");
+    using (var duplicated = new MemoryStream(Minidump(6, 6))) { try { DumpInspector.Inspect(duplicated); throw new Exception("Duplicate exception stream accepted"); } catch (IOException) { Console.WriteLine("PASS genuinely duplicated stream still rejected"); } }
     using (var missingFlags = System.Text.Json.JsonDocument.Parse("{}")) Assert(DefenderReview.Alerts(missingFlags.RootElement).Contains("unknown"), "missing Defender fields are not healthy verdicts");
     using (var offFlags = System.Text.Json.JsonDocument.Parse("{\"RealTimeProtectionEnabled\":false,\"AntivirusSignatureAge\":8}")) Assert(DefenderReview.Alerts(offFlags.RootElement).Contains("OFF") && DefenderReview.Alerts(offFlags.RootElement).Contains("8 days"), "disabled protection and old signatures create review alerts");
     var fixtureExe = Environment.ProcessPath ?? throw new InvalidOperationException("Test executable unavailable");
@@ -300,9 +317,12 @@ sealed class FakeStartup : IStartupBackend
 }
 sealed class FakeSettings : ISettingBackend
 {
-    public string State = "before"; public bool InterruptAfterWrite;
+    public string State = "before"; public bool InterruptAfterWrite, DenyWrite;
     public Task<string> Read(string kind, string target, CancellationToken token) => Task.FromResult(State);
-    public Task Write(string kind, string target, string value, CancellationToken token) { State = value; if (InterruptAfterWrite) throw new IOException("Interrupted after write"); return Task.CompletedTask; }
+    public Task Write(string kind, string target, string value, CancellationToken token) {
+        if (DenyWrite) throw new UnauthorizedAccessException("Access denied before any change");
+        State = value; if (InterruptAfterWrite) throw new IOException("Interrupted after write"); return Task.CompletedTask;
+    }
 }
 sealed class FakeHttp(string answer) : HttpMessageHandler
 {

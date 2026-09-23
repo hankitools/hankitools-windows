@@ -1,6 +1,7 @@
 namespace IgezziGuard;
 public sealed class ActivationPanel : ToolPage
 {
+    protected override bool ReadOnlyTool => true;
     private readonly CheckBox network = new() { Text="Allow organization KMS network checks", AutoSize=true };
     public ActivationPanel():base("Understand legitimate Windows activation problems using read-only licensing data. Hanki does not collect full product keys, change activation settings or activate Windows. Organization KMS probes are optional and run only when Windows reports a KMS client.")
     {

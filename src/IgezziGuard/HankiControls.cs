@@ -336,7 +336,8 @@ internal sealed class LastScanView : Control
     public void Show(DiagnosticScan? latest, string? error = null)
     {
         scan = latest; problem = error;
-        AccessibleName = latest is null ? "No saved full scan" : $"Last full scan {latest.Ended.ToLocalTime():g}: " + string.Join(", ", StatusChips.Count(latest.Results).Select(c => c.Text));
+        AccessibleName = latest is not null ? $"Last full scan {latest.Ended.ToLocalTime():g}: " + string.Join(", ", StatusChips.Count(latest.Results).Select(c => c.Text))
+            : error is null ? "No saved full scan yet" : "Scan history unavailable: " + error;
         Invalidate();
     }
     protected override void OnPaint(PaintEventArgs e)

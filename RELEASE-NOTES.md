@@ -1,4 +1,12 @@
-# Hanki Tools 0.17.0-rc.3 — roadmap candidate
+# Hanki Tools 0.17.0-rc.4 — roadmap candidate
+
+RC4 fixes issues found in native pre-release testing of RC3 (see VALIDATION-v0.17.md):
+
+- Dump analysis inspects real Windows Error Reporting minidumps, which contain reserved "unused" stream entries that were rejected as duplicates.
+- Full System Scan, history comparison, file-scan history, Recovery and technician reports show local time instead of UTC.
+- Startup folders no longer list desktop.ini or other hidden system files, which are folder settings rather than startup programs.
+- A setting change Windows refuses before anything changes (for example, DNS without administrator rights) is recorded as "Not applied (unchanged)" instead of staying pending in Recovery.
+- Cancelling a read-only tool says nothing was changed; screen readers get text for the last-scan card and scan counts.
 
 RC3 explains results in plain language. Diagnose, Performance, Maintain, Connect and Shield now lead with a headline and color-coded cards (Looks OK / Worth reviewing / Needs attention / Not available) with next steps; the full technical report remains under View technical details. Missing or failed evidence is never shown as healthy.
 

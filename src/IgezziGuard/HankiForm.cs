@@ -57,7 +57,7 @@ public sealed class HankiForm : Form
                 try {
                     var entries = new HistoryStore().GetEntries();
                     historyText.Text = entries.Count == 0 ? "No scans recorded yet. Run a file or folder scan in Shield to create a summary." : string.Join("\r\n\r\n", entries.Select(x =>
-                        $"{x.FinishedAt:g} | {x.Target}\r\n{x.FilesScanned} files, {x.DetectionCount} findings, {x.Skipped} skipped, {x.Errors} errors"));
+                        $"{x.FinishedAt.ToLocalTime():g} | {x.Target}\r\n{x.FilesScanned} files, {x.DetectionCount} findings, {x.Skipped} skipped, {x.Errors} errors"));
                 } catch (IOException ex) { historyText.Text = ex.Message; }
             }
         };

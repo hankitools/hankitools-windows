@@ -2,6 +2,7 @@ namespace IgezziGuard;
 
 public sealed class DumpAnalysisPanel : ToolPage
 {
+    protected override bool ReadOnlyTool => true;
     private string? dump, debugger;
     private readonly CheckBox symbols = new() { Text = "Allow Microsoft symbol downloads", AutoSize = true };
     public DumpAnalysisPanel() : base("Inspect a local crash dump, or run Microsoft's installed CDB/KD debugger for !analyze -v and stack output. Hanki never uploads the dump. Symbol downloads are off by default. Debugger output is evidence, not a guaranteed root cause. Install Debugging Tools for Windows separately if the debugger is absent.") {

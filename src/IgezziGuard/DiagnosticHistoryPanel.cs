@@ -16,7 +16,7 @@ public sealed class DiagnosticHistoryPanel : ToolPage
         Button("Open selected scan",()=>{if(first.SelectedIndex<0)return;var scan=scans[first.SelectedIndex];try{Output.Text=FullScanPanel.Summary(scan)+"\r\n\r\n"+RepairReportText.Format(new(scan.Id,audit.Read().Where(a=>a.ScanId==scan.Id).Select(a=>a.Attempt).ToArray()));}catch{Output.Text="Repair audit unavailable. Existing files were preserved.";}});
         Bar.Controls.Add(new Label{Text="compare with",AutoSize=true,Tag="intro",Margin=new Padding(10,10,8,0)});
         Bar.Controls.Add(second);
-        Button("Compare selected scans",()=>{if(first.SelectedIndex<0||second.SelectedIndex<0)return;var a=scans[first.SelectedIndex];var b=scans[second.SelectedIndex];if(a.Ended>b.Ended)(a,b)=(b,a);Output.Text=$"{a.Ended:g} → {b.Ended:g}\r\nChanges are observations, not proof of repair causation.\r\n\r\n"+string.Join("\r\n",DiagnosticHistory.Compare(a,b));});
+        Button("Compare selected scans",()=>{if(first.SelectedIndex<0||second.SelectedIndex<0)return;var a=scans[first.SelectedIndex];var b=scans[second.SelectedIndex];if(a.Ended>b.Ended)(a,b)=(b,a);Output.Text=$"{a.Ended.ToLocalTime():g} → {b.Ended.ToLocalTime():g}\r\nChanges are observations, not proof of repair causation.\r\n\r\n"+string.Join("\r\n",DiagnosticHistory.Compare(a,b));});
         var more=new FlowLayoutPanel{Dock=DockStyle.Top,AutoSize=true,WrapContents=true,Padding=new Padding(0,0,0,14)};
         HankiButton More(string text,Action action){var b=new HankiButton{Text=text,AutoSize=true,Appearance=HankiButtonStyle.Quiet,Margin=new Padding(0,3,6,0)};b.Click+=(_,_)=>{if(!IsBusy)action();};more.Controls.Add(b);return b;}
         frequency.Margin=new Padding(0,6,4,0);

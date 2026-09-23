@@ -19,6 +19,8 @@ public class ToolPage : UserControl
     private CancellationTokenSource? pending;
     public bool IsBusy => pending is not null;
     public void Cancel() => pending?.Cancel();
+    /// <summary>True for tools that only read; their cancel message then says nothing was changed.</summary>
+    protected virtual bool ReadOnlyTool => false;
     public event Action<string>? PrepareRequested;
 
     public ToolPage(string disclosure)
@@ -170,7 +172,8 @@ public class ToolPage : UserControl
         }
         catch (OperationCanceledException) {
             outcome = "Cancelled";
-            if (!IsDisposed) Output.Text = "Cancelled. Any completed actions remain in effect. Check Recovery and the relevant Windows status before retrying.";
+            if (!IsDisposed) Output.Text = ReadOnlyTool ? "Cancelled. Nothing on your PC was changed; incomplete results were discarded. Run it again when you're ready."
+                : "Cancelled. Any completed actions remain in effect. Check Recovery and the relevant Windows status before retrying.";
         }
         catch (Exception ex) {
             outcome = "Could not finish";
