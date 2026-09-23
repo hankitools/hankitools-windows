@@ -1,4 +1,6 @@
-# Hanki Tools 0.17.0-rc.1 — roadmap candidate
+# Hanki Tools 0.17.0-rc.2 — roadmap candidate
+
+RC2 fixes Full System Scan modules being reported as Failed on Windows PowerShell 5.1. Harmless progress records ("Preparing modules for first use.") reached collector stderr and were treated as tool errors. Progress output is now suppressed so stderr carries only genuine errors, and a native check guards against regressions.
 
 - Added free Full System Scan with structured results, visible unknown/partial states, cancellation and deterministic guidance.
 - Added Windows Activation troubleshooting with safe licensing-state/error explanations and optional organization KMS checks. No full product keys or activation changes.
