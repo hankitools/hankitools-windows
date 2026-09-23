@@ -32,7 +32,10 @@ internal sealed class SupportPanel : UserControl
             ("Open hanki.tools ↗", () => OpenLink("https://hanki.tools/")),
             ("Join Discord ↗", () => OpenLink("https://discord.gg/qprzjtTaQ")),
             ("Read the user guide ↗", () => OpenLink(Repository + "/blob/main/README-PORTABLE.md")));
-        Section("Something not working?", "Prepare a useful report with steps to reproduce the problem. Review and copy the draft, then paste it into a GitHub issue. Avoid passwords, API keys and personal logs.",
+        Section("Get help from someone you trust", QuickAssist.HowItWorks + "\r\n\r\nHanki only opens Quick Assist; the session runs through Microsoft's service. To show what Hanki found, run a scan first and use Review / share report.",
+            ("Get help (Quick Assist)", () => QuickAssist.Open(this, gettingHelp: true)),
+            ("Help someone (Quick Assist)", () => QuickAssist.Open(this, gettingHelp: false)));
+        Section("Something not working?","Prepare a useful report with steps to reproduce the problem. Review and copy the draft, then paste it into a GitHub issue. Avoid passwords, API keys and personal logs.",
             ("Prepare bug report", PrepareReport),
             ("Open GitHub issues ↗", () => OpenLink(Repository + "/issues")));
         Section("Your version", AppDetails + "\r\n\r\nUpdates are manual. Check release notes and package instructions before replacing your app. Keep recovery data until supported changes are undone.",

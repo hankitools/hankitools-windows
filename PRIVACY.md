@@ -24,6 +24,7 @@ API key, AI draft and chat are held in process memory until cleared or exit; the
 | Defender controls | Defender communicates under its own Windows configuration, sample-submission and protection policies. Hanki does not control those provider records. |
 | Debugger symbols | Only when enabled: module/symbol identifiers and source IP go to Microsoft's symbol service. Hanki does not upload the dump. |
 | OpenAI API chat | The exact reviewed request, including prior chat turns, goes to api.openai.com/v1/responses. The API key travels separately as an authorization header. store=false is requested; it is not a zero-retention guarantee. |
+| Quick Assist | Hanki only opens Microsoft's Quick Assist app (or its Microsoft Store page if it isn't installed). The remote session runs through Microsoft's service under Microsoft's terms; the person you connect with can see your screen, and control it if you allow. Hanki doesn't join, record or relay the session. |
 | Open ChatGPT | Opens chatgpt.com in your browser without putting the report in the URL. Pasting/uploading there is a separate user action. |
 
 The source build scripts additionally contact Microsoft's runtime metadata and .NET package sources. Signing uses the configured timestamp service. Those are publisher/build operations, not background behavior of the installed app.

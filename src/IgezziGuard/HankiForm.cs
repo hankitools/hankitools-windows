@@ -170,6 +170,8 @@ public sealed class HankiForm : Form
             var item = shortcut;
             routes.Add(new ToolLauncher.Route(item.Item1, () => DesktopShortcuts.Open(this, item.Item2)));
         }
+        routes.Add(new ToolLauncher.Route("Quick Assist: get remote help", () => QuickAssist.Open(this, gettingHelp: true)));
+        routes.Add(new ToolLauncher.Route("Quick Assist: help someone remotely", () => QuickAssist.Open(this, gettingHelp: false)));
         void FindTool() { using var launcher = new ToolLauncher(routes); launcher.ShowDialog(this); }
         var search = new HankiButton { Text = "Find a tool…", Hint = "Ctrl+K", IconKind = "Search", Appearance = HankiButtonStyle.Field,
             Size = new Size(260, 38), Margin = Padding.Empty, AccessibleName = "Find a tool, Control K", Font = new Font("Segoe UI", 9.75f) };
@@ -209,7 +211,7 @@ public sealed class HankiForm : Form
                 "Shield · experimental" => "Review Microsoft Defender protection, run scans and inspect findings to see what needs attention. Hanki’s separate file scanner is experimental.",
                 "Assistant" => "Prepare and redact diagnostic reports, then use optional AI chat to help explain the evidence and explore next steps.",
                 "Recovery" => "Review recorded changes and undo supported actions when you need to return to a previous configuration.",
-                "Help & community" => "Find guides, join the community, prepare a bug report and check which version you are running.",
+                "Help & community" => "Find guides, join the community, get remote help from someone you trust, prepare a bug report and check your version.",
                 "Scan history" => "Review past file-scan summaries to see what was checked, when it ran and how many findings were reported.",
                 _ => ""
             };
