@@ -1,5 +1,7 @@
 # Hanki Tools
 
+**+ A little sisu for your PC.** *Sisu* is Finnish for grit: the quiet determination to keep going.
+
 A Windows toolkit for understanding your PC, reviewing maintenance and investigating problems. Hanki diagnoses common Windows problems, explains results in plain language and offers reviewed, reversible fixes. It is not a vulnerability scanner.
 
 **Status: 0.17 release candidate.** GitHub Actions builds every commit on Windows, runs the automated checks and a UI smoke test. Pre-release testing on Windows 11 is recorded in [VALIDATION-v0.17.md](VALIDATION-v0.17.md). Publisher signing and final acceptance are still required before a verified release; see [RELEASE-STATUS.md](RELEASE-STATUS.md).

@@ -1,5 +1,7 @@
 # Hanki Tools • Portable guide
 
+**+ A little sisu for your PC.**
+
 Extract the entire ZIP to a local folder and open HankiTools.exe. Keep the Data folder next to the executable. This is a Windows x64 release candidate; Windows 11 x64 is the acceptance-test target. ARM64, Windows Server and older Windows releases are not certified by this release.
 
 Start on Home or press Ctrl+K to find a tool. Each module explains its purpose. Blue buttons start the main workflow; quieter links offer supporting actions. Defender and memory snapshots show summary cards first; technical details retain the full report.
