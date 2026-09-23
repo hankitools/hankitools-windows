@@ -4,6 +4,7 @@ public sealed class DiagnosticHistoryPanel : ToolPage
     private readonly ComboBox first = new() { Width=230, DropDownStyle=ComboBoxStyle.DropDownList, AccessibleName="Scan to open" };
     private readonly ComboBox second = new() { Width=230, DropDownStyle=ComboBoxStyle.DropDownList, AccessibleName="Scan to compare with" };
     private readonly ComboBox frequency = new() { Width=120, DropDownStyle=ComboBoxStyle.DropDownList, AccessibleName="Scheduled check frequency" };
+    private readonly Label scheduleStatus = new() { AutoSize=true, Tag="intro", Margin=new Padding(0,9,16,0), AccessibleName="Scheduled check status" };
     private IReadOnlyList<DiagnosticScan> scans=[];
     private readonly DiagnosticHistory history=new(Path.Combine(SecurityPaths.Root,"diagnostic-history.json"));
     private readonly RepairAudit audit=new(Path.Combine(SecurityPaths.Root,"repair-audit.json"));
@@ -28,32 +29,24 @@ public sealed class DiagnosticHistoryPanel : ToolPage
             var selectedFrequency = frequency.SelectedIndex==1?HealthCheckFrequency.Weekly:HealthCheckFrequency.Daily;
             if(!Review($"Create a current-user Windows scheduled task for a {selectedFrequency.ToString().ToLowerInvariant()} local check at 19:00 (weekly: Sunday)? Runs only while signed in, at standard privilege, without external probes or repairs. Keep this application at its current path. Remove schedule here or in Task Scheduler."))return;
             await Run(async t=>{await ScheduledHealthChecks.InstallAsync(selectedFrequency,entitlements,t);return "Schedule registered. Manage or remove it in Windows Task Scheduler; results appear in local diagnostic history.";});
+            await ShowScheduleStatus();
         });
-        More("Remove schedule",async()=>{if(!Review("Remove the Hanki local health-check task? Existing history is kept."))return;await Run(async t=>{await ScheduledHealthChecks.RemoveAsync(t);return "Schedule removed.";});});
-        More("Refresh saved scans",RefreshHistory);
+        More("Remove schedule",async()=>{if(!Review("Remove the Hanki local health-check task? Existing history is kept."))return;await Run(async t=>{await ScheduledHealthChecks.RemoveAsync(t);return "Schedule removed.";});await ShowScheduleStatus();});
+        More("Refresh saved scans",()=>{RefreshHistory();_=ShowScheduleStatus();});
         More("Customer report",()=>{
             if(first.SelectedIndex<0){Output.Text="Choose a saved scan first.";return;}
-            var entitlements=EntitlementComposition.Current();
-            if(!entitlements.Allows(HankiCapability.CustomerReports)){Output.Text="Customer reports are an additive Technician capability. Your local scan summary and reviewed text export remain available in Community.";return;}
-            using var dialog=new Form {Text="Customer report labels",Size=new Size(620,360),StartPosition=FormStartPosition.CenterParent};
-            var fields=new FlowLayoutPanel {Dock=DockStyle.Fill,FlowDirection=FlowDirection.TopDown,Padding=new Padding(16)};
-            var job=new TextBox {Width=550,PlaceholderText="Job number (avoid customer personal data)",AccessibleName="Job label"};
-            var device=new TextBox {Width=550,PlaceholderText="Device label",AccessibleName="Device label"};
-            var business=new TextBox {Width=550,PlaceholderText="Business / technician display name",AccessibleName="Business name"};
-            var contact=new TextBox {Width=550,PlaceholderText="Business contact",AccessibleName="Business contact"};
-            var technical=new CheckBox {Text="Include available minimized technical details",AutoSize=true};
-            var create=new HankiButton {Text="Prepare report for review",AutoSize=true,DialogResult=DialogResult.OK};
-            fields.Controls.AddRange([job,device,business,contact,technical,create]);dialog.Controls.Add(fields);HankiTheme.Apply(dialog);
-            if(dialog.ShowDialog(this)!=DialogResult.OK)return;
-            try {var scan=scans[first.SelectedIndex];var service=new TechnicianSessions(entitlements);var session=service.Begin(job.Text,device.Text,scan,new(scan.Id,audit.Read().Where(a=>a.ScanId==scan.Id).Select(a=>a.Attempt).ToArray()));
-                service.SaveLocal(Path.Combine(SecurityPaths.Root,"technician",session.Id.ToString("N")+".json"),session);
-                Output.Text=service.Export(session,new(business.Text,contact.Text),technical.Checked)+"\r\n\r\nUse Review / share report to edit and save the customer copy. Saved scan history omits original raw evidence.";
-            }catch{Output.Text="Could not prepare the report. Check labels, local storage and audit availability.";}
+            var scan=scans[first.SelectedIndex];
+            RepairReport repairs;
+            try{repairs=new(scan.Id,audit.Read().Where(a=>a.ScanId==scan.Id).Select(a=>a.Attempt).ToArray());}
+            catch{Output.Text="Repair audit unavailable. Existing files were preserved.";return;}
+            // Saved history keeps titles and results only; the report says so and suggests a new scan for full explanations.
+            if(CustomerReportFlow.Create(this,scan,repairs) is { } status)Output.Text=status;
         });
         More("Clear scan history",()=>{if(!Review("Remove saved Full System Scan summaries? Repair audit, recovery backups and legacy scanner history will remain available."))return;try{history.Clear();RefreshHistory();}catch{Output.Text="History could not be cleared.";}});
+        more.Controls.Add(scheduleStatus);
         Controls.Add(more);Controls.SetChildIndex(more,1);
         // Saved scans load when the page opens: newest first, compared with the one before it.
-        VisibleChanged+=(_,_)=>{if(!Visible||IsBusy)return;try{LoadScans();}catch(Exception ex) when (ex is IOException or UnauthorizedAccessException){Output.Text="Saved history is unavailable or damaged. Original files were preserved; current scans can still run.";}};
+        VisibleChanged+=(_,_)=>{if(!Visible||IsBusy)return;try{LoadScans();}catch(Exception ex) when (ex is IOException or UnauthorizedAccessException){Output.Text="Saved history is unavailable or damaged. Original files were preserved; current scans can still run.";}_=ShowScheduleStatus();};
     }
     private void LoadScans()
     {
@@ -61,6 +54,11 @@ public sealed class DiagnosticHistoryPanel : ToolPage
         foreach(var s in scans){var text=$"{s.Ended.ToLocalTime():g} · {s.Results.Count} findings";first.Items.Add(text);second.Items.Add(text);}
         if(scans.Count>0)first.SelectedIndex=0;
         if(scans.Count>1)second.SelectedIndex=1;
+    }
+    private async Task ShowScheduleStatus()
+    {
+        try { scheduleStatus.Text=ScheduledHealthChecks.Describe(await ScheduledHealthChecks.StatusAsync(CancellationToken.None)); }
+        catch { scheduleStatus.Text="Scheduled check status unavailable."; }
     }
     private void RefreshHistory(){try{LoadScans();Output.Text=$"{scans.Count} saved scans. The newest is selected; choose another to open or compare.";}catch{Output.Text="Saved history is unavailable or damaged. Original files were preserved; current scans can still run.";}}
 }

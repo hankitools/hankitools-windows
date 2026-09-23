@@ -296,6 +296,7 @@ try
     await WindowsScriptChecks.Run();
     InsightChecks.Run();
     HealthChecks.Run();
+    ProChecks.Run();
     Console.WriteLine("All non-destructive checks passed. Native Windows operations, counters, debugger and external services still require acceptance tests.");
 }
 finally

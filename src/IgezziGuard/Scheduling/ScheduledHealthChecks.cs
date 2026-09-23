@@ -34,9 +34,42 @@ internal static class ScheduledHealthChecks
     }
     internal static async Task RemoveAsync(CancellationToken token) =>
         await WindowsCommand.RunCaptured(Path.Combine(Environment.SystemDirectory,"schtasks.exe"),["/Delete","/TN",TaskName,"/F"],token);
+    internal sealed record ScheduleStatus(bool Exists, string? State, DateTimeOffset? LastRun, long? LastResult, DateTimeOffset? NextRun);
+    // Read through the ScheduledTasks module: its values don't depend on the Windows display language.
+    private const string StatusScript = """
+        $t=Get-ScheduledTask -TaskName 'Hanki Tools - local health check' -ErrorAction SilentlyContinue
+        if(-not $t){[pscustomobject]@{Exists=$false}|ConvertTo-Json -Compress;return}
+        $i=$t|Get-ScheduledTaskInfo
+        $last=if($i.LastRunTime -and $i.LastRunTime.Year -ge 2000){$i.LastRunTime.ToUniversalTime().ToString('o')}else{$null}
+        $next=if($i.NextRunTime -and $i.NextRunTime.Year -ge 2000){$i.NextRunTime.ToUniversalTime().ToString('o')}else{$null}
+        [pscustomobject]@{Exists=$true;State=[string]$t.State;LastRun=$last;LastResult=[long]$i.LastTaskResult;NextRun=$next}|ConvertTo-Json -Compress
+        """;
+    internal static async Task<ScheduleStatus> StatusAsync(CancellationToken token)
+    {
+        var output = await WindowsCommand.PowerShellCapture(StatusScript, token, 30);
+        return System.Text.Json.JsonSerializer.Deserialize<ScheduleStatus>(output.StandardOutput, new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true })
+            ?? throw new IOException("Schedule status unavailable.");
+    }
+    /// <summary>One plain line for the Diagnostic history page.</summary>
+    internal static string Describe(ScheduleStatus status)
+    {
+        if (!status.Exists) return "No scheduled check.";
+        string next = status.NextRun is { } n ? $"next {n.ToLocalTime():g}" : "no next run planned";
+        if (string.Equals(status.State, "Disabled", StringComparison.OrdinalIgnoreCase)) return "Scheduled check is turned off in Task Scheduler.";
+        if (status.LastRun is not { } last) return $"Scheduled check is on ({next}); it hasn't run yet.";
+        string result = status.LastResult switch {
+            0 => "finished",
+            1 => "finished with gaps (some checks were unavailable)",
+            0x41301 => "is running",
+            0x41303 => "hasn't run yet",
+            _ =>$"didn't finish (code 0x{unchecked((uint)(status.LastResult ?? 0)):X})"
+        };
+        return $"Scheduled check is on ({next}). Last run {last.ToLocalTime():g} {result}.";
+    }
     internal static async Task<int> RunAsync()
     {
-        if(!EntitlementComposition.Current().Allows(HankiCapability.ScheduledChecks))return 2;
+        // No edition check here: the run is the same read-only scan as the free Full System Scan.
+        // Scheduling it is the Pro convenience, checked when the task is created (InstallAsync).
         try {
             SecurityPaths.EnsureCreated();
             using var gate=LocalJson.Lock(Path.Combine(SecurityPaths.Root,"scheduled-run"));

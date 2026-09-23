@@ -43,6 +43,13 @@ public sealed class TechnicianSessions(IEntitlements entitlements)
         if(includeTechnical){report.AppendLine("\r\nOptional technical details — identifiers minimized; review before giving to a customer");foreach(var r in session.Scan.Results)report.AppendLine($"{r.ModuleId}: {DiagnosticPrivacy.Redact(r.Evidence)}\r\n{r.Coverage}");}
         return report.ToString();
     }
+    /// <summary>The customer-facing HTML report (see TechnicianReport).</summary>
+    public string ExportHtml(TechnicianSession session,TechnicianBusiness business,bool includeTechnical,string appVersion)
+    {
+        if(!entitlements.Allows(HankiCapability.CustomerReports))throw new InvalidOperationException("Customer-report capability unavailable.");
+        if(session.ScanId!=session.Scan.Id||session.Repairs is not null&&session.Repairs.ScanId!=session.ScanId)throw new ArgumentException("Report evidence does not match this session.");
+        return TechnicianReport.Html(session,new(Label(business.DisplayName),Label(business.Contact)),includeTechnical,appVersion,DateTimeOffset.UtcNow);
+    }
     public void SaveLocal(string path,TechnicianSession session)
     {
         if(!entitlements.Allows(HankiCapability.TechnicianSessions))throw new InvalidOperationException("Technician capability unavailable.");

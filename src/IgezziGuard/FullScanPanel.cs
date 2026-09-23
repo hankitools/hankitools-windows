@@ -12,6 +12,8 @@ public sealed class FullScanPanel : ToolPage
     private readonly Panel resultsGap = new() { Dock = DockStyle.Top, Height = 14, Visible = false };
     private readonly Font pillFont = new("Segoe UI Semibold", 8.25f), metaFont = new("Segoe UI", 9f);
     private DiagnosticScan? latest;
+    // Repairs run from the latest scan: they stop further proposals from it and go into the customer report.
+    private RepairReport? repairs;
     private readonly IEntitlements entitlements = EntitlementComposition.Current();
     private readonly DiagnosticHistory history = new(Path.Combine(SecurityPaths.Root, "diagnostic-history.json"));
     public FullScanPanel() : base("A local, read-only review of Windows, storage, devices, security and performance. Some checks require administrator access and may take several minutes. Unavailable checks stay unknown. No repairs, uploads or automatic elevation. Existing tools remain available individually.")
@@ -20,6 +22,11 @@ public sealed class FullScanPanel : ToolPage
         Bar.Controls.Add(external);
         Button("Review automatic repairs", ReviewRepairs);
         Button("Show scan summary", () => { if (latest is not null) Output.Text = Summary(latest); });
+        if (entitlements.Allows(HankiCapability.CustomerReports))
+            Button("Customer report", () => {
+                if (latest is null) { Output.Text = "Run a full scan first. To report on an earlier scan, open Diagnostic history."; return; }
+                if (CustomerReportFlow.Create(this, latest, repairs) is { } status) Output.Text = status;
+            });
         findings.SelectedIndexChanged += (_, _) => {
             if (IsBusy || findings.SelectedItem is not DiagnosticResult r) return;
             Output.Text = FindingAnalysis.Describe(r);
@@ -102,7 +109,7 @@ public sealed class FullScanPanel : ToolPage
     {
         bool contact = external.Checked;
         if (contact && !Review("Include network probes? Gateway ICMP contacts your local network. " + WindowsDiagnosticCatalog.ProbeDisclosure + " Installed KMS clients may also query your organization DNS and contact the Windows-configured KMS host. These endpoints and your DNS resolver can see your source IP. No report is uploaded. You can run without these checks by clearing Include network probes.")) return;
-        latest = null; ShowFindings();
+        latest = null; repairs = null; ShowFindings();
         var context = Context(contact);
         var progress = new Progress<ScanProgressUpdate>(p => { if (IsBusy) Output.Text = $"{p.CompletedModules}/{p.TotalModules} checks finished\r\n{p.Activity}\r\n\r\nUnavailable checks remain unknown. Cancel preserves results from completed checks."; });
         await Run(async token => {
@@ -120,30 +127,20 @@ public sealed class FullScanPanel : ToolPage
             Output.Text = "Automatic repair is an additive Hanki Pro capability. Production licensing is not connected in this candidate.\r\n\r\nYour scan, findings, manual guidance and existing Community tools remain available without an account. Select a finding to review its manual next steps.";
             return;
         }
+        if (RepairGuidance.Stale(latest, repairs is not null, DateTimeOffset.UtcNow) is { } stale) { Output.Text = stale; return; }
         var ids = latest.Results.Select(FindingAnalysis.Recommend).Where(r => r?.RepairActionId is not null).Select(r => r!.RepairActionId).ToHashSet();
         var actions = WindowsServicingRepair.Catalog().Where(a => ids.Contains(a.Definition.Id)).ToArray();
-        if (actions.Length == 0) { Output.Text = "No supported automatic repairs follow from this scan. Review manual guidance; unknown states do not justify automatic changes."; return; }
-        using var dialog = new Form { Text = "Review proposed changes", Size = new Size(850,650), MinimumSize = new Size(650,500), StartPosition = FormStartPosition.CenterParent, Padding = new Padding(16) };
-        var choices = new CheckedListBox { Dock=DockStyle.Top, Height=100, CheckOnClick=true, AccessibleName="Select repairs to approve" };
-        foreach(var action in actions) choices.Items.Add(action.Definition.Title, false);
-        var description = new TextBox { Dock=DockStyle.Fill, Multiline=true, ReadOnly=true, ScrollBars=ScrollBars.Vertical, Text=string.Join("\r\n\r\n",actions.Select(a=>$"{a.Definition.Title} — {a.Definition.Risk} risk · Restart: {a.Definition.Restart}\r\n{a.Definition.ChangeDescription}\r\nUndo: {a.Definition.RollbackInformation}")) };
-        var settings = new FlowLayoutPanel {Dock=DockStyle.Bottom,AutoSize=true,FlowDirection=FlowDirection.TopDown};
-        var noRestore = new CheckBox {AutoSize=true,Text="I accept proceeding if an optional restore point cannot be created"};
-        var network = new CheckBox {AutoSize=true,Text="Allow disclosed verification probes and configured Windows repair sources to use the network"};
-        var approve = new HankiButton {Text="Approve selected changes",AutoSize=true,DialogResult=DialogResult.OK};
-        var cancel = new HankiButton {Text="Cancel",AutoSize=true,DialogResult=DialogResult.Cancel};
-        settings.Controls.AddRange([noRestore,network,approve,cancel]);
-        dialog.Controls.Add(description);dialog.Controls.Add(choices);dialog.Controls.Add(settings);dialog.CancelButton=cancel;
-        HankiTheme.Apply(dialog);
-        if(dialog.ShowDialog(this)!=DialogResult.OK || choices.CheckedIndices.Count==0)return;
-        var scan=latest;
-        var approved=new RepairApproval(scan.Id,choices.CheckedIndices.Cast<int>().Select(i=>actions[i].Definition.Id).ToHashSet(),noRestore.Checked,network.Checked);
-        var audit=new RepairAudit(Path.Combine(SecurityPaths.Root,"repair-audit.json"));
-        var workflow=new RepairWorkflow(WindowsServicingRepair.Catalog(),WindowsDiagnosticCatalog.Create(includeExternal: true),new WindowsRepairEnvironment(),new WindowsRestoreProtection(),audit,entitlements);
-        var progress=new Progress<string>(text=>{if(IsBusy)Output.Text=text;});
-        await Run(async token=>RepairReportText.Format(await workflow.RunAsync(scan,approved,Context(approved.NetworkApproved),progress,token)));
+        if (actions.Length == 0) { Output.Text = RepairGuidance.NoProposals(latest); return; }
+        var scan = latest; bool administrator = Context(false).IsAdministrator;
+        if (RepairGuidance.NoneAvailable(actions.Select(a => a.Definition).ToList(), administrator) is { } blocked) { Output.Text = blocked; return; }
+        if (RepairReviewDialog.Show(this, scan, actions, administrator) is not { } approved) return;
+        var audit = new RepairAudit(Path.Combine(SecurityPaths.Root, "repair-audit.json"));
+        var workflow = new RepairWorkflow(WindowsServicingRepair.Catalog(), WindowsDiagnosticCatalog.Create(includeExternal: true), new WindowsRepairEnvironment(), new WindowsRestoreProtection(), audit, entitlements);
+        var progress = new Progress<string>(text => { if (IsBusy) Output.Text = text; });
+        RepairReport? report = null;
+        await Run(async token => RepairGuidance.Results(report = await workflow.RunAsync(scan, approved, Context(approved.NetworkApproved), progress, token)));
         // Repair evidence is historical; a new scan is required for another proposal.
-        latest=null;
+        if (report is not null && latest == scan) repairs = report;
     }
     internal static DiagnosticContext Context(bool external)
     {
