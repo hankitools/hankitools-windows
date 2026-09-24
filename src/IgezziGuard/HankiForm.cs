@@ -66,7 +66,9 @@ public sealed class HankiForm : Form
         // One workspace page per navigation destination, in sidebar order (HANKI-ARCH-200).
         foreach (var item in Navigation.Items) Page(item.Page);
         TabPage At(string page) => tabs.TabPages.Cast<TabPage>().Single(p => p.Text == page);
-        At("Home").Controls.Add(new HomePanel(Navigate, StartFixMyPc));
+        // Home's search opens a guided check with its symptom chosen.
+        void OpenGuide(int index) { Routes.FirstOrDefault(r => r.Name == "Diagnose  /  Guided checks")?.Open(); guidance.ShowSymptom(index); }
+        At("Home").Controls.Add(new HomePanel(Navigate, StartFixMyPc, () => Routes, OpenGuide));
         At("System overview").Controls.Add(new Dashboard(Navigate, StartFixMyPc));
         At("Fix My PC").Controls.Add(fullScan);
         var shield = At("Shield");

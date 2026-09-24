@@ -88,7 +88,7 @@ internal static class HankiTheme
             case ComboBox:
             case DateTimePicker:
                 // A search field paints its own rounded frame on the canvas color; the box inside matches it.
-                root.BackColor = highContrast ? SystemColors.Window : root.Parent is SearchField ? Canvas : Surface;
+                root.BackColor = highContrast ? SystemColors.Window : root.Parent is SearchField field ? field.Fill : Surface;
                 root.ForeColor = highContrast ? SystemColors.WindowText : Text;
                 // A plain single border ignores the dark theme; the themed client edge follows it.
                 if (root is TextBox { BorderStyle: BorderStyle.FixedSingle } text) text.BorderStyle = BorderStyle.Fixed3D;

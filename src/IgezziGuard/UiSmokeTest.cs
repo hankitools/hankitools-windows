@@ -6,7 +6,7 @@ internal static class UiSmokeTest
 {
     /// <summary>Pages saved as screenshots for review (file name, route), when a screenshot folder is given.</summary>
     internal static readonly IReadOnlyList<(string File, string Route)> Screens = [
-        ("home", "Home"), ("fix-my-pc", "System overview"), ("tune-my-pc", "Performance overview"), ("gaming", "Gaming  /  Overview"),
+        ("home", "Home"), ("home-search", "Home"), ("fix-my-pc", "System overview"), ("tune-my-pc", "Performance overview"), ("gaming", "Gaming  /  Overview"),
         ("games", "Gaming  /  Games"), ("nvidia", "Gaming  /  NVIDIA"), ("amd", "Gaming  /  AMD Radeon"), ("diagnose", "Diagnose"), ("maintain", "Maintain"), ("connect", "Connect"), ("recovery", "Recovery"), ("history", "History"), ("help", "Help"), ("tune-plan", "Performance overview")];
 
     /// <summary>An example Tune my PC plan from fixed data (an untuned desktop with an RTX 4070), for the plan screenshot.</summary>
@@ -85,6 +85,7 @@ internal static class UiSmokeTest
                             Note("screenshot " + route);
                             open.Open(); form.PerformLayout(); Application.DoEvents();
                             if (file == "tune-plan") { Find<TunePanel>(form)?.Preview(ExamplePlan()); form.PerformLayout(); Application.DoEvents(); }
+                            if (file == "home-search") { Find<HomeSearchBox>(form)?.Query("slow"); form.PerformLayout(); Application.DoEvents(); }
                             using var bitmap = new Bitmap(form.Width, form.Height);
                             form.DrawToBitmap(bitmap, new Rectangle(Point.Empty, form.Size));
                             var path = Path.Combine(screenshotFolder, file + ".png");

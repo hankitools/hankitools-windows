@@ -6,6 +6,8 @@ namespace IgezziGuard;
 internal sealed class SearchField : Panel
 {
     internal readonly TextBox Box = new() { BorderStyle = BorderStyle.None, Dock = DockStyle.Fill };
+    /// <summary>The field's fill; the text box inside takes the same color.</summary>
+    internal Color Fill { get; init; } = HankiTheme.Canvas;
     public SearchField(string placeholder, int width)
     {
         Box.PlaceholderText = placeholder; Box.AccessibleName = placeholder;
@@ -20,7 +22,8 @@ internal sealed class SearchField : Panel
         // Center the single-line box vertically, after the icon.
         float s = DeviceDpi / 96f;
         int top = Math.Max(0, (Height - Box.PreferredHeight) / 2);
-        Padding = new Padding((int)(34 * s), top, (int)(10 * s), 0);
+        float icon = Math.Min(20 * s, Height * 0.4f);
+        Padding = new Padding((int)(icon * 2.2f), top, (int)(10 * s), 0);
         base.OnLayout(e);
     }
     protected override void OnPaintBackground(PaintEventArgs e)
@@ -29,11 +32,11 @@ internal sealed class SearchField : Panel
         if (SystemInformation.HighContrast) { base.OnPaintBackground(e); ControlPaint.DrawBorder(g, ClientRectangle, SystemColors.WindowText, ButtonBorderStyle.Solid); return; }
         g.Clear(Parent?.BackColor ?? HankiTheme.Surface); g.SmoothingMode = SmoothingMode.AntiAlias;
         using (var path = HankiButton.Rounded(new RectangleF(0.5f, 0.5f, Width - 1.5f, Height - 1.5f), HankiTheme.ControlRadius * s)) {
-            using var fill = new SolidBrush(HankiTheme.Canvas); g.FillPath(fill, path);
+            using var fill = new SolidBrush(Fill); g.FillPath(fill, path);
             using var pen = new Pen(Box.Focused ? HankiTheme.Accent : HankiTheme.Border, Box.Focused ? 1.5f * s : 1); g.DrawPath(pen, path);
         }
-        float icon = 16 * s;
-        ToolIcon.Draw(g, new RectangleF(11 * s, (Height - icon) / 2, icon, icon), "Search", HankiTheme.Muted);
+        float icon = Math.Min(20 * s, Height * 0.4f);
+        ToolIcon.Draw(g, new RectangleF(icon * 0.7f, (Height - icon) / 2, icon, icon), "Search", HankiTheme.Muted);
     }
 }
 
