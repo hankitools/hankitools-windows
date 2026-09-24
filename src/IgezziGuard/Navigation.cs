@@ -16,50 +16,66 @@ public static class Navigation
 {
     public static readonly IReadOnlyList<NavigationItem> Items = [
         new("Home", "Home", ProductArea.Home, "Home",
-            "Diagnose and repair Windows in Hanki System, or measure and optimize performance in Hanki Performance."),
+            "Fix a problem, or tune performance for what you do today."),
 
-        new("System overview", "Overview", ProductArea.System, "Overview",
-            "Find what's wrong and fix it safely. Every tool here checks, maintains or protects Windows."),
-        new("Fix My PC", "Fix My PC", ProductArea.System, "Fix",
-            "One read-only scan across Windows, storage, devices, security and performance. Review each finding, approve any repair, and Hanki checks afterwards whether it worked."),
+        new("System overview", "Fix my PC", ProductArea.System, "Fix",
+            "Scan Windows in one pass, then open a tool for the details."),
+        new("Fix My PC", "Full scan", ProductArea.System, "Full",
+            "One read-only scan across Windows, storage, devices and security. You approve every repair."),
         new("Diagnose", "Diagnose", ProductArea.System, "Diagnose",
-            "Explore crash events, inspect dumps, check Windows Update, activation, battery and startup, and follow guided checks to narrow down a problem."),
+            "Crashes, event logs, dumps, Windows Update, activation, battery and guided checks."),
         new("Maintain", "Maintain", ProductArea.System, "Maintain",
-            "Find large or duplicate files, review installed apps and manage startup entries to reclaim storage and reduce startup activity."),
+            "Large and duplicate files, installed apps and startup entries."),
         new("Shield", "Shield", ProductArea.System, "Shield",
-            "Review Microsoft Defender protection, run scans and inspect findings. Hanki's separate file scanner is experimental."),
+            "Microsoft Defender status and scans. Hanki's file scanner is experimental."),
         new("Connect", "Connect", ProductArea.System, "Connect",
-            "Check your connection, compare DNS and trace network routes to investigate slow or unreliable access and review repair options."),
+            "Find where a connection slows down: adapter, router, DNS or internet."),
         new("Recovery", "Recovery", ProductArea.System, "Recovery",
-            "Review recorded changes and undo supported actions, from both Hanki System and Hanki Performance."),
+            "Every change Hanki made, from both areas, with undo."),
 
-        new("Performance overview", "Overview", ProductArea.Performance, "Performance",
-            "Understand what limits performance and optimize it. Measure first, change one thing with your approval, measure again, then keep or revert."),
+        new("Performance overview", "Tune my PC", ProductArea.Performance, "Performance",
+            "Say what you want today, review Hanki's plan, and apply only what you approve."),
         new("Gaming", "Gaming", ProductArea.Performance, "Gaming",
-            "Check your gaming setup: display refresh rate, which GPU games use, Windows gaming settings and graphics-driver settings."),
+            "Refresh rate, GPU choice, Windows and driver settings for games, your game list and NVIDIA presets."),
         new("GPU", "GPU", ProductArea.Performance, "GPU",
-            "See your graphics hardware, driver and displays, and what Hanki can read or adjust on this GPU."),
+            "Graphics hardware, drivers, displays and what Hanki can adjust."),
         new("CPU", "CPU", ProductArea.Performance, "CPU",
-            "See how the processor is configured and powered, and choose a Windows power plan to test."),
+            "Processor configuration and Windows power plans."),
         new("Memory", "Memory", ProductArea.Performance, "Memory",
-            "See how much memory is free, what uses the most, and whether virtual memory (the pagefile) is configured sensibly."),
+            "Free memory, what uses it, memory speed and the pagefile."),
         new("Storage", "Storage", ProductArea.Performance, "Storage",
-            "See which drives are SSDs or hard disks, where your games are installed, and whether Windows drive optimization is running."),
+            "SSDs and hard disks, where your games live, and drive optimization."),
         new("Performance Lab", "Performance Lab", ProductArea.Performance, "Lab",
-            "Measure while you work or play: monitor the PC, compare runs, look for bottlenecks and stutter."),
+            "Measure while you play: monitor, compare runs, find bottlenecks and stutter."),
 
+        new("History", "History", ProductArea.History, "Sessions",
+            "Scans, repairs, changes and performance tests, newest first. Kept on this PC."),
         new("System actions", "System actions", ProductArea.History, "Diagnostic",
-            "Saved scans, repairs and recorded Windows changes, newest first. History stays on this PC."),
+            "Saved scans, repairs and recorded Windows changes, newest first."),
         new("Performance sessions", "Performance sessions", ProductArea.History, "Sessions",
-            "Measurements and optimization tests, each with its baseline, the changes tested and the result."),
+            "Measurements and optimization tests, each with its baseline and result."),
 
+        new("Help", "Help", ProductArea.Support, "Help",
+            "Guides, community, remote help, the Assistant and Hanki Pro."),
         new("Assistant", "Assistant", ProductArea.Support, "Assistant",
-            "Prepare and redact diagnostic reports, then use optional AI chat to help explain the evidence and explore next steps."),
+            "Redact a report before sharing, then optionally ask AI to explain it."),
         new("Help & community", "Help & community", ProductArea.Support, "Help",
-            "Find guides, join the community, get remote help from someone you trust, prepare a bug report and check your version."),
+            "Guides, the community, remote help from someone you trust, and bug reports."),
         new("Hanki Pro", "Hanki Pro", ProductArea.Support, "Hanki",
-            "Add scheduled checks, automatic repairs and customer reports with a licence key. Every free tool stays free."),
+            "Scheduled checks, automatic repairs and customer reports. Every free tool stays free."),
     ];
+
+    /// <summary>
+    /// The sidebar (HANKI-UX-300): one landing page per area. A landing page leads with its main action and opens every
+    /// other page of its area as a tile; those pages show a way back.
+    /// </summary>
+    public static readonly IReadOnlyList<string> Sidebar = ["Home", "System overview", "Performance overview", "History", "Help"];
+    public static string Landing(ProductArea area) => area switch {
+        ProductArea.System => "System overview", ProductArea.Performance => "Performance overview", ProductArea.History => "History", ProductArea.Support => "Help", _ => "Home"
+    };
+    public static bool IsLanding(string page) => Sidebar.Contains(page);
+    /// <summary>The pages a landing page opens as tiles, in sidebar order.</summary>
+    public static IReadOnlyList<NavigationItem> Tools(ProductArea area) => Items.Where(i => i.Area == area && !IsLanding(i.Page)).ToArray();
 
     /// <summary>
     /// Where each tool from the 0.17 layout went. Nothing was removed or put behind Pro; the smoke test checks every
@@ -82,14 +98,11 @@ public static class Navigation
 
     public static NavigationItem? Find(string page) => Items.FirstOrDefault(i => i.Page == page);
     public static ProductArea AreaOf(string page) => Find(page)?.Area ?? ProductArea.Home;
-    public static string GroupLabel(ProductArea area) => area switch {
-        ProductArea.System => "SYSTEM", ProductArea.Performance => "PERFORMANCE", ProductArea.History => "HISTORY", ProductArea.Support => "SUPPORT", _ => ""
-    };
     /// <summary>Shown above the page title so the current area is always obvious.</summary>
     public static string AreaName(ProductArea area) => area switch {
         ProductArea.System => "HANKI SYSTEM", ProductArea.Performance => "HANKI PERFORMANCE", ProductArea.History => "HISTORY", ProductArea.Support => "SUPPORT", _ => "HANKI TOOLS"
     };
-    public static string Title(NavigationItem item) => item.Page switch { "Home" => "Welcome to Hanki Tools", _ => item.Page };
+    public static string Title(NavigationItem item) => item.Page switch { "Home" => "Welcome to Hanki Tools", "Fix My PC" => "Full scan", _ => item.Label };
 
     /// <summary>
     /// Recovery journal kinds that belong to Hanki Performance: they appear in Performance sessions, not in System actions.

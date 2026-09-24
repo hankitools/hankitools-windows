@@ -56,6 +56,27 @@ jobs:
             Stop-Transcript
           }
 
+      # TEMPORARY review aid while PR 65 is a draft: a coarse text rendering of each UI screenshot, readable in the
+      # job log. Removed before the PR is marked ready; the PNGs themselves are in the diagnostics artifact.
+      - name: Print UI screenshot previews
+        if: always()
+        shell: pwsh
+        run: |
+          Add-Type -AssemblyName System.Drawing
+          $ramp = ' .:-=+*#%@'
+          foreach ($file in Get-ChildItem dist/ui-screenshots/*.png -ErrorAction SilentlyContinue) {
+            $image = [System.Drawing.Bitmap]::FromFile($file.FullName)
+            $cols = 200; $rows = [int]($image.Height / $image.Width * $cols / 2)
+            $small = New-Object System.Drawing.Bitmap $image, $cols, $rows
+            "===== $($file.BaseName) ($($image.Width)x$($image.Height))"
+            for ($y = 0; $y -lt $rows; $y++) {
+              $line = New-Object System.Text.StringBuilder
+              for ($x = 0; $x -lt $cols; $x++) { $c = $small.GetPixel($x, $y); $l = (0.299 * $c.R + 0.587 * $c.G + 0.114 * $c.B) / 255; [void]$line.Append($ramp[[Math]::Min(9, [int]($l * 12))]) }
+              '|' + $line.ToString() + '|'
+            }
+            $small.Dispose(); $image.Dispose()
+          }
+
       - name: Upload unsigned test candidate and checksum
         uses: actions/upload-artifact@v4
         with:
@@ -75,6 +96,8 @@ jobs:
           path: |
             build-transcript.txt
             dist/**/ui-smoke.json
+            dist/**/ui-smoke.json.progress.txt
             dist/**/build-info.json
+            dist/ui-screenshots/*.png
           if-no-files-found: warn
           retention-days: 14

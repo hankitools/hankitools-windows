@@ -205,7 +205,7 @@ public sealed class HankiTabs : TabControl
             foreach (TabPage destination in TabPages) {
                 var target = destination;
                 var button = new HankiButton { Text = ViewLabel(target.Text), AutoSize = true,
-                    Appearance = HankiButtonStyle.Tab, Margin = new Padding(0, 0, 2, 0),
+                    Appearance = HankiButtonStyle.Tab, Margin = new Padding(0, 0, 2, 0), Font = new Font("Segoe UI Semibold", 11f),
                     AccessibleName = "Open " + target.Text, Tag = target };
                 button.Click += (_, _) => {
                     SelectedTab = target;
@@ -303,7 +303,7 @@ internal sealed class HankiCard : Control
 {
     private readonly string kind, title, description;
     private readonly Color accent;
-    private readonly Font titleFont = new("Segoe UI Semibold", 12f), bodyFont = new("Segoe UI", 9.75f);
+    private readonly Font titleFont = new("Segoe UI Semibold", 13f), bodyFont = new("Segoe UI", 10.5f);
     private bool hover;
     public HankiCard(string kind, string title, string description, Action open, Color? accent = null)
     {
@@ -392,16 +392,16 @@ internal sealed class Dashboard : UserControl
     {
         Dock = DockStyle.Fill; AutoScroll = true; Padding = new Padding(0, 4, 8, 16);
 
-        var hero = new RoundedPanel { Dock = DockStyle.Top, Height = 190, Padding = new Padding(26, 22, 26, 20) };
+        var hero = new RoundedPanel { Dock = DockStyle.Top, Height = 200, Padding = new Padding(26, 22, 26, 20) };
         var layout = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 1, Tag = "card" };
         layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 62)); layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 38));
         layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
         var pitch = new FlowLayoutPanel { Dock = DockStyle.Fill, FlowDirection = FlowDirection.TopDown, WrapContents = false, Tag = "card", Margin = Padding.Empty };
-        var eyebrow = new Label { Text = "FIX MY PC", AutoSize = true, Font = new Font("Segoe UI", 8.25f, FontStyle.Bold), Tag = "accent", Margin = new Padding(0, 0, 0, 6) };
-        var headline = new Label { Text = "Check your PC in one pass", AutoSize = true, Font = new Font("Segoe UI Semibold", 17f), Margin = new Padding(0, 0, 0, 6) };
-        var pitchText = new Label { Text = "Read-only checks across Windows, storage, devices, security and performance. Nothing is changed until you approve a repair, and nothing is uploaded.", AutoSize = true, Tag = "intro", Font = new Font("Segoe UI", 10f), Margin = new Padding(0, 0, 0, 14) };
+        var eyebrow = new Label { Text = "FIX MY PC", AutoSize = true, Font = new Font("Segoe UI", 9f, FontStyle.Bold), Tag = "accent", Margin = new Padding(0, 0, 0, 6) };
+        var headline = new Label { Text = "Check your PC in one pass", AutoSize = true, Font = new Font("Segoe UI Semibold", 20f), Margin = new Padding(0, 0, 0, 6) };
+        var pitchText = new Label { Text = "Read-only. Nothing changes until you approve a repair, and nothing is uploaded.", AutoSize = true, Tag = "intro", Font = new Font("Segoe UI", 11f), Margin = new Padding(0, 0, 0, 14) };
         var actions = new FlowLayoutPanel { AutoSize = true, Tag = "card", Margin = Padding.Empty, WrapContents = false };
-        var start = new HankiButton { Text = "Start full scan", Primary = true, AutoSize = true, Margin = new Padding(0, 0, 8, 0) };
+        var start = new HankiButton { Text = "Scan my PC", Primary = true, AutoSize = true, Margin = new Padding(0, 0, 8, 0), Font = new Font("Segoe UI Semibold", 11f) };
         var results = new HankiButton { Text = "View results", AutoSize = true, Margin = Padding.Empty };
         start.Click += (_, _) => startScan(); results.Click += (_, _) => navigate("Fix My PC");
         actions.Controls.AddRange([start, results]);
@@ -416,37 +416,12 @@ internal sealed class Dashboard : UserControl
         layout.Controls.Add(pitch, 0, 0); layout.Controls.Add(summary, 1, 0);
         hero.Controls.Add(layout);
 
-        Label Section(string text) => new() { Text = text, Dock = DockStyle.Top, AutoSize = false, Height = 44, Tag = "intro",
-            Font = new Font("Segoe UI", 8.25f, FontStyle.Bold), TextAlign = ContentAlignment.BottomLeft, Padding = new Padding(2, 0, 0, 8) };
-        var cards = new FlowLayoutPanel { Dock = DockStyle.Top, AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink, Padding = Padding.Empty, Margin = Padding.Empty };
-        var items = new[] {
-            ("Diagnose", "Diagnose", "Follow the crash timeline, read event logs, inspect dumps, and check Windows Update, activation, battery and startup."),
-            ("Maintain", "Maintain", "Find large and duplicate files, review apps and manage startup entries."),
-            ("Connect", "Connect", "Compare DNS, trace routes, measure transfers and review reversible DNS changes."),
-            ("Shield", "Shield", "Review Microsoft Defender, run scans and inspect findings. File scanner is experimental."),
-            ("Recovery", "Recovery", "Review recorded changes and undo supported actions."),
-            ("Assistant", "Assistant", "Redact a report before sharing, then optionally ask AI to explain the evidence.")
-        };
-        foreach (var (target, title, description) in items)
-            cards.Controls.Add(new HankiCard(Navigation.Find(target)?.Icon ?? target, title, description, () => navigate(target)) { Margin = new Padding(0, 0, 14, 14) });
-        void FitCards() {
-            int width = Math.Max(260, ClientSize.Width - Padding.Horizontal - (VerticalScroll.Visible ? 0 : SystemInformation.VerticalScrollBarWidth));
-            int columns = width >= 900 ? 3 : width >= 560 ? 2 : 1;
-            int cardWidth = (width - 14 * columns) / columns;
-            foreach (Control card in cards.Controls) card.Width = Math.Max(220, cardWidth);
-        }
-        SizeChanged += (_, _) => FitCards();
-
-        var support = new FlowLayoutPanel { Dock = DockStyle.Top, AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink, Margin = Padding.Empty };
-        foreach (var name in new[] { "System actions", "Help & community" }) {
-            var link = new HankiButton { Text = name + "  →", AutoSize = true, Appearance = HankiButtonStyle.Quiet, Margin = new Padding(0, 0, 6, 0) };
-            link.Click += (_, _) => navigate(name); support.Controls.Add(link);
-        }
-        // Docked top in reverse: the last control added sits highest. Tab order follows the visual order.
-        Controls.Add(support); Controls.Add(Section("HISTORY & SUPPORT")); Controls.Add(cards); Controls.Add(Section("SYSTEM TOOLS")); Controls.Add(hero);
-        hero.TabIndex = 0; cards.TabIndex = 1; support.TabIndex = 2;
+        // Docked top in reverse: the tiles are added first, the hero last so it sits highest.
+        ToolTiles.Add(this, "DETAILED TOOLS", ToolTiles.For(ProductArea.System, navigate), HankiTheme.Accent);
+        Controls.Add(hero);
+        hero.TabIndex = 0;
         VisibleChanged += (_, _) => { if (Visible) RefreshLastScan(); };
-        RefreshLastScan(); FitCards();
+        RefreshLastScan();
     }
     internal void RefreshLastScan()
     {

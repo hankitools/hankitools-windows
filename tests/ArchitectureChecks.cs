@@ -12,10 +12,19 @@ internal static class ArchitectureChecks
         var items = Navigation.Items;
         Check(items.Select(i => i.Page).Distinct().Count() == items.Count, "navigation: every page id is unique");
         string[] Pages(ProductArea area) => items.Where(i => i.Area == area).Select(i => i.Label).ToArray();
-        Check(Pages(ProductArea.System).SequenceEqual(["Overview", "Fix My PC", "Diagnose", "Maintain", "Shield", "Connect", "Recovery"]), "navigation: Hanki System holds diagnose, repair, maintain, protect and recover");
-        Check(Pages(ProductArea.Performance).SequenceEqual(["Overview", "Gaming", "GPU", "CPU", "Memory", "Storage", "Performance Lab"]), "navigation: Hanki Performance has its own destinations");
+        Check(Pages(ProductArea.System).SequenceEqual(["Fix my PC", "Full scan", "Diagnose", "Maintain", "Shield", "Connect", "Recovery"]), "navigation: Hanki System holds diagnose, repair, maintain, protect and recover");
+        Check(Pages(ProductArea.Performance).SequenceEqual(["Tune my PC", "Gaming", "GPU", "CPU", "Memory", "Storage", "Performance Lab"]), "navigation: Hanki Performance has its own destinations");
         Check(Navigation.LabTools.SequenceEqual(["Monitor", "Comparisons", "Bottleneck Analyzer", "Stutter Diagnostics", "Benchmarks", "Advanced Tuning"]), "navigation: Performance Lab has a place for every lab tool");
-        Check(Pages(ProductArea.History).SequenceEqual(["System actions", "Performance sessions"]), "navigation: history keeps system actions and performance sessions apart");
+        Check(Pages(ProductArea.History).SequenceEqual(["History", "System actions", "Performance sessions"]), "navigation: history keeps system actions and performance sessions apart");
+        // HANKI-UX-300: five sidebar items, one landing page per area; every other page opens from its landing page.
+        Check(Navigation.Sidebar.Count == 5 && Navigation.Sidebar.Select(Navigation.AreaOf).Distinct().Count() == 5
+            && Enum.GetValues<ProductArea>().All(a => Navigation.Landing(a) == items.First(i => i.Area == a).Page && Navigation.IsLanding(Navigation.Landing(a))),
+            "navigation: the sidebar has one landing page per area, first in its area");
+        Check(Enum.GetValues<ProductArea>().Where(a => a != ProductArea.Home).All(a => Navigation.Tools(a).Count >= 2 && Navigation.Tools(a).All(t => !Navigation.IsLanding(t.Page)))
+            && items.Where(i => !Navigation.IsLanding(i.Page)).All(i => Navigation.Tools(i.Area).Contains(i)), "navigation: every other page is a tile on its area's landing page");
+        Check(Navigation.Find("System overview")!.Label == "Fix my PC" && Navigation.Find("Performance overview")!.Label == "Tune my PC" && Navigation.Title(Navigation.Find("Fix My PC")!) == "Full scan",
+            "navigation: the areas are called Fix my PC and Tune my PC, and the scan page Full scan");
+        Check(items.All(i => i.Introduction.Length <= 110), "navigation: page introductions are one short sentence");
         Check(items[0].Page == "Home" && items.Skip(1).All(i => i.Area != ProductArea.Home), "navigation: Home comes first and leads into both areas");
         Check(items.Where(i => i.Area == ProductArea.Performance).All(i => !Navigation.UsesFaultLanguage(i.Introduction)), "navigation: performance pages don't describe optimization as a fault or repair");
         Check(items.All(i => i.Icon.Split(' ').Length == 1 && i.Introduction.Length > 20), "navigation: every destination has an icon kind and an introduction");

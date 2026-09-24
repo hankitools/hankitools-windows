@@ -10,12 +10,10 @@ internal sealed class HomePanel : UserControl
         Dock = DockStyle.Fill; AutoScroll = true; Padding = new Padding(0, 4, 8, 16);
         var cards = new TableLayoutPanel { Dock = DockStyle.Top, AutoSize = true, ColumnCount = 2, Margin = Padding.Empty };
         cards.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50)); cards.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
-        var system = Area(ProductArea.System, "Find what's wrong and fix it safely", "Diagnose, repair, maintain and protect Windows.",
-            systemStatus, "Problem  →  Diagnosis  →  Repair you approve  →  Verification",
-            ("Fix My PC", startFixMyPc, true), ("Open System", () => navigate("System overview"), false));
-        var performance = Area(ProductArea.Performance, "Understand what limits performance", "Measure, analyze and optimize gaming and hardware performance.",
-            performanceStatus, "Baseline  →  Measure  →  Optimize with your approval  →  Measure again  →  Keep or revert",
-            ("Open Performance", () => navigate("Performance overview"), true), ("Performance Lab", () => navigate("Performance Lab"), false));
+        var system = Area(ProductArea.System, "Something not working?", "Scan Windows and fix what's wrong, safely.",
+            systemStatus, ("Scan my PC", startFixMyPc, true), ("Open Fix my PC", () => navigate("System overview"), false));
+        var performance = Area(ProductArea.Performance, "Want more from your PC?", "Tune it for gaming, creative work or low power.",
+            performanceStatus, ("Tune my PC", () => navigate("Performance overview"), true), ("Performance Lab", () => navigate("Performance Lab"), false));
         cards.Controls.Add(system, 0, 0); cards.Controls.Add(performance, 1, 0);
         // Side by side when there is room, stacked otherwise.
         void Fit() {
@@ -25,33 +23,28 @@ internal sealed class HomePanel : UserControl
         }
         SizeChanged += (_, _) => Fit();
 
-        var links = new FlowLayoutPanel { Dock = DockStyle.Top, AutoSize = true, Margin = Padding.Empty, Padding = new Padding(0, 10, 0, 0) };
-        foreach (var page in new[] { "Recovery", "System actions", "Performance sessions", "Help & community" }) {
-            var link = new HankiButton { Text = page + "  →", AutoSize = true, Appearance = HankiButtonStyle.Quiet, Margin = new Padding(0, 0, 6, 0) };
-            link.Click += (_, _) => navigate(page); links.Controls.Add(link);
-        }
-        Controls.Add(links); Controls.Add(cards);
+        Controls.Add(cards);
         VisibleChanged += (_, _) => { if (Visible) RefreshStatus(); };
         RefreshStatus(); Fit();
     }
-    private static Label Status() => new() { AutoSize = true, Font = new Font("Segoe UI Semibold", 11f), Margin = new Padding(0, 0, 0, 10), Tag = "card" };
+    private static Label Status() => new() { AutoSize = true, Font = new Font("Segoe UI", 11f), Margin = new Padding(0, 0, 0, 16), Tag = "intro" };
 
-    private static RoundedPanel Area(ProductArea area, string headline, string description, Label status, string workflow, params (string Text, Action Action, bool Primary)[] actions)
+    private static RoundedPanel Area(ProductArea area, string headline, string description, Label status, params (string Text, Action Action, bool Primary)[] actions)
     {
-        var card = new RoundedPanel { Dock = DockStyle.Fill, AutoSize = true, Padding = new Padding(26, 22, 26, 22), Margin = new Padding(0, 0, 14, 14), MinimumSize = new Size(0, 290) };
+        var card = new RoundedPanel { Dock = DockStyle.Fill, AutoSize = true, Padding = new Padding(28, 26, 28, 26), Margin = new Padding(0, 0, 14, 14), MinimumSize = new Size(0, 260) };
         var stack = new FlowLayoutPanel { Dock = DockStyle.Fill, AutoSize = true, FlowDirection = FlowDirection.TopDown, WrapContents = false, Tag = "card", Margin = Padding.Empty };
-        var eyebrow = new Label { Text = Navigation.AreaName(area), AutoSize = true, Font = new Font("Segoe UI", 8.25f, FontStyle.Bold), Margin = new Padding(0, 0, 0, 6),
+        var eyebrow = new Label { Text = area == ProductArea.Performance ? "TUNE MY PC" : "FIX MY PC", AutoSize = true, Font = new Font("Segoe UI", 9f, FontStyle.Bold), Margin = new Padding(0, 0, 0, 8),
             Tag = area == ProductArea.Performance ? "accent-performance" : "accent" };
-        var title = new Label { Text = headline, AutoSize = true, Font = new Font("Segoe UI Semibold", 16f), Margin = new Padding(0, 0, 0, 6) };
-        var body = new Label { Text = description, AutoSize = true, Tag = "intro", Margin = new Padding(0, 0, 0, 14) };
-        var flow = new Label { Text = workflow, AutoSize = true, Tag = "intro", Font = new Font("Segoe UI", 9f), Margin = new Padding(0, 0, 0, 16) };
+        var title = new Label { Text = headline, AutoSize = true, Font = new Font("Segoe UI Semibold", 21f), Margin = new Padding(0, 0, 0, 6) };
+        var body = new Label { Text = description, AutoSize = true, Font = new Font("Segoe UI", 12f), Margin = new Padding(0, 0, 0, 12) };
         var buttons = new FlowLayoutPanel { AutoSize = true, Tag = "card", Margin = Padding.Empty, WrapContents = true };
         foreach (var (text, action, primary) in actions) {
-            var button = new HankiButton { Text = text, Primary = primary, AutoSize = true, Margin = new Padding(0, 0, 8, 0) };
+            var button = new HankiButton { Text = text, Primary = primary, AutoSize = true, Margin = new Padding(0, 0, 8, 0), Font = new Font("Segoe UI Semibold", primary ? 11.5f : 10.5f),
+                Appearance = primary ? HankiButtonStyle.Secondary : HankiButtonStyle.Quiet };
             button.Click += (_, _) => action(); buttons.Controls.Add(button);
         }
-        stack.Controls.AddRange([eyebrow, title, body, status, flow, buttons]);
-        stack.SizeChanged += (_, _) => { var wrap = new Size(Math.Max(200, stack.ClientSize.Width - 8), 0); foreach (var label in new[] { title, body, status, flow }) label.MaximumSize = wrap; };
+        stack.Controls.AddRange([eyebrow, title, body, status, buttons]);
+        stack.SizeChanged += (_, _) => { var wrap = new Size(Math.Max(200, stack.ClientSize.Width - 8), 0); foreach (var label in new[] { title, body, status }) label.MaximumSize = wrap; };
         card.Controls.Add(stack);
         return card;
     }
@@ -94,19 +87,6 @@ internal sealed class PerformanceOverviewPanel : UserControl
         Dock = DockStyle.Fill; AutoScroll = true; Padding = new Padding(0, 4, 8, 16);
         var tune = new TunePanel();
 
-        var cards = new FlowLayoutPanel { Dock = DockStyle.Top, AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink, Margin = Padding.Empty };
-        foreach (var page in new[] { "Gaming", "GPU", "CPU", "Memory", "Storage", "Performance Lab" }) {
-            var item = Navigation.Find(page)!;
-            cards.Controls.Add(new HankiCard(item.Icon, item.Label, item.Introduction, () => navigate(page), HankiTheme.PerformanceAccent) { Margin = new Padding(0, 0, 14, 14) });
-        }
-        void FitCards() {
-            int width = Math.Max(260, ClientSize.Width - Padding.Horizontal - (VerticalScroll.Visible ? 0 : SystemInformation.VerticalScrollBarWidth));
-            int columns = width >= 900 ? 3 : width >= 560 ? 2 : 1;
-            foreach (Control card in cards.Controls) card.Width = Math.Max(220, (width - 14 * columns) / columns);
-        }
-        SizeChanged += (_, _) => FitCards();
-        var section = new Label { Text = "DETAILED TOOLS", Dock = DockStyle.Top, AutoSize = false, Height = 48, Tag = "intro",
-            Font = new Font("Segoe UI", 9f, FontStyle.Bold), TextAlign = ContentAlignment.BottomLeft, Padding = new Padding(2, 0, 0, 8) };
         // HANKI-GAME-211 / HANKI-PERF-314: what Hanki deliberately won't do, and why; one click away.
         var refused = new RoundedPanel { Dock = DockStyle.Top, AutoSize = true, Padding = new Padding(26, 18, 26, 18), Visible = false };
         var refusedText = new Label { AutoSize = true, Tag = "intro", Dock = DockStyle.Top, Font = new Font("Segoe UI", 10f), Text = string.Join("\r\n", Guardrails.NotRecommended.Select(g => $"•  {g.Tweak}: {g.Why}")) };
@@ -116,8 +96,8 @@ internal sealed class PerformanceOverviewPanel : UserControl
         refusedToggle.Click += (_, _) => { refused.Visible = !refused.Visible; refusedToggle.Text = refused.Visible ? "Hide the tweaks Hanki won't make" : $"Tweaks Hanki won't make ({Guardrails.NotRecommended.Count})"; };
         var refusedGap = new Panel { Dock = DockStyle.Top, Height = 8, Tag = "gap" };
         Controls.Add(refused); Controls.Add(refusedGap); Controls.Add(refusedToggle);
-        Controls.Add(cards); Controls.Add(section); Controls.Add(tune);
-        FitCards();
+        ToolTiles.Add(this, "DETAILED TOOLS", ToolTiles.For(ProductArea.Performance, navigate), HankiTheme.PerformanceAccent);
+        Controls.Add(tune);
     }
 }
 
