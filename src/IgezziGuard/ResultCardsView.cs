@@ -29,10 +29,10 @@ internal sealed class SummaryView : UserControl
             var card = new StatusCardPanel(item.Status) { AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink, Padding = new Padding(20, 14, 18, 16), Margin = new Padding(0, 0, 0, 10) };
             var content = new TableLayoutPanel { Tag = "card", AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink, ColumnCount = 2, RowCount = 3, Dock = DockStyle.Top };
             content.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100)); content.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
-            content.Controls.Add(new Label { Text = item.Title, AutoSize = true, Font = new Font("Segoe UI Semibold", 10.5f), Margin = new Padding(0, 0, 0, 8) }, 0, 0);
+            content.Controls.Add(new Label { Text = item.Title, AutoSize = true, Font = new Font("Segoe UI Semibold", 12f), Margin = new Padding(0, 0, 0, 8) }, 0, 0);
             var pill = StatusText(item.Status);
-            if (pill.Length > 0) content.Controls.Add(new Label { Text = pill, AutoSize = true, Font = new Font("Segoe UI Semibold", 8.75f), Tag = "status-" + item.Status.ToString().ToLowerInvariant(), Margin = new Padding(12, 2, 0, 0) }, 1, 0);
-            var body = new Label { Text = item.Body, AutoSize = true, Margin = Padding.Empty, Font = new Font("Segoe UI", 10f) };
+            if (pill.Length > 0) content.Controls.Add(new Label { Text = pill, AutoSize = true, Font = new Font("Segoe UI Semibold", 9.5f), Tag = "status-" + item.Status.ToString().ToLowerInvariant(), Margin = new Padding(12, 2, 0, 0) }, 1, 0);
+            var body = new Label { Text = item.Body, AutoSize = true, Margin = Padding.Empty, Font = new Font("Segoe UI", 11f) };
             content.Controls.Add(body, 0, 1); content.SetColumnSpan(body, 2);
             if (item.Action is { } action) {
                 var open = new HankiButton { Text = (item.ActionLabel ?? "Open") + "  →", AutoSize = true, Appearance = HankiButtonStyle.Quiet, Margin = new Padding(0, 8, 0, 0), AccessibleName = item.ActionLabel ?? "Open" };

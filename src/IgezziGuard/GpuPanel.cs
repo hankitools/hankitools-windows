@@ -30,10 +30,10 @@ public sealed class GpuPanel : ToolPage
                 (faster is not null ? "\r\nIt's running below its fastest refresh rate; Gaming can switch it." : ""), faster is null ? CardStatus.Good : CardStatus.Review));
         }
         cards.Add(graphics.NvapiAvailable
-            ? new("NVIDIA driver interface", "Available. Hanki reads NVIDIA settings and can change them per game, after you review each change.", CardStatus.Good)
+            ? new("NVIDIA driver interface", "Available. Hanki reads NVIDIA settings and can change them for one game (Gaming → Games) or for all games with presets and single settings (Gaming → NVIDIA), after you review each change.", CardStatus.Good)
             : new("NVIDIA driver interface", graphics.Adapters.Any(a => a.Vendor == GpuVendor.Nvidia) ? "Not available: the NVIDIA driver may be missing or damaged." : "No NVIDIA graphics on this PC.", CardStatus.Info));
         if (graphics.Adapters.Any(a => a.Vendor == GpuVendor.Amd))
-            cards.Add(new("AMD driver interface", graphics.AdlxPresent ? "The Radeon driver interface (ADLX) is installed. Hanki doesn't read Radeon settings yet, so AMD recommendations cover Windows and display settings only." :
+            cards.Add(new("AMD driver interface", graphics.AdlxPresent ? "The Radeon driver interface (ADLX) is installed. Hanki reads and changes Radeon settings in Gaming → AMD Radeon and in Tune my PC, after you review each change. Not yet tested on AMD hardware; please report problems." :
                 "Not found; install the AMD Software driver package for Radeon settings.", CardStatus.Info));
         if (graphics.Adapters.Count == 0) cards.Add(new("Graphics hardware", "Windows didn't report any graphics adapters. " + string.Join(" ", graphics.Notes), CardStatus.Unknown));
 

@@ -85,7 +85,7 @@ internal static class Nvidia
 
     // Structure sizes from the SDK; each version field is size | (version << 16).
     private const int UnicodeBytes = 4096, SettingSize = 12320, ProfileSize = 4116, ApplicationSize = 12296;
-    private const int SettingNameOffset = 4, SettingIdOffset = 4100, SettingTypeOffset = 4104, SettingLocationOffset = 4108, CurrentPredefinedOffset = 4112, PredefinedValueOffset = 4120, CurrentValueOffset = 8220;
+    private const int SettingNameOffset = 4, SettingIdOffset = 4100, SettingTypeOffset = 4104, SettingLocationOffset = 4108, CurrentPredefinedOffset = 4112, PredefinedValidOffset = 4116, PredefinedValueOffset = 4120, CurrentValueOffset = 8220;
     private static IntPtr Buffer(int size, int version)
     {
         var buffer = Marshal.AllocHGlobal(size);
@@ -148,8 +148,11 @@ internal static class Nvidia
             try { Check(Function<ProfileInfoFn>(ProfileInfoId)(Handle, profile, info), "Reading the profile"); return (ReadUnicode(info, 4), Marshal.ReadInt32(info, 4104) != 0); }
             finally { Marshal.FreeHGlobal(info); }
         }
-        /// <summary>A catalog setting as the driver reports it for this profile, or null when it isn't set anywhere.</summary>
-        internal (uint Value, NvidiaSettingSource Source, bool Predefined, string DriverName, uint Type)? Read(IntPtr profile, uint id)
+        /// <summary>
+        /// A catalog setting as the driver reports it for this profile, or null when it isn't set anywhere. PredefinedValue
+        /// is NVIDIA's own value for this profile, when it has one.
+        /// </summary>
+        internal (uint Value, NvidiaSettingSource Source, bool Predefined, string DriverName, uint Type, uint? PredefinedValue)? Read(IntPtr profile, uint id)
         {
             var setting = Buffer(SettingSize, 1);
             try {
@@ -157,9 +160,12 @@ internal static class Nvidia
                 if (status == SettingNotFound) return null;
                 Check(status, "Reading a driver setting");
                 return ((uint)Marshal.ReadInt32(setting, CurrentValueOffset), NvidiaSettings.Source((uint)Marshal.ReadInt32(setting, SettingLocationOffset)),
-                    Marshal.ReadInt32(setting, CurrentPredefinedOffset) != 0, ReadUnicode(setting, SettingNameOffset), (uint)Marshal.ReadInt32(setting, SettingTypeOffset));
+                    Marshal.ReadInt32(setting, CurrentPredefinedOffset) != 0, ReadUnicode(setting, SettingNameOffset), (uint)Marshal.ReadInt32(setting, SettingTypeOffset),
+                    Marshal.ReadInt32(setting, PredefinedValidOffset) != 0 ? (uint)Marshal.ReadInt32(setting, PredefinedValueOffset) : null);
             } finally { Marshal.FreeHGlobal(setting); }
         }
+        /// <summary>The global profile, or the profile holding an executable (zero when NVIDIA has none).</summary>
+        internal IntPtr Profile(string? executable) => executable is null ? GlobalProfile() : FindApplication(executable);
         internal NvidiaProfileView View(IntPtr profile, string? application)
         {
             var (name, predefined) = ProfileInfo(profile);
@@ -180,43 +186,43 @@ internal static class Nvidia
     internal const string HankiProfilePrefix = "Hanki: ";
 
     /// <summary>
-    /// The state of one setting in a game's own profile: "0x…" (a value set by the user), "predefined:0x…" (NVIDIA's
-    /// value for this game) or "default" (not set for this game, so the global value applies).
+    /// The state of one setting in a game's own profile (executable) or the global profile (null): "0x…" (a value set
+    /// by the user), "predefined:0x…" (NVIDIA's value for this profile) or "default" (not set in this profile, so the
+    /// global value or driver default applies).
     /// </summary>
-    internal static string ReadApplicationSetting(string executable, uint id)
+    internal static string ReadProfileSetting(string? executable, uint id)
     {
         var setting = NvidiaSettings.Get(id);
         if (!Trusted(setting)) throw new NvidiaException("This driver doesn't name the setting as expected, so Hanki leaves it alone.");
         using var session = new Session();
-        var profile = session.FindApplication(executable);
+        var profile = session.Profile(executable);
         if (profile == IntPtr.Zero) return "default";
-        var read = session.Read(profile, id);
-        return read is { Source: NvidiaSettingSource.ThisProfile } r ? (r.Predefined ? "predefined:" : "") + NvidiaSettings.Hex(r.Value) : "default";
+        return session.Read(profile, id) is { } r ? NvidiaSettings.State(r.Value, r.Source, r.Predefined) : "default";
     }
 
-    /// <summary>Writes one of the three states read by ReadApplicationSetting and saves the driver settings.</summary>
-    internal static void WriteApplicationSetting(string executable, uint id, string value)
+    /// <summary>Writes one of the three states read by ReadProfileSetting and saves the driver settings.</summary>
+    internal static void WriteProfileSetting(string? executable, uint id, string value)
     {
         var setting = NvidiaSettings.Get(id);
         if (!Trusted(setting)) throw new NvidiaException("This driver doesn't name the setting as expected, so Hanki leaves it alone.");
         using var session = new Session();
-        var profile = session.FindApplication(executable);
+        var profile = session.Profile(executable);
         if (value == "default") {
             if (profile == IntPtr.Zero) return;
             int status = Function<SettingIdFn>(DeleteSettingId)(session.Handle, profile, id);
-            if (status is not (Ok or SettingNotFound)) Check(status, "Removing the game setting");
+            if (status is not (Ok or SettingNotFound)) Check(status, "Removing the setting");
         } else if (value.StartsWith("predefined:", StringComparison.Ordinal)) {
             if (profile == IntPtr.Zero) throw new NvidiaException("The game's NVIDIA profile is gone.");
-            Check(Function<SettingIdFn>(RestoreDefaultId)(session.Handle, profile, id), "Restoring NVIDIA's value for the game");
+            Check(Function<SettingIdFn>(RestoreDefaultId)(session.Handle, profile, id), "Restoring NVIDIA's value");
         } else {
             if (!value.StartsWith("0x", StringComparison.Ordinal) || !uint.TryParse(value[2..], System.Globalization.NumberStyles.HexNumber, null, out var number)) throw new NvidiaException("Invalid setting value.");
-            if (profile == IntPtr.Zero) profile = session.CreateApplicationProfile(executable);
+            if (profile == IntPtr.Zero) profile = session.CreateApplicationProfile(executable!);
             var buffer = Buffer(SettingSize, 1);
             try {
                 Marshal.WriteInt32(buffer, SettingIdOffset, (int)id);
                 Marshal.WriteInt32(buffer, SettingTypeOffset, 0); // NVDRS_DWORD_TYPE
                 Marshal.WriteInt32(buffer, CurrentValueOffset, (int)number);
-                Check(Function<SetSettingFn>(SetSettingId)(session.Handle, profile, buffer), "Changing the game setting");
+                Check(Function<SetSettingFn>(SetSettingId)(session.Handle, profile, buffer), "Changing the setting");
             } finally { Marshal.FreeHGlobal(buffer); }
         }
         Check(Function<OneHandle>(SaveSettingsId)(session.Handle), "Saving NVIDIA driver settings");
@@ -262,6 +268,27 @@ internal static class Nvidia
             if (profile == IntPtr.Zero) text.AppendLine($"{exe}: no NVIDIA profile"); else Profile(profile, exe);
         }
         return text.ToString();
+    }
+
+    /// <summary>
+    /// The global profile's settings as Recovery stores them (HANKI-GPU-113): only ids the driver names as expected,
+    /// holding a DWORD value.
+    /// </summary>
+    internal static IReadOnlyList<NvidiaGlobalSetting> ReadGlobal()
+    {
+        using var session = new Session();
+        var profile = session.GlobalProfile();
+        var result = new List<NvidiaGlobalSetting>();
+        foreach (var setting in NvidiaSettings.Catalog) {
+            if (!Trusted(setting)) continue;
+            var read = session.Read(profile, setting.Id);
+            if (read is { } r && r.Type != 0) continue;
+            result.Add(read is { } v
+                ? new(setting, NvidiaSettings.State(v.Value, v.Source, v.Predefined), v.Value,
+                    v.Source == NvidiaSettingSource.ThisProfile ? NvidiaSettings.ResetState(v.PredefinedValue) : "default")
+                : new(setting, "default", DefaultValue(setting.Id), "default"));
+        }
+        return result;
     }
 
     /// <summary>The global settings, and the profile of each executable given (null where NVIDIA has none).</summary>

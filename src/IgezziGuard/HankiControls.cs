@@ -205,7 +205,7 @@ public sealed class HankiTabs : TabControl
             foreach (TabPage destination in TabPages) {
                 var target = destination;
                 var button = new HankiButton { Text = ViewLabel(target.Text), AutoSize = true,
-                    Appearance = HankiButtonStyle.Tab, Margin = new Padding(0, 0, 2, 0),
+                    Appearance = HankiButtonStyle.Tab, Margin = new Padding(0, 0, 2, 0), Font = new Font("Segoe UI Semibold", 11f),
                     AccessibleName = "Open " + target.Text, Tag = target };
                 button.Click += (_, _) => {
                     SelectedTab = target;
@@ -303,7 +303,7 @@ internal sealed class HankiCard : Control
 {
     private readonly string kind, title, description;
     private readonly Color accent;
-    private readonly Font titleFont = new("Segoe UI Semibold", 12f), bodyFont = new("Segoe UI", 9.75f);
+    private readonly Font titleFont = new("Segoe UI Semibold", 13f), bodyFont = new("Segoe UI", 10.5f);
     private bool hover;
     public HankiCard(string kind, string title, string description, Action open, Color? accent = null)
     {
@@ -392,16 +392,16 @@ internal sealed class Dashboard : UserControl
     {
         Dock = DockStyle.Fill; AutoScroll = true; Padding = new Padding(0, 4, 8, 16);
 
-        var hero = new RoundedPanel { Dock = DockStyle.Top, Height = 190, Padding = new Padding(26, 22, 26, 20) };
+        var hero = new RoundedPanel { Dock = DockStyle.Top, Height = 200, Padding = new Padding(26, 22, 26, 20) };
         var layout = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 1, Tag = "card" };
         layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 62)); layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 38));
         layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
         var pitch = new FlowLayoutPanel { Dock = DockStyle.Fill, FlowDirection = FlowDirection.TopDown, WrapContents = false, Tag = "card", Margin = Padding.Empty };
-        var eyebrow = new Label { Text = "FIX MY PC", AutoSize = true, Font = new Font("Segoe UI", 8.25f, FontStyle.Bold), Tag = "accent", Margin = new Padding(0, 0, 0, 6) };
-        var headline = new Label { Text = "Check your PC in one pass", AutoSize = true, Font = new Font("Segoe UI Semibold", 17f), Margin = new Padding(0, 0, 0, 6) };
-        var pitchText = new Label { Text = "Read-only checks across Windows, storage, devices, security and performance. Nothing is changed until you approve a repair, and nothing is uploaded.", AutoSize = true, Tag = "intro", Font = new Font("Segoe UI", 10f), Margin = new Padding(0, 0, 0, 14) };
+        var eyebrow = new Label { Text = "FIX MY PC", AutoSize = true, Font = new Font("Segoe UI", 9f, FontStyle.Bold), Tag = "accent", Margin = new Padding(0, 0, 0, 6) };
+        var headline = new Label { Text = "Check your PC in one pass", AutoSize = true, Font = new Font("Segoe UI Semibold", 20f), Margin = new Padding(0, 0, 0, 6) };
+        var pitchText = new Label { Text = "Read-only. Nothing changes until you approve a repair, and nothing is uploaded.", AutoSize = true, Tag = "intro", Font = new Font("Segoe UI", 11f), Margin = new Padding(0, 0, 0, 14) };
         var actions = new FlowLayoutPanel { AutoSize = true, Tag = "card", Margin = Padding.Empty, WrapContents = false };
-        var start = new HankiButton { Text = "Start full scan", Primary = true, AutoSize = true, Margin = new Padding(0, 0, 8, 0) };
+        var start = new HankiButton { Text = "Scan my PC", Primary = true, AutoSize = true, Margin = new Padding(0, 0, 8, 0), Font = new Font("Segoe UI Semibold", 11f) };
         var results = new HankiButton { Text = "View results", AutoSize = true, Margin = Padding.Empty };
         start.Click += (_, _) => startScan(); results.Click += (_, _) => navigate("Fix My PC");
         actions.Controls.AddRange([start, results]);
@@ -416,41 +416,91 @@ internal sealed class Dashboard : UserControl
         layout.Controls.Add(pitch, 0, 0); layout.Controls.Add(summary, 1, 0);
         hero.Controls.Add(layout);
 
-        Label Section(string text) => new() { Text = text, Dock = DockStyle.Top, AutoSize = false, Height = 44, Tag = "intro",
-            Font = new Font("Segoe UI", 8.25f, FontStyle.Bold), TextAlign = ContentAlignment.BottomLeft, Padding = new Padding(2, 0, 0, 8) };
-        var cards = new FlowLayoutPanel { Dock = DockStyle.Top, AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink, Padding = Padding.Empty, Margin = Padding.Empty };
-        var items = new[] {
-            ("Diagnose", "Diagnose", "Follow the crash timeline, read event logs, inspect dumps, and check Windows Update, activation, battery and startup."),
-            ("Maintain", "Maintain", "Find large and duplicate files, review apps and manage startup entries."),
-            ("Connect", "Connect", "Compare DNS, trace routes, measure transfers and review reversible DNS changes."),
-            ("Shield", "Shield", "Review Microsoft Defender, run scans and inspect findings. File scanner is experimental."),
-            ("Recovery", "Recovery", "Review recorded changes and undo supported actions."),
-            ("Assistant", "Assistant", "Redact a report before sharing, then optionally ask AI to explain the evidence.")
-        };
-        foreach (var (target, title, description) in items)
-            cards.Controls.Add(new HankiCard(Navigation.Find(target)?.Icon ?? target, title, description, () => navigate(target)) { Margin = new Padding(0, 0, 14, 14) });
-        void FitCards() {
-            int width = Math.Max(260, ClientSize.Width - Padding.Horizontal - (VerticalScroll.Visible ? 0 : SystemInformation.VerticalScrollBarWidth));
-            int columns = width >= 900 ? 3 : width >= 560 ? 2 : 1;
-            int cardWidth = (width - 14 * columns) / columns;
-            foreach (Control card in cards.Controls) card.Width = Math.Max(220, cardWidth);
-        }
-        SizeChanged += (_, _) => FitCards();
-
-        var support = new FlowLayoutPanel { Dock = DockStyle.Top, AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink, Margin = Padding.Empty };
-        foreach (var name in new[] { "System actions", "Help & community" }) {
-            var link = new HankiButton { Text = name + "  →", AutoSize = true, Appearance = HankiButtonStyle.Quiet, Margin = new Padding(0, 0, 6, 0) };
-            link.Click += (_, _) => navigate(name); support.Controls.Add(link);
-        }
-        // Docked top in reverse: the last control added sits highest. Tab order follows the visual order.
-        Controls.Add(support); Controls.Add(Section("HISTORY & SUPPORT")); Controls.Add(cards); Controls.Add(Section("SYSTEM TOOLS")); Controls.Add(hero);
-        hero.TabIndex = 0; cards.TabIndex = 1; support.TabIndex = 2;
+        // Docked top in reverse: the tiles are added first, the hero last so it sits highest.
+        ToolTiles.Add(this, "DETAILED TOOLS", ToolTiles.For(ProductArea.System, navigate), HankiTheme.Accent);
+        Controls.Add(hero);
+        ToolTiles.TopDown(this);
         VisibleChanged += (_, _) => { if (Visible) RefreshLastScan(); };
-        RefreshLastScan(); FitCards();
+        RefreshLastScan();
     }
     internal void RefreshLastScan()
     {
         try { lastScan.Show(history.Read().OrderByDescending(s => s.Ended).FirstOrDefault()); }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { lastScan.Show(null, "Saved scan history could not be read. Original files were preserved."); }
     }
+}
+
+/// <summary>A large selectable option (title and one line); tiles sharing a parent behave as one radio group.</summary>
+internal sealed class ChoiceTile : Control
+{
+    private readonly string title, description;
+    private readonly Color accent;
+    private readonly Font titleFont, bodyFont;
+    private bool hover, selected;
+    public event Action? Chosen;
+    public object? Value { get; init; }
+    public bool Selected
+    {
+        get => selected;
+        set { selected = value; AccessibleDescription = (value ? "Selected. " : "") + description; Invalidate(); }
+    }
+    public ChoiceTile(string title, string description, Color? accent = null, bool compact = false)
+    {
+        this.title = title; this.description = description; this.accent = accent ?? HankiTheme.Accent;
+        titleFont = new Font("Segoe UI Semibold", compact ? 11f : 13f); bodyFont = new Font("Segoe UI", 10f);
+        Text = title; AccessibleName = title; AccessibleDescription = description; AccessibleRole = AccessibleRole.RadioButton;
+        TabStop = true; Cursor = Cursors.Hand; Height = compact ? 48 : 112; Width = compact ? 150 : 236;
+        SetStyle(ControlStyles.UserPaint | ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.ResizeRedraw | ControlStyles.Selectable, true);
+        Click += (_, _) => Choose();
+        KeyDown += (_, e) => { if (e.KeyCode is Keys.Enter or Keys.Space) { Choose(); e.Handled = true; } };
+    }
+    /// <summary>The height a large tile of this width needs to show its whole description.</summary>
+    internal int HeightFor(int width)
+    {
+        float s = DeviceDpi / 96f; int pad = (int)(14 * s);
+        var body = TextRenderer.MeasureText(description, bodyFont, new Size(Math.Max(1, width - pad * 2), int.MaxValue), TextFormatFlags.WordBreak | TextFormatFlags.NoPrefix);
+        return Math.Max((int)(100 * s), body.Height + pad * 2 + (int)(34 * s));
+    }
+    private void Choose()
+    {
+        foreach (var tile in Parent?.Controls.OfType<ChoiceTile>() ?? []) tile.Selected = tile == this;
+        Chosen?.Invoke();
+    }
+    protected override void Dispose(bool disposing) { if (disposing) { titleFont.Dispose(); bodyFont.Dispose(); } base.Dispose(disposing); }
+    protected override void OnMouseEnter(EventArgs e) { hover = true; Invalidate(); base.OnMouseEnter(e); }
+    protected override void OnMouseLeave(EventArgs e) { hover = false; Invalidate(); base.OnMouseLeave(e); }
+    protected override void OnMouseDown(MouseEventArgs e) { Focus(); base.OnMouseDown(e); }
+    protected override void OnGotFocus(EventArgs e) { Invalidate(); base.OnGotFocus(e); }
+    protected override void OnLostFocus(EventArgs e) { Invalidate(); base.OnLostFocus(e); }
+    protected override void OnPaint(PaintEventArgs e)
+    {
+        var g = e.Graphics; float s = DeviceDpi / 96f;
+        bool hc = SystemInformation.HighContrast;
+        g.Clear(Parent?.BackColor ?? HankiTheme.Canvas); g.SmoothingMode = SmoothingMode.AntiAlias;
+        var text = hc ? SystemColors.ControlText : HankiTheme.Text; var muted = hc ? SystemColors.ControlText : HankiTheme.Muted;
+        using (var path = HankiButton.Rounded(new RectangleF(1, 1, Width - 2.5f, Height - 2.5f), 10 * s)) {
+            var fill = hc ? (selected ? SystemColors.Highlight : SystemColors.Control) : selected ? Blend(HankiTheme.Surface, accent, 0.16f) : hover ? HankiTheme.Raised : HankiTheme.Surface;
+            using var brush = new SolidBrush(fill); g.FillPath(brush, path);
+            bool ring = selected || (Focused && ShowFocusCues);
+            using var pen = new Pen(hc ? SystemColors.ControlText : ring ? accent : hover ? Color.FromArgb(70, 80, 96) : HankiTheme.Border, ring ? 2 * s : 1);
+            g.DrawPath(pen, path);
+        }
+        if (hc && selected) text = muted = SystemColors.HighlightText;
+        int pad = (int)(14 * s), dot = (int)(16 * s);
+        // Radio mark, so the selection doesn't rely on color alone.
+        var mark = new RectangleF(pad, (Height - dot) / 2f, dot, dot);
+        if (Height > 60 * s) mark.Y = pad + 2 * s;
+        using (var ringPen = new Pen(selected ? (hc ? text : accent) : muted, 1.6f * s)) g.DrawEllipse(ringPen, mark);
+        if (selected) { using var fillDot = new SolidBrush(hc ? text : accent); g.FillEllipse(fillDot, RectangleF.Inflate(mark, -4 * s, -4 * s)); }
+        int left = pad + dot + (int)(10 * s);
+        if (Height <= 60 * s) {
+            TextRenderer.DrawText(g, title, titleFont, new Rectangle(left, 0, Width - left - pad, Height), text, TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis | TextFormatFlags.NoPrefix);
+            return;
+        }
+        TextRenderer.DrawText(g, title, titleFont, new Rectangle(left, pad - (int)(2 * s), Width - left - pad, (int)(26 * s)), text, TextFormatFlags.Left | TextFormatFlags.Top | TextFormatFlags.EndEllipsis | TextFormatFlags.NoPrefix);
+        TextRenderer.DrawText(g, description, bodyFont, new Rectangle(pad, pad + (int)(30 * s), Width - pad * 2, Height - pad * 2 - (int)(28 * s)), muted,
+            TextFormatFlags.Left | TextFormatFlags.Top | TextFormatFlags.WordBreak | TextFormatFlags.EndEllipsis | TextFormatFlags.NoPrefix);
+    }
+    private static Color Blend(Color a, Color b, float amount) => Color.FromArgb(
+        (int)(a.R + (b.R - a.R) * amount), (int)(a.G + (b.G - a.G) * amount), (int)(a.B + (b.B - a.B) * amount));
 }

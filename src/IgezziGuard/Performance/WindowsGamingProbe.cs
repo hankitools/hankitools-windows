@@ -8,7 +8,8 @@ namespace IgezziGuard;
 /// </summary>
 internal static class WindowsGamingProbe
 {
-    internal const string GpuPreferencesKey = @"Software\Microsoft\DirectX\UserGpuPreferences";
+    internal const string GpuPreferencesKey = @"Software\Microsoft\DirectX\UserGpuPreferences", DirectXGlobalValue = "DirectXUserGlobalSettings",
+        GameDvrKey = @"Software\Microsoft\Windows\CurrentVersion\GameDVR", GameBarKey = @"Software\Microsoft\GameBar";
     private static readonly Guid ProcessorGroup = new("54533251-82be-4824-96c1-47b60b740d00"), ProcessorMaximum = new("bc5038f7-23e0-4960-96da-33abaf5935ec"),
         ProcessorMinimum = new("893dee8e-2bef-41e0-89c6-b55d0929964c");
 
@@ -17,7 +18,7 @@ internal static class WindowsGamingProbe
         bool? gameMode = null, scheduling = null;
         var preferences = new List<AppGpuPreference>();
         string? global = null;
-        using (var gameBar = Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\GameBar"))
+        using (var gameBar = Registry.CurrentUser.OpenSubKey(GameBarKey))
             if (gameBar?.GetValue("AutoGameModeEnabled") is int mode) gameMode = mode != 0;
         try {
             using var drivers = Registry.LocalMachine.OpenSubKey(@"SYSTEM\CurrentControlSet\Control\GraphicsDrivers");
@@ -30,11 +31,37 @@ internal static class WindowsGamingProbe
                 if (WindowsGamingParsing.Preference(data) is { } preference) preferences.Add(new(name, preference));
             }
         }
+        bool? history = null, capture = null;
+        using (var dvr = Registry.CurrentUser.OpenSubKey(GameDvrKey)) {
+            if (dvr?.GetValue("HistoricalCaptureEnabled") is int h) history = h != 0;
+            if (dvr?.GetValue("AppCaptureEnabled") is int a) capture = a != 0;
+        }
         var plan = ActivePlan();
         return new WindowsGamingSettings(gameMode, scheduling, preferences,
             WindowsGamingParsing.Flag(global, "SwapEffectUpgradeEnable"), WindowsGamingParsing.Flag(global, "AutoHDREnable"),
             PowerMode(), plan, plan is { } p ? PlanName(p) : null,
-            plan is { } a ? Read(a, ProcessorMaximum, ac: true) : null, plan is { } b ? Read(b, ProcessorMaximum, ac: false) : null, plan is { } c ? Read(c, ProcessorMinimum, ac: true) : null);
+            plan is { } a1 ? Read(a1, ProcessorMaximum, ac: true) : null, plan is { } b ? Read(b, ProcessorMaximum, ac: false) : null, plan is { } c ? Read(c, ProcessorMinimum, ac: true) : null,
+            WindowsGamingParsing.Flag(global, "VRROptimizeEnable"), history, capture, Mouse());
+    }
+
+    [DllImport("user32.dll", SetLastError = true)] private static extern bool SystemParametersInfoW(uint action, uint parameter, int[] values, uint flags);
+    [DllImport("user32.dll", SetLastError = true)] private static extern bool SystemParametersInfoW(uint action, uint parameter, IntPtr values, uint flags);
+    private const uint GetMouseAction = 0x0003, SetMouseAction = 0x0004, UpdateIniFile = 0x01, SendChange = 0x02;
+    /// <summary>Mouse thresholds and acceleration (“Enhance pointer precision”), or null when Windows doesn't say.</summary>
+    internal static int[]? Mouse()
+    {
+        var values = new int[3];
+        try { return SystemParametersInfoW(GetMouseAction, 0, values, 0) ? values : null; }
+        catch (Exception ex) when (ex is DllNotFoundException or EntryPointNotFoundException) { return null; }
+    }
+    /// <summary>Sets the mouse parameters the way the Mouse control panel does, saved for this user and announced to apps.</summary>
+    internal static void SetMouse(int[] values)
+    {
+        var buffer = Marshal.AllocHGlobal(12);
+        try {
+            Marshal.Copy(values, 0, buffer, 3);
+            if (!SystemParametersInfoW(SetMouseAction, 0, buffer, UpdateIniFile | SendChange)) throw new IOException($"Windows didn't accept the mouse setting (error {Marshal.GetLastWin32Error()}).");
+        } finally { Marshal.FreeHGlobal(buffer); }
     }
 
     [DllImport("powrprof.dll")] private static extern uint PowerGetEffectiveOverlayScheme(out Guid overlay);

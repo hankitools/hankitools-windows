@@ -9,16 +9,24 @@ namespace IgezziGuard;
 ///   GPU preference:  target the executable's path,   value "GpuPreference=2;" or "" (Windows decides)
 ///   Processor power: target "{plan guid}|ac",        value "100"
 ///   NVIDIA setting:  target "game.exe|0x1057EB71",   value "0x00000001", "predefined:0x…" (NVIDIA's own value) or "default"
+///   NVIDIA global setting: target "0x1057EB71",      value as for NVIDIA setting, in the global profile (all games)
+///   Windows gaming setting: target "game-mode", "background-recording", "windowed-optimizations" or "variable-refresh", value
+///                    "on", "off" or "default" (never changed); target "mouse-acceleration", value "6,10,1"
+///   AMD setting:     target "{gpu}|AntiLag",          value "on", "off:144", "on:30-60" or "mode:1" (see AmdSettings)
 /// </summary>
 internal static class PerformanceSettings
 {
-    internal static bool Handles(string kind) => kind is "Display mode" or "GPU preference" or "Processor power" or "NVIDIA setting";
+    internal const string WindowsGamingKind = "Windows gaming setting";
+    internal static bool Handles(string kind) => kind is "Display mode" or "GPU preference" or "Processor power" or "NVIDIA setting" or NvidiaPresets.ChangeKind or WindowsGamingKind or AmdSettings.ChangeKind;
 
     internal static string Read(string kind, string target) => kind switch {
         "Display mode" => DisplayMode(target),
         "GPU preference" => GpuPreference(target),
         "Processor power" => Processor(target).ToString(),
         "NVIDIA setting" => NvidiaSetting(target),
+        NvidiaPresets.ChangeKind => Nvidia.ReadProfileSetting(null, ParseNvidiaGlobalTarget(target)),
+        WindowsGamingKind => WindowsGaming(target),
+        AmdSettings.ChangeKind => Amd.ReadState(target),
         _ => throw new IOException("Unsupported setting.")
     };
     internal static void Write(string kind, string target, string value)
@@ -28,6 +36,15 @@ internal static class PerformanceSettings
             case "GPU preference": SetGpuPreference(target, value); break;
             case "Processor power": SetProcessor(target, value); break;
             case "NVIDIA setting": SetNvidiaSetting(target, value); break;
+            case WindowsGamingKind: SetWindowsGaming(target, value); break;
+            case AmdSettings.ChangeKind:
+                if (AmdSettings.Parse(AmdSettings.ParseTarget(target).Kind, value) is null) throw new IOException("Invalid AMD setting value.");
+                Amd.WriteState(target, value);
+                break;
+            case NvidiaPresets.ChangeKind:
+                if (!NvidiaSettings.ValidState(value)) throw new IOException("Invalid NVIDIA setting value.");
+                Nvidia.WriteProfileSetting(null, ParseNvidiaGlobalTarget(target), value);
+                break;
             default: throw new IOException("Unsupported setting.");
         }
     }
@@ -103,6 +120,51 @@ internal static class PerformanceSettings
         PowerSetActiveScheme(IntPtr.Zero, ref plan); // Re-applies the plan so the new value takes effect now.
     }
 
+    // ---- Windows gaming settings: Game Bar background recording, DirectX options and mouse acceleration -------------
+    internal static readonly IReadOnlySet<string> WindowsGamingTargets = new HashSet<string>(StringComparer.Ordinal) { "game-mode", "background-recording", "windowed-optimizations", "variable-refresh", "mouse-acceleration" };
+    private static string DirectXFlag(string target) => target == "windowed-optimizations" ? "SwapEffectUpgradeEnable" : "VRROptimizeEnable";
+    private static string WindowsGaming(string target)
+    {
+        if (!WindowsGamingTargets.Contains(target)) throw new IOException("Invalid Windows gaming setting.");
+        switch (target) {
+            case "game-mode":
+                using (var bar = Registry.CurrentUser.OpenSubKey(WindowsGamingProbe.GameBarKey))
+                    return WindowsGamingParsing.FlagState(bar?.GetValue("AutoGameModeEnabled") is int g ? g != 0 : null);
+            case "background-recording":
+                using (var dvr = Registry.CurrentUser.OpenSubKey(WindowsGamingProbe.GameDvrKey))
+                    return WindowsGamingParsing.FlagState(dvr?.GetValue("HistoricalCaptureEnabled") is int h ? h != 0 : null);
+            case "mouse-acceleration":
+                return WindowsGamingProbe.Mouse() is { } mouse ? WindowsGamingParsing.MouseText(mouse) : throw new IOException("Windows didn't report the mouse settings.");
+            default:
+                using (var key = Registry.CurrentUser.OpenSubKey(WindowsGamingProbe.GpuPreferencesKey))
+                    return WindowsGamingParsing.FlagState(WindowsGamingParsing.Flag(key?.GetValue(WindowsGamingProbe.DirectXGlobalValue) as string, DirectXFlag(target)));
+        }
+    }
+    private static void SetWindowsGaming(string target, string value)
+    {
+        if (!WindowsGamingTargets.Contains(target)) throw new IOException("Invalid Windows gaming setting.");
+        try {
+            switch (target) {
+                case "game-mode" or "background-recording": {
+                    var on = WindowsGamingParsing.ParseFlagState(value);
+                    var (keyPath, name) = target == "game-mode" ? (WindowsGamingProbe.GameBarKey, "AutoGameModeEnabled") : (WindowsGamingProbe.GameDvrKey, "HistoricalCaptureEnabled");
+                    using var key = Registry.CurrentUser.CreateSubKey(keyPath, writable: true);
+                    if (on is { } v) key.SetValue(name, v ? 1 : 0, RegistryValueKind.DWord); else key.DeleteValue(name, throwOnMissingValue: false);
+                    break;
+                }
+                case "mouse-acceleration": WindowsGamingProbe.SetMouse(WindowsGamingParsing.ParseMouse(value)); break;
+                default: {
+                    var on = WindowsGamingParsing.ParseFlagState(value);
+                    using var key = Registry.CurrentUser.CreateSubKey(WindowsGamingProbe.GpuPreferencesKey, writable: true);
+                    var updated = WindowsGamingParsing.WithFlag(key.GetValue(WindowsGamingProbe.DirectXGlobalValue) as string, DirectXFlag(target), on);
+                    if (updated.Length == 0) key.DeleteValue(WindowsGamingProbe.DirectXGlobalValue, throwOnMissingValue: false);
+                    else key.SetValue(WindowsGamingProbe.DirectXGlobalValue, updated, RegistryValueKind.String);
+                    break;
+                }
+            }
+        } catch (FormatException ex) { throw new IOException(ex.Message, ex); }
+    }
+
     // ---- NVIDIA per-application profile settings --------------------------------------------------------------
     internal static (string Executable, uint Id) ParseNvidiaTarget(string target)
     {
@@ -113,14 +175,18 @@ internal static class PerformanceSettings
             throw new IOException("Invalid NVIDIA setting target.");
         return (parts[0], id);
     }
+    /// <summary>A catalog setting id, "0x1057EB71", in the global profile.</summary>
+    internal static uint ParseNvidiaGlobalTarget(string target) =>
+        target.Length == 10 && target.StartsWith("0x", StringComparison.Ordinal) && uint.TryParse(target[2..], System.Globalization.NumberStyles.HexNumber, null, out var id) &&
+        NvidiaSettings.Catalog.Any(s => s.Id == id) ? id : throw new IOException("Invalid NVIDIA setting target.");
     private static string NvidiaSetting(string target)
     {
         var (exe, id) = ParseNvidiaTarget(target);
-        return Nvidia.ReadApplicationSetting(exe, id);
+        return Nvidia.ReadProfileSetting(exe, id);
     }
     private static void SetNvidiaSetting(string target, string value)
     {
         var (exe, id) = ParseNvidiaTarget(target);
-        Nvidia.WriteApplicationSetting(exe, id, value);
+        Nvidia.WriteProfileSetting(exe, id, value);
     }
 }

@@ -85,9 +85,15 @@ Performance Lab → Monitor saves runs as sessions today. Optimization tests
 
 Recovery (`ChangeJournal`, `recovery.json`) stays the one rollback mechanism for both
 areas. Journal kinds listed in `Navigation.PerformanceChangeKinds` ("Power plan",
-"Display mode", "GPU preference", "NVIDIA setting", "Processor power") belong to
-Performance sessions; everything else appears in System actions
-(`src/IgezziGuard/History/SystemActions.cs`, together with scans and the repair audit).
+"Display mode", "GPU preference", "NVIDIA setting", "NVIDIA global setting",
+"Processor power", "Windows gaming setting") belong to Performance sessions; everything else appears in System
+actions (`src/IgezziGuard/History/SystemActions.cs`, together with scans and the repair
+audit).
+
+A reviewed Performance change to a setting Hanki already changed replaces that change
+(`ChangeReview`): Hanki undoes its earlier change, but only while the setting still has
+Hanki's value, and records the new one from your original value. Recovery so keeps one
+active entry per setting, and its undo always goes back to where you started.
 
 ## Safety distinction
 
@@ -95,6 +101,10 @@ System actions restore a known healthy state. Performance changes are experiment
 every write follows: baseline → snapshot (Recovery journal) → apply only approved
 changes → measure → keep or revert. Selecting a profile never changes anything by
 itself.
+
+Goals and Optimize This Game change a game's own driver profile. NVIDIA's global
+profile (every game without its own value) changes only from Gaming → NVIDIA, where you
+choose a preset or a value yourself and review it like any other change.
 
 Rules for every GAME, GPU and PERF story (GAME-211, PERF-314):
 
@@ -123,7 +133,7 @@ Hanki controls and theme.
 | ARCH-200 | `Navigation.cs`, `AreaPanels.cs`, `HankiForm.cs` | Done: areas, home, Performance shell, Lab, separate histories, docs, tests. |
 | GPU-101 | `Performance/GraphicsProbe.cs`, `GpuPanel.cs` | Done: DXGI adapters in Windows' high-performance order, drivers, VRAM, displays and modes, HDR, vendor interfaces. |
 | GPU-102 | `Performance/Nvidia.cs` | Done: NVAPI DRS read of global and per-game profiles; every setting id is checked against the driver's own name. |
-| GPU-103, GAME-203 | – | Not yet: AMD ADLX is detected, but Radeon settings aren't read. Needs AMD hardware to build and test. |
+| GPU-103, GAME-203 | Gaming → AMD Radeon, `Performance/Amd.cs`, `Performance/AmdModel.cs` | Built, **not yet tested on AMD hardware**: Radeon Anti-Lag, Chill, Boost, Image Sharpening, Enhanced Sync, Wait for Vertical Refresh, Frame Rate Target Control and Anisotropic Filtering are read and changed through AMD's ADLX (`amdadlx64.dll`, installed with AMD Software) for the first discrete Radeon. Values stay inside the range the driver reports. Changes are reviewed, recorded in Recovery as "AMD setting" (target `{gpu id}|{setting}`) and verified by reading them back. Tune my PC applies them when they can be read and lists them as steps otherwise. |
 | GPU-104, GAME-201 | `Performance/GamingHealth.cs`, Gaming → Overview | Done: read-only Gaming Health Scan in the common result model. |
 | GPU-105, GAME-204 | `Performance/GamingProfiles.cs` | Done: six vendor-neutral goals turned into reviewed, capability-aware changes. |
 | GPU-106 | `Performance/PerformanceSettings.cs`, `ChangeReview` | Done: snapshot in Recovery, apply, verify, restore; partial failures reported per change. |
@@ -131,12 +141,16 @@ Hanki controls and theme.
 | GPU-108 | `Performance/WindowsGamingProbe.cs` | Done: Game Mode, GPU scheduling, per-app GPU choices, power mode and processor limits (read); GPU choice and processor maximum can be applied. |
 | GPU-109, GAME-212, PERF-312 | Lab → Monitor, `PerformanceComparison` | Done: baselines, comparable before/after, keep or restore through Performance sessions. |
 | GPU-110 | Lab → Advanced Tuning | Deliberately separate and not started (placeholder only). |
+| GAME-215, 216, 217 | `Performance/GamingHealth.cs`, `WindowsGamingProbe.cs` | Done: Game Bar background recording, optimizations for windowed games, variable refresh rate and mouse acceleration in the gaming scan. Background recording and windowed-game optimizations are reviewed, Recovery-backed changes ("Windows gaming setting"); mouse acceleration is an observation the Competitive goal offers to turn off. |
+| GAME-218 | `Performance/GamingBackground.cs` | Done: overlays (Discord, Steam, NVIDIA, Xbox Game Bar, AMD, Overwolf, EA, Ubisoft), recorders (OBS, Streamlabs, Medal, XSplit), RivaTuner and its global frame limit, and busy background programs from a one-second sample; shown in the gaming scan, per-game limiter conflicts and as optional Tune my PC steps. Nothing is closed. |
+| GAME-219 | Gaming → Games → Launch and measure, `Performance/LaunchMeasure.cs` | Done: starts the game, waits up to 2 minutes for its window (launchers often restart it), lets it load for 20 seconds, measures 2 minutes of play, and compares with the previous run of that game together with the Performance changes made in between (Recovery). Frame rates need administrator rights. |
+| GPU-113 | Gaming → NVIDIA, `Performance/NvidiaPresets.cs` | Done: NVIDIA global settings (16 from the public NVAPI SDK, each checked against the driver's own name) with built-in presets, a settings editor and your own saved presets (`nvidia-presets.json`). Changes are reviewed, recorded in Recovery as "NVIDIA global setting" and restorable. |
 | GPU-111, GAME-213 | Gaming page | Done: overview with goals and review, games tab. |
 | GPU-112, GAME-214 | `Performance/GamingDiagnostic.cs` | Done: Fix My PC shows only high-impact gaming findings, pointing to Gaming; never applies them. |
 | GAME-205 | `Performance/GameLibrary.cs` | Done: Steam, Epic, GOG and publisher records, manual .exe, rescans without duplicates. |
 | GAME-206, PERF-310, PERF-311 | `Performance/MonitorModel.cs`, Lab → Bottleneck Analyzer | Done: evidence-based limiter with confidence and recommendations. |
 | GAME-207 | Gaming scan + `Display mode` changes | Done: refresh-rate mismatches per display, applied with a 15-second keep-or-revert. |
-| GAME-208 | `GamingProfiles.Conflicts` | Done for NVIDIA limits and vertical sync; in-game and third-party limiters aren't visible, which the results say. |
+| GAME-208 | `GamingProfiles.Conflicts` | Done for NVIDIA limits, vertical sync and RivaTuner's global limit; in-game limits aren't visible, which the results say. |
 | GAME-209, PERF-309 | Lab → Stutter Diagnostics | Done: spikes matched to CPU, GPU, memory, disk, heat and background activity, as possibilities. |
 | GAME-210 | Games → Optimize this game | Done: analysis, reviewed proposal, Recovery, session; measure before and after in Lab → Monitor. |
 | GAME-211, PERF-314 | `Performance/Guardrails.cs` | Done: only documented change kinds can be applied; common internet tweaks listed with reasons. |
@@ -144,4 +158,5 @@ Hanki controls and theme.
 | PERF-302 | CPU → Processor | Done. |
 | PERF-303, 304, 305 | Memory → Memory health | Done: commit headroom, module speed vs rating (XMP/EXPO guidance only), channels, pagefile health. |
 | PERF-306, 307, 308 | Storage | Done: media per drive, games on hard disks, free space, TRIM, optimization schedule, ReTrim (administrator, SSDs only), DirectStorage readiness. |
-| PERF-313 | Performance overview | Done: one read-only check across areas. |
+| PERF-313 | Performance overview | Done: one read-only check across areas; now the scan behind Tune my PC. |
+| PERF-320 | Performance overview → Tune my PC, `Performance/TunePlanner.cs`, `TunePanel.cs` | Done: asks what you want today (Gaming + Performance, Gaming + Quality, Creative work, Low power) and whether the display has G-SYNC/FreeSync, reads display, Windows, mouse, NVIDIA, processor, memory and storage settings, and shows a plan: changes Hanki makes (reviewed, in Recovery) and steps for you. Rules and sources: [TUNING.md](TUNING.md). |

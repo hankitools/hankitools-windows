@@ -75,6 +75,8 @@ jobs:
           path: |
             build-transcript.txt
             dist/**/ui-smoke.json
+            dist/**/ui-smoke.json.progress.txt
             dist/**/build-info.json
+            dist/ui-screenshots/*.png
           if-no-files-found: warn
           retention-days: 14

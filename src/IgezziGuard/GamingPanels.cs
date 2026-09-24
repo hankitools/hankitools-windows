@@ -9,6 +9,9 @@ internal sealed class GamingState
     internal WindowsGamingSettings? Windows;
     internal NvidiaProfileView? NvidiaGlobal;
     internal string? NvidiaNote;
+    internal BackgroundSnapshot? Background;
+    internal AmdGpuSettings? Amd;
+    internal string? AmdNote;
     internal IReadOnlyList<DiagnosticResult> Findings = [];
 
     /// <summary>Reads hardware and settings (read-only). NVIDIA problems become a note, not a failure.</summary>
@@ -21,7 +24,16 @@ internal sealed class GamingState
             try { NvidiaGlobal = Nvidia.ReadProfiles([]).Global; }
             catch (NvidiaException ex) { NvidiaNote = ex.Message; }
         }
-        Findings = GamingHealth.Evaluate(Graphics, Windows, NvidiaGlobal, DateTimeOffset.UtcNow);
+        Amd = null; AmdNote = null;
+        if (Graphics.Adapters.Any(a => a.Vendor == GpuVendor.Amd && !a.LikelyIntegrated)) {
+            try { Amd = IgezziGuard.Amd.ReadSettings(); }
+            catch (AmdException ex) { AmdNote = ex.Message; }
+        }
+        Background = BackgroundProbe.Collect();
+        var now = DateTimeOffset.UtcNow;
+        IEnumerable<string> games = [];
+        try { games = GameLibrary.Read(GameLibrary.StorePath).Select(g => Path.GetFileNameWithoutExtension(g.Executable)); } catch (IOException) { }
+        Findings = GamingHealth.Evaluate(Graphics, Windows, NvidiaGlobal, now).Concat(GamingBackground.Evaluate(Background, now, games)).ToArray();
     }
     internal static CardStatus Status(DiagnosticResult r) => r.Severity switch {
         FindingSeverity.Healthy => CardStatus.Good, FindingSeverity.Warning => CardStatus.Review, FindingSeverity.Critical => CardStatus.Problem, FindingSeverity.Informational => CardStatus.Info, _ => CardStatus.Unknown
@@ -35,10 +47,13 @@ internal sealed class GamingState
         foreach (var d in Graphics.Displays)
             text.AppendLine($"Display: {d.Name} on {Graphics.AdapterFor(d)?.Name ?? "unknown GPU"}, {GraphicsFacts.Describe(d.Current)} (up to {GraphicsFacts.MaxRefreshAtCurrentResolution(d):0} Hz at this resolution), {d.Connection}{(d.HdrEnabled == true ? ", HDR on" : "")}");
         text.AppendLine($"PC: {(Graphics.Portable == true ? "laptop or tablet" : Graphics.Portable == false ? "desktop" : "unknown type")}, {(Graphics.OnAcPower ? "plugged in" : "on battery")}");
-        if (Windows is { } w) text.AppendLine($"Windows: Game Mode {(w.GameMode == false ? "off" : "on")}, power plan {w.PowerPlanName ?? "unknown"}{(w.PowerMode is { } m ? $", power mode {m}" : "")}, processor maximum {w.ProcessorMaximumAc?.ToString() ?? "?"}% plugged in");
+        if (Windows is { } w) text.AppendLine($"Windows: Game Mode {(w.GameMode == false ? "off" : "on")}, power plan {w.PowerPlanName ?? "unknown"}{(w.PowerMode is { } m ? $", power mode {m}" : "")}, processor maximum {w.ProcessorMaximumAc?.ToString() ?? "?"}% plugged in" +
+            $", background recording {(w.RecordsInBackground ? "on" : "off")}, windowed-game optimizations {WindowsGamingParsing.FlagState(w.WindowedOptimizations)}, variable refresh rate {WindowsGamingParsing.FlagState(w.VariableRefresh)}" +
+            (w.MouseAcceleration is { } accel ? $", mouse acceleration {(accel ? "on" : "off")}" : ""));
         if (NvidiaGlobal is { } nv) text.AppendLine("NVIDIA global: " + string.Join(", ", nv.Values.Select(v => $"{v.Setting.Name} {v.Text}")));
         if (NvidiaNote is not null) text.AppendLine("NVIDIA: " + NvidiaNote);
-        if (Graphics.AdlxPresent) text.AppendLine("AMD: the Radeon driver interface (ADLX) is installed; Hanki doesn't read Radeon settings yet.");
+        if (Amd is { } radeon) text.AppendLine($"AMD Radeon ({radeon.GpuName}): " + string.Join(", ", radeon.Settings.Select(s => $"{AmdSettings.Name(s.Kind)} {s.Text}")));
+        if (AmdNote is not null) text.AppendLine("AMD: " + AmdNote);
         foreach (var note in Graphics.Notes) text.AppendLine("Note: " + note);
         return text.ToString();
     }
@@ -49,7 +64,7 @@ public sealed class GamingOverviewPanel : ToolPage
 {
     private readonly ComboBox goal = new() { Width = 170, DropDownStyle = ComboBoxStyle.DropDownList, AccessibleName = "Optimization goal", Margin = new Padding(10, 6, 8, 0) };
     private readonly GamingState state;
-    internal GamingOverviewPanel(GamingState state) : base("A read-only check of your gaming setup: display refresh rate, which GPU apps use, Windows Game Mode and power settings, and NVIDIA driver settings. Choosing a goal changes nothing: you review each proposed change first, and every change Hanki makes can be undone in Recovery.")
+    internal GamingOverviewPanel(GamingState state) : base("A read-only check of your gaming setup: display refresh rate, which GPU apps use, Windows Game Mode and power settings, NVIDIA driver settings, and overlays, frame limiters and busy programs running in the background. Choosing a goal changes nothing: you review each proposed change first, and every change Hanki makes can be undone in Recovery.")
     {
         this.state = state;
         Button("Scan gaming setup", Scan);
@@ -102,6 +117,7 @@ public sealed class GamesPanel : ToolPage
         goal.Items.AddRange(Enum.GetValues<GamingGoal>().Select(g => (object)GamingProfiles.Name(g)).ToArray()); goal.SelectedIndex = 0;
         Bar.Controls.Add(goal);
         Button("Optimize this game", Optimize);
+        Button("Launch and measure", LaunchAndMeasure);
         Button("Find installed games", Find);
         Button("Add a game…", Add);
         Button("Remove from list", Remove);
@@ -202,11 +218,53 @@ public sealed class GamesPanel : ToolPage
                     text.AppendLine($"  {v.Setting.Name}: {v.Text} ({(context.Nvidia is null ? "global" : NvidiaSettings.SourceText(v.Source))})");
             }
             double refresh = state.Graphics!.Displays.Where(d => d.Primary).Select(d => d.Current.RefreshHz).FirstOrDefault();
-            var conflicts = GamingProfiles.Conflicts(context, refresh);
+            var conflicts = GamingProfiles.Conflicts(context, refresh, state.Background?.RtssLimit);
             if (conflicts.Count > 0) text.AppendLine("\r\nFrame-rate limits and sync:\r\n" + string.Join("\r\n", conflicts.Select(c => "• " + c)));
             text.AppendLine($"\r\nGoal: {GamingProfiles.Name(game.Goal)}. {GamingProfiles.Describe(game.Goal)}\r\nChoose Optimize this game to review what would change.");
             return text.ToString();
         }, token));
+    }
+
+    /// <summary>HANKI-GAME-219: start the game, wait for its window and loading, measure a fixed stretch, compare with the last run.</summary>
+    private async void LaunchAndMeasure()
+    {
+        if (Selected is not { } game) { Output.Text = "Choose a game first, or add one."; return; }
+        if (!File.Exists(game.Executable)) { Output.Text = "The game's .exe isn't there any more. Add it again with Add a game…"; return; }
+        if (!Review($"Start {game.Name} and measure it?\r\n\nHanki waits for the game's window, gives it {LaunchMeasure.WarmupSeconds} seconds to load, then measures {LaunchMeasure.MeasureSeconds / 60} minutes of play. " +
+            "Play as you normally would. Closing the game or choosing Cancel stops early and keeps what was measured. Frame rates need Hanki to run as administrator.")) return;
+        var progress = new Progress<string>(text => { if (IsBusy) Output.Text = text; });
+        IProgress<string> report = progress;
+        await Run(async token => {
+            try { using var started = Process.Start(new ProcessStartInfo(game.Executable) { UseShellExecute = true, WorkingDirectory = Path.GetDirectoryName(game.Executable) ?? "" }); }
+            catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or InvalidOperationException) {
+                return Diagnosis.From($"{game.Name} couldn't be started: {ex.Message}", [new("The game didn't start", ex.Message + " Start it from its launcher, then measure it in Performance Lab → Monitor.", CardStatus.Unknown)]);
+            }
+            report.Report($"Starting {game.Name}. Waiting for its window, up to {LaunchMeasure.WindowTimeout.TotalMinutes:0} minutes; some games open their launcher first.");
+            using var target = await LaunchMeasure.WaitForGame(Path.GetFileNameWithoutExtension(game.Executable), token);
+            if (target is null)
+                return Diagnosis.From($"{game.Name} didn't open a window.", [new("No game window", $"{game.Name} didn't open a window within {LaunchMeasure.WindowTimeout.TotalMinutes:0} minutes. If it starts through a launcher, start it there, then measure it in Performance Lab → Monitor.", CardStatus.Unknown)]);
+            for (int left = LaunchMeasure.WarmupSeconds; left > 0; left--) {
+                report.Report($"{game.Name} is running. Measuring starts in {left} seconds, after loading: get into the game and play as usual.");
+                await Task.Delay(1000, token);
+            }
+            var run = await PerformanceRecorder.Record(LaunchMeasure.MeasureSeconds, target, progress, token);
+            var summary = LabMonitorPanel.Summary(run, null);
+            var store = PerformanceSessionsPanel.Store;
+            PerformanceSession? previous = null;
+            try { previous = LaunchMeasure.Previous(store.Read(), game.Name); } catch (IOException) { }
+            IReadOnlyList<SettingChange> changes = [];
+            try { changes = WindowsSettings.Journal().Read(); } catch (Exception ex) when (ex is IOException or System.Text.Json.JsonException) { }
+            var session = LaunchMeasure.Session(game.Name, BottleneckEngine.Measurement(run), previous, changes, BottleneckEngine.Analyze(run).Diagnosis);
+            try { store.Add(session); } catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException) { }
+            if (session.After is null)
+                return summary with { Report = "First measured run of this game; your next run is compared with it. Saved to History → Performance sessions.\r\n\r\n" + summary.Report };
+            var tested = changes.Where(c => session.ChangesTested.Contains(c.Id)).Select(c => $"• {c.Kind}: {c.Target}: {c.Before} → {c.After}").ToArray();
+            string outcome = PerformanceComparison.Describe(session.Outcome);
+            var cards = summary.Cards.Prepend(new ResultCard("Compared with your last run", $"{outcome} Last run: {previous!.Created.ToLocalTime():g}. " +
+                (tested.Length == 0 ? "No settings were changed in between." : $"{tested.Length} {(tested.Length == 1 ? "setting was" : "settings were")} changed in between."), CardStatus.Info)).ToList();
+            return Diagnosis.From("COMPARED WITH YOUR LAST RUN\r\n" + outcome + "\r\n" + PerformanceComparison.Table(session.Baseline, session.After) +
+                "\r\n\r\nChanges made in between (from Recovery):\r\n" + (tested.Length == 0 ? "none" : string.Join("\r\n", tested)) + "\r\n\r\n" + summary.Report, cards, summary.Headline);
+        });
     }
 
     private async void Optimize()
@@ -245,6 +303,15 @@ internal static class ChangeReview
             try {
                 var before = await backend.Read(change.Kind!, change.Target!, CancellationToken.None);
                 if (before == change.After) { lines.Add($"• {change.Setting}: already {change.Recommended}."); continue; }
+                // An earlier Hanki change to this setting is replaced rather than stacked, so Recovery keeps one entry whose
+                // "before" is your original value. Only a change still in place is replaced; anything else is left for you.
+                var open = journal.Read().LastOrDefault(e => e.Kind == change.Kind && e.Target == change.Target && e.Status is not ("Undone" or ChangeJournal.NotApplied));
+                if (open is not null) {
+                    if (open.Status != "Applied" || open.After != before) { lines.Add($"✗ {change.Setting}: not changed. An earlier change to it is pending or was changed outside Hanki; check it in Recovery first."); continue; }
+                    await journal.Undo(open.Id, CancellationToken.None);
+                    before = open.Before;
+                    if (before == change.After) { lines.Add($"✓ {change.Setting}: back to your original value, {change.Recommended}."); continue; }
+                }
                 await journal.Apply(change.Kind!, change.Target!, before, change.After!, CancellationToken.None);
                 var entry = journal.Read().Last(e => e.Kind == change.Kind && e.Target == change.Target && e.Status == "Applied");
                 if (change.Kind == "Display mode" && !KeepDisplayDialog.Keep(owner, change.Recommended)) {

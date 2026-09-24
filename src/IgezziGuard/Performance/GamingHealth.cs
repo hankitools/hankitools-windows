@@ -10,9 +10,9 @@ namespace IgezziGuard;
 public static class GamingHealth
 {
     public const string ModuleId = "gaming";
-    /// <summary>How a finding can be changed. Only display-mode, gpu-preference and processor-power are applied by Hanki.</summary>
+    /// <summary>How a finding can be changed. Only display-mode, gpu-preference, processor-power and windows-setting are applied by Hanki.</summary>
     public const string RemedyDisplayMode = "display-mode", RemedyGpuPreference = "gpu-preference", RemedyProcessor = "processor-power",
-        RemedySettings = "settings", RemedyHardware = "hardware", RemedyNone = "none";
+        RemedyWindowsSetting = "windows-setting", RemedySettings = "settings", RemedyHardware = "hardware", RemedyNone = "none";
     public static readonly Guid PowerSaverPlan = new("a1841308-3541-4fab-bc81-f71556f20b4a");
 
     public static IReadOnlyList<DiagnosticResult> Evaluate(GraphicsInventory graphics, WindowsGamingSettings windows, NvidiaProfileView? nvidiaGlobal, DateTimeOffset now)
@@ -68,6 +68,39 @@ public static class GamingHealth
             Add("game-mode", FindingSeverity.Healthy, "Windows Game Mode", "Game Mode is on" + (windows.GameMode is null ? " (the Windows default)." : "."),
                 "On", "On", "None", RemedyNone, "Windows");
 
+        // Game Bar background recording (HANKI-GAME-215). Windows' own setting says it "may affect game performance".
+        if (windows.RecordsInBackground)
+            Add("background-recording", FindingSeverity.Warning, "Game Bar records your games in the background",
+                "“Record what happened” keeps recording the last minutes of every game so you can save a clip later. Windows' own setting notes that this may affect game performance: the video encoder and disk stay busy while you play. If you don't use those clips, turning it off frees them.",
+                "On", "Off", "Low", RemedyWindowsSetting, "Windows", "Turn it off; Hanki records the current setting in Recovery. You can still record on demand with Win+Alt+R.",
+                new Dictionary<string, string> { ["target"] = "background-recording", ["after"] = "off", ["optional"] = "true", ["settings"] = "ms-settings:gaming-gamedvr" });
+        else
+            Add("background-recording", FindingSeverity.Healthy, "Game Bar background recording", "Off: Windows doesn't record your games in the background.", "Off", "Off", "None", RemedyNone, "Windows");
+
+        // DirectX settings from Settings → System → Display → Graphics (HANKI-GAME-216).
+        if (windows.WindowedOptimizations == false)
+            Add("windowed-optimizations", FindingSeverity.Warning, "Optimizations for windowed games are off",
+                "Windows 11 can show DirectX 10 and 11 games that run in a window or a borderless window with a faster presentation model. That lowers latency and lets Auto HDR and variable refresh rate work in those games too. It's turned off on this PC.",
+                "Off", "On", "Medium", RemedyWindowsSetting, "Windows", "Turn it on; Hanki records the current setting in Recovery.",
+                new Dictionary<string, string> { ["target"] = "windowed-optimizations", ["after"] = "on", ["settings"] = "ms-settings:display-advancedgraphics" });
+        else
+            Add("windowed-optimizations", windows.WindowedOptimizations == true ? FindingSeverity.Healthy : FindingSeverity.Informational, "Optimizations for windowed games",
+                windows.WindowedOptimizations == true ? "On: DirectX 10 and 11 games in a window or borderless window use the faster presentation model." :
+                    "Not changed, so Windows uses its default for your version. Find it under Settings → Display → Graphics → Change default graphics settings.",
+                WindowsGamingParsing.FlagState(windows.WindowedOptimizations), "On", "None", RemedyNone, "Windows", extra: new Dictionary<string, string> { ["settings"] = "ms-settings:display-advancedgraphics" });
+        Add("variable-refresh", FindingSeverity.Informational, "Variable refresh rate for games without it",
+            $"{(windows.VariableRefresh switch { true => "On", false => "Off", _ => "Not changed (Windows default)" })}. With a G-SYNC or FreeSync display, this Windows setting lets DirectX 11 games that don't support adaptive sync use it. Windows doesn't report whether your display supports adaptive sync, so Hanki doesn't recommend a change.",
+            WindowsGamingParsing.FlagState(windows.VariableRefresh), "Your choice", "None", RemedyNone, "Windows", extra: new Dictionary<string, string> { ["settings"] = "ms-settings:display-advancedgraphics" });
+
+        // Mouse acceleration (HANKI-GAME-217): a preference, so an observation; the Competitive goal offers to turn it off.
+        if (windows.MouseAcceleration == true)
+            Add("mouse-acceleration", FindingSeverity.Informational, "Mouse acceleration is on",
+                "“Enhance pointer precision” moves the pointer further when you move the mouse faster. Games that read the mouse directly aren't affected, but in others the same hand movement aims differently at different speeds. Many players turn it off; the Competitive goal offers that.",
+                "On", "Your choice (off gives consistent aim)", "Low", RemedyNone, "Windows",
+                extra: new Dictionary<string, string> { ["target"] = "mouse-acceleration", ["mouse"] = WindowsGamingParsing.MouseText(windows.Mouse!), ["settings"] = "ms-settings:mousetouchpad" });
+        else if (windows.MouseAcceleration == false)
+            Add("mouse-acceleration", FindingSeverity.Healthy, "Mouse acceleration", "Off: the pointer moves the same distance for the same hand movement.", "Off", "Off", "None", RemedyNone, "Windows");
+
         // Power (HANKI-PERF-302): only while plugged in; on battery, saving power is the point.
         if (graphics.OnAcPower) {
             if (windows.PowerMode == "Best power efficiency")
@@ -122,7 +155,7 @@ public static class GamingHealth
         return results;
     }
 
-    public static bool CanApply(DiagnosticResult r) => r.Metadata.GetValueOrDefault("remedy") is RemedyDisplayMode or RemedyGpuPreference or RemedyProcessor;
+    public static bool CanApply(DiagnosticResult r) => r.Metadata.GetValueOrDefault("remedy") is RemedyDisplayMode or RemedyGpuPreference or RemedyProcessor or RemedyWindowsSetting;
     /// <summary>Only high-impact problems belong in Fix My PC (HANKI-GAME-214); the rest stay in Hanki Performance.</summary>
     public static bool BelongsInFixMyPc(DiagnosticResult r) => r.Severity is FindingSeverity.Warning or FindingSeverity.Critical && r.Metadata.GetValueOrDefault("impact") == "High";
 }

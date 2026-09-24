@@ -41,13 +41,15 @@ public sealed class HankiForm : Form
     private static readonly GamingState gaming = new();
     private readonly GamingOverviewPanel gamingOverview = new(gaming);
     private readonly GamesPanel gamesPanel = new(gaming);
+    private readonly NvidiaPanel nvidiaPanel = new(gaming);
+    private readonly AmdPanel amdPanel = new(gaming);
     private readonly GpuPanel gpuPanel = new();
     private readonly CpuPanel cpuPanel = new();
     private readonly MemoryHealthPanel memoryHealth = new();
     private readonly StoragePanel storagePanel = new();
     /// <summary>Every navigable tool, as listed in Find a tool.</summary>
     internal IReadOnlyList<ToolLauncher.Route> Routes { get; private set; } = [];
-    private ToolPage[] ExtraPages => [activation, updateHealth, batteryStartup, diagnosticHistory, systemActions, performanceSessions, gamingOverview, gamesPanel, gpuPanel, bottleneck, stutter, cpuPanel, memoryHealth, storagePanel, fullScan, duplicates, startupFolders, longPerformance, tuning, networkTools, defenderTools, dumps, guidance, recovery, scanner];
+    private ToolPage[] ExtraPages => [activation, updateHealth, batteryStartup, diagnosticHistory, systemActions, performanceSessions, gamingOverview, gamesPanel, nvidiaPanel, amdPanel, gpuPanel, bottleneck, stutter, cpuPanel, memoryHealth, storagePanel, fullScan, duplicates, startupFolders, longPerformance, tuning, networkTools, defenderTools, dumps, guidance, recovery, scanner];
 
     public HankiForm()
     {
@@ -112,7 +114,7 @@ public sealed class HankiForm : Form
         // Hanki Performance. Pages without their tools yet say what will be there; nothing runs by opening them.
         At("Performance overview").Controls.Add(new PerformanceOverviewPanel(Navigate));
         var gamingTabs = new HankiTabs { Dock = DockStyle.Fill };
-        AddTab(gamingTabs, "Overview", gamingOverview); AddTab(gamingTabs, "Games", gamesPanel);
+        AddTab(gamingTabs, "Overview", gamingOverview); AddTab(gamingTabs, "Games", gamesPanel); AddTab(gamingTabs, "NVIDIA", nvidiaPanel); AddTab(gamingTabs, "AMD Radeon", amdPanel);
         At("Gaming").Controls.Add(gamingTabs);
         At("GPU").Controls.Add(gpuPanel);
         var cpuTabs = new HankiTabs { Dock = DockStyle.Fill };
@@ -136,6 +138,8 @@ public sealed class HankiForm : Form
         At("Performance sessions").Controls.Add(performanceSessions);
         At("Help & community").Controls.Add(new SupportPanel());
         At("Hanki Pro").Controls.Add(new LicensePanel());
+        At("History").Controls.Add(new HistoryLanding(Navigate));
+        At("Help").Controls.Add(new HelpLanding(Navigate, () => QuickAssist.Open(this, gettingHelp: true)));
         foreach (var extra in ExtraPages) extra.PrepareRequested += Prepare;
         diagnose.PrepareRequested += Prepare; defender.PrepareRequested += Prepare;
         networkDeep.PrepareRequested += Prepare; sampling.PrepareRequested += Prepare;
@@ -148,20 +152,16 @@ public sealed class HankiForm : Form
             using var edge = new Pen(HankiTheme.Border); e.Graphics.DrawLine(edge, sidebar.Width - 1, 0, sidebar.Width - 1, sidebar.Height);
         };
         sidebar.Controls.Add(new BrandHeader { Margin = new Padding(0, 0, 0, 10) });
-        var navigation = new List<(HankiButton Button, TabPage Page)>();
-        // Area groups are labelled in the area's accent, so System and Performance read as two parts of one app.
-        Label Group(ProductArea area) => new() { Text = Navigation.GroupLabel(area), AutoSize = true, Font = new Font("Segoe UI", 8.25f, FontStyle.Bold), Margin = new Padding(14, 10, 0, 3),
-            Tag = area switch { ProductArea.System => "accent", ProductArea.Performance => "accent-performance", _ => "intro" }, AccessibleRole = AccessibleRole.StaticText };
-        ProductArea? group = null;
-        foreach (var item in Navigation.Items) {
-            if (item.Area != ProductArea.Home && item.Area != group) sidebar.Controls.Add(Group(item.Area));
-            group = item.Area;
+        // Five destinations (HANKI-UX-300): each area's landing page opens its other pages as tiles. The item of the
+        // current area stays selected on those pages too, so you always know where you are.
+        var navigation = new List<(HankiButton Button, ProductArea Area)>();
+        foreach (var pageId in Navigation.Sidebar) {
+            var item = Navigation.Find(pageId)!;
             var page = At(item.Page);
-            var button = new HankiButton { Text = item.Label, Width = 214, Height = 32, Margin = new Padding(0, 1, 0, 1),
-                AccessibleName = "Open " + item.Page + item.Area switch { ProductArea.System => ", Hanki System", ProductArea.Performance => ", Hanki Performance", _ => "" },
-                IconKind = item.Icon, AreaAccent = HankiTheme.AreaAccent(item.Area), Appearance = HankiButtonStyle.Navigation, Font = new Font("Segoe UI", 10f) };
+            var button = new HankiButton { Text = item.Label, Width = 214, Height = 48, Margin = new Padding(0, 3, 0, 3), AccessibleName = "Open " + item.Label,
+                IconKind = item.Icon, AreaAccent = HankiTheme.AreaAccent(item.Area), Appearance = HankiButtonStyle.Navigation, Font = new Font("Segoe UI Semibold", 12f) };
             button.Click += (_, _) => tabs.SelectedTab = page;
-            navigation.Add((button, page)); sidebar.Controls.Add(button);
+            navigation.Add((button, item.Area)); sidebar.Controls.Add(button);
         }
         var quick = new FlowLayoutPanel { AutoSize = true, FlowDirection = FlowDirection.TopDown, WrapContents = false, Visible = false, Margin = Padding.Empty };
         var quickToggle = new HankiButton { Text = "›  Quick access", Width = 214, Height = 34, Appearance = HankiButtonStyle.Navigation,
@@ -191,7 +191,7 @@ public sealed class HankiForm : Form
         };
         sidebar.Controls.Add(about);
         sidebar.Controls.Add(new Label { Text = "v" + AppInfo.Version + "  ·  hanki.tools", AutoSize = true, Tag = "intro", Font = new Font("Segoe UI", 8.25f), Margin = new Padding(14, 8, 0, 4) });
-        var title = new Label { Text = "Overview", Dock = DockStyle.Top, Height = 58, Font = new Font("Segoe UI Semibold", 19f), Padding = new Padding(22, 16, 0, 0), AutoEllipsis = true };
+        var title = new Label { Text = "Overview", Dock = DockStyle.Top, Height = 58, Font = new Font("Segoe UI Semibold", 22f), Padding = new Padding(22, 16, 0, 0), AutoEllipsis = true };
         var routes = new List<ToolLauncher.Route>();
         void AddRoutes(TabControl group, string prefix = "") {
             foreach (TabPage page in group.TabPages) {
@@ -219,15 +219,19 @@ public sealed class HankiForm : Form
         search.Click += (_, _) => FindTool();
         KeyPreview = true;
         KeyDown += (_, e) => { if (e.KeyCode == Keys.F1) { Navigate("Help & community"); e.SuppressKeyPress = true; } if (e.Control && e.KeyCode == Keys.K) { FindTool(); e.SuppressKeyPress = true; } };
-        var header = new Panel { Dock = DockStyle.Top, Height = 80, Padding = new Padding(0, 0, 22, 0) };
-        var searchHost = new FlowLayoutPanel { Dock = DockStyle.Right, AutoSize = true, WrapContents = false, Padding = new Padding(0, 22, 0, 0), Margin = Padding.Empty };
+        var header = new Panel { Dock = DockStyle.Top, Height = 92, Padding = new Padding(0, 0, 22, 0) };
+        var searchHost = new FlowLayoutPanel { Dock = DockStyle.Right, AutoSize = true, WrapContents = false, Padding = new Padding(0, 26, 0, 0), Margin = Padding.Empty };
         searchHost.Controls.Add(search);
-        // The area above the title: HANKI SYSTEM or HANKI PERFORMANCE, in that area's accent.
-        var area = new Label { Dock = DockStyle.Top, Height = 30, Padding = new Padding(24, 12, 0, 0), Font = new Font("Segoe UI", 8.25f, FontStyle.Bold), Tag = "accent", AccessibleName = "Current area" };
+        // Above the title: the way back to the area's landing page, on every page that isn't one.
+        var crumbs = new FlowLayoutPanel { Dock = DockStyle.Top, Height = 38, WrapContents = false, Padding = new Padding(16, 8, 0, 0), Margin = Padding.Empty };
+        var back = new HankiButton { Text = "←  Back", Appearance = HankiButtonStyle.Quiet, AutoSize = true, Visible = false, Margin = Padding.Empty, Font = new Font("Segoe UI Semibold", 10.5f) };
+        string? backTarget = null;
+        back.Click += (_, _) => { if (backTarget is not null) Navigate(backTarget); };
+        crumbs.Controls.Add(back);
         title.Dock = DockStyle.Fill; title.Padding = new Padding(22, 0, 0, 0);
-        header.Controls.Add(title); header.Controls.Add(area); header.Controls.Add(searchHost);
+        header.Controls.Add(title); header.Controls.Add(crumbs); header.Controls.Add(searchHost);
         var introduction = new Label { Dock = DockStyle.Top, AutoSize = false, Padding = new Padding(24, 0, 24, 16),
-            Font = new Font("Segoe UI", 10f), Tag = "intro", AccessibleName = "About this module" };
+            Font = new Font("Segoe UI", 11.5f), Tag = "intro", AccessibleName = "About this page" };
         void FitIntroduction() {
             int desired = introduction.GetPreferredSize(new Size(Math.Max(120, introduction.Width), 0)).Height;
             if (introduction.Height != desired) introduction.Height = desired;
@@ -242,14 +246,17 @@ public sealed class HankiForm : Form
         void RefreshNavigation() {
             // Before the handle exists SelectedTab can be null although Home is shown.
             var current = tabs.SelectedTab ?? (tabs.TabCount > 0 ? tabs.TabPages[0] : null);
-            foreach (var item in navigation) item.Button.Selected = current == item.Page;
             var destination = current is null ? null : Navigation.Find(current.Text);
             var productArea = destination?.Area ?? ProductArea.Home;
+            foreach (var item in navigation) item.Button.Selected = item.Area == productArea;
             title.Text = destination is null ? current?.Text ?? "" : Navigation.Title(destination);
-            introduction.Text = destination?.Introduction ?? "";
-            area.Text = Navigation.AreaName(productArea);
-            area.Tag = productArea == ProductArea.Performance ? "accent-performance" : productArea == ProductArea.System ? "accent" : "intro";
-            HankiTheme.Apply(area);
+            bool landing = destination is null || Navigation.IsLanding(destination.Page);
+            backTarget = landing ? null : Navigation.Landing(productArea);
+            back.Visible = backTarget is not null;
+            if (backTarget is not null) { back.Text = "←  " + Navigation.Title(Navigation.Find(backTarget)!); back.AccessibleName = "Back to " + Navigation.Title(Navigation.Find(backTarget)!); }
+            // Pages with their own hero don't repeat an introduction.
+            introduction.Text = destination is null || destination.Page is "Home" or "System overview" or "Performance overview" ? "" : destination.Introduction;
+            introduction.Visible = introduction.Text.Length > 0;
             FitIntroduction();
         }
         tabs.SelectedIndexChanged += (_, _) => RefreshNavigation(); RefreshNavigation();

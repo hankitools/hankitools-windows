@@ -1,3 +1,16 @@
+# Hanki Tools 0.18.0-rc.2 — Tune my PC candidate
+
+An unsigned preview for testing. It adds Tune my PC, the simpler layout, NVIDIA and AMD Radeon settings, more gaming checks and Launch and measure. Their settings changes haven't been tested on real NVIDIA or AMD hardware yet; every change is reviewed first and saved in Recovery, so it can be undone.
+
+- **Tune my PC** is the first thing on the Performance page. Choose Gaming + Performance, Gaming + Quality, Creative work or Low power, and say whether your display has G-SYNC or FreeSync. Hanki then reads your display, Windows, mouse, graphics driver, processor, memory and storage settings and shows a plan: what it can change (before → after) and the steps only you can take (BIOS memory profile, in-game settings). Nothing changes until you review and apply; every change is saved in Recovery first. The recommendations and their sources are in docs/TUNING.md.
+- **Simpler layout:** five areas in the sidebar (Home, Fix my PC, Tune my PC, History, Help) instead of about 20 items. Each area opens on its main action with its other tools as large tiles, and pages show a back link to their area. Text is larger throughout, and page introductions are one short sentence.
+- **NVIDIA global settings:** Gaming → NVIDIA offers presets (Competitive, Maximum FPS, Visual quality, Quiet and cool, NVIDIA defaults), an editor for 16 settings, and your own saved presets. Each change is reviewed and can be undone.
+- **AMD Radeon settings:** Gaming → AMD Radeon reads and changes Anti-Lag, Chill, Boost, Image Sharpening, Enhanced Sync, Wait for Vertical Refresh, Frame Rate Target Control and Anisotropic Filtering through AMD Software's own interface. Not yet tested on AMD hardware; please report anything that looks wrong.
+- **More Windows gaming checks:** Game Bar background recording, optimizations for windowed games, variable refresh rate and mouse acceleration (Enhance pointer precision). The Competitive goal and Tune my PC offer to turn mouse acceleration off.
+- **Overlays and background apps:** the gaming check lists overlays (Discord, Steam, NVIDIA, Xbox Game Bar and others), recorders (OBS, Medal and others), RivaTuner and its frame limit, and programs busy in the background. Hanki doesn't close anything.
+- **Launch and measure:** Gaming → Games starts a game, waits for it to load, measures two minutes of play and compares it with the previous run of that game, together with the settings changed in between.
+- When a setting was already changed by Hanki, a new change replaces it and one undo still returns to the original value.
+
 # Hanki Tools 0.18.0-rc.1 — System and Performance candidate
 
 Hanki is now two areas in one app. **Hanki System** finds what's wrong with Windows and fixes it safely. **Hanki Performance** measures what limits your PC or game and optimizes it, one reviewed and reversible change at a time. Nothing was removed; see docs/SYSTEM-AND-PERFORMANCE.md for where each tool moved.

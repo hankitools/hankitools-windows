@@ -91,9 +91,19 @@ public sealed record AppGpuPreference(string Application, GpuPreference Preferen
 /// <param name="HardwareScheduling">Hardware-accelerated GPU scheduling; null when Windows uses its default.</param>
 /// <param name="PowerMode">Settings → Power mode (Best power efficiency, Balanced, Best performance), when Windows reports it.</param>
 /// <param name="ProcessorMaximum">Maximum processor state (%) of the active power plan for the current power source.</param>
+/// <param name="VariableRefresh">Settings → Graphics → Variable refresh rate (VRROptimizeEnable); null when never changed.</param>
+/// <param name="BackgroundRecording">Game Bar's “Record what happened” (HistoricalCaptureEnabled); null when never changed.</param>
+/// <param name="AppCapture">Game Bar captures allowed at all (AppCaptureEnabled); null when never changed.</param>
+/// <param name="Mouse">SPI_GETMOUSE: two thresholds and the acceleration flag (“Enhance pointer precision”).</param>
 public sealed record WindowsGamingSettings(bool? GameMode, bool? HardwareScheduling, IReadOnlyList<AppGpuPreference> GpuPreferences,
     bool? WindowedOptimizations, bool? AutoHdr, string? PowerMode, Guid? PowerPlan, string? PowerPlanName,
-    int? ProcessorMaximumAc, int? ProcessorMaximumDc, int? ProcessorMinimumAc);
+    int? ProcessorMaximumAc, int? ProcessorMaximumDc, int? ProcessorMinimumAc,
+    bool? VariableRefresh = null, bool? BackgroundRecording = null, bool? AppCapture = null, IReadOnlyList<int>? Mouse = null)
+{
+    public bool? MouseAcceleration => Mouse is { Count: 3 } m ? m[2] != 0 : null;
+    /// <summary>Background recording only runs when captures are allowed.</summary>
+    public bool RecordsInBackground => BackgroundRecording == true && AppCapture != false;
+}
 
 public static class WindowsGamingParsing
 {
@@ -114,6 +124,26 @@ public static class WindowsGamingParsing
         return null;
     }
     public static bool? Flag(string? data, string name) => Setting(data, name) switch { "1" => true, "0" => false, _ => null };
+    /// <summary>The settings string with one flag set ("Name=1;"/"Name=0;") or removed (null), keeping every other pair as it was.</summary>
+    public static string WithFlag(string? data, string name, bool? value)
+    {
+        var parts = (data ?? "").Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Where(p => !p.Split('=', 2)[0].Trim().Equals(name, StringComparison.OrdinalIgnoreCase)).ToList();
+        if (value is { } v) parts.Add($"{name}={(v ? 1 : 0)}");
+        return string.Concat(parts.Select(p => p + ";"));
+    }
+    /// <summary>Recovery text for an on/off setting that may never have been changed.</summary>
+    public static string FlagState(bool? value) => value switch { true => "on", false => "off", _ => "default" };
+    public static bool? ParseFlagState(string state) => state switch { "on" => true, "off" => false, "default" => null, _ => throw new FormatException("Invalid on/off state.") };
+    /// <summary>Mouse parameters as Recovery stores them: "6,10,1" (thresholds and acceleration).</summary>
+    public static string MouseText(IReadOnlyList<int> mouse) => string.Join(",", mouse.Select(v => v.ToString(CultureInfo.InvariantCulture)));
+    public static int[] ParseMouse(string text)
+    {
+        var parts = text.Split(',');
+        if (parts.Length != 3 || !parts.All(p => int.TryParse(p, NumberStyles.None, CultureInfo.InvariantCulture, out var v) && v <= 100)) throw new FormatException("Invalid mouse parameters.");
+        var values = parts.Select(p => int.Parse(p, CultureInfo.InvariantCulture)).ToArray();
+        return values[2] <= 2 ? values : throw new FormatException("Invalid mouse acceleration.");
+    }
     public static string PreferenceText(GpuPreference preference) => preference switch {
         GpuPreference.PowerSaving => "Power saving", GpuPreference.HighPerformance => "High performance", _ => "Let Windows decide"
     };
