@@ -20,6 +20,7 @@
     <Compile Include="../src/IgezziGuard/Performance/WindowsGamingProbe.cs" Link="Performance/WindowsGamingProbe.cs" />
     <Compile Include="../src/IgezziGuard/Performance/NvidiaModel.cs" Link="Performance/NvidiaModel.cs" />
     <Compile Include="../src/IgezziGuard/Performance/NvidiaPresets.cs" Link="Performance/NvidiaPresets.cs" />
+    <Compile Include="../src/IgezziGuard/Performance/TunePlanner.cs" Link="Performance/TunePlanner.cs" />
     <Compile Include="../src/IgezziGuard/Performance/Nvidia.cs" Link="Performance/Nvidia.cs" />
     <Compile Include="../src/IgezziGuard/Performance/GamingHealth.cs" Link="Performance/GamingHealth.cs" />
     <Compile Include="../src/IgezziGuard/Performance/GamingProfiles.cs" Link="Performance/GamingProfiles.cs" />

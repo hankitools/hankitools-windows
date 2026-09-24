@@ -5,7 +5,7 @@ internal static class GamingChecks
 {
     private static void Check(bool ok, string text) => DiagnosticChecks.Check(ok, text);
     private static readonly DateTimeOffset Now = new(2026, 9, 24, 12, 0, 0, TimeSpan.Zero);
-    internal static void Run() { Facts(); Health(); Profiles(); NvidiaGlobal(); WindowsGaming(); Library(); Live(); }
+    internal static void Run() { Facts(); Health(); Profiles(); NvidiaGlobal(); WindowsGaming(); Tune(); Library(); Live(); }
 
     private static GpuAdapter Gpu(GpuVendor vendor, string name, ulong memory, int rank, long luid) =>
         new(name, vendor, 0, 0, luid, memory, 8 * GraphicsFacts.GiB, rank, "32.0.16.1692", new DateTime(2026, 9, 4), GraphicsFacts.LikelyIntegrated(vendor, memory));
@@ -228,8 +228,73 @@ internal static class GamingChecks
             "profiles: Balanced offers the Windows opportunities and leaves mouse acceleration alone");
         Check(GamingProfiles.Propose(GamingGoal.Competitive, graphics, findings, null).Single(c => c.Target == "mouse-acceleration") is { After: "0,0,0", Optional: true },
             "profiles: Competitive offers to turn mouse acceleration off");
-        Check(balanced.All(c => Guardrails.Allowed(c)) && PerformanceSettings.WindowsGamingTargets.SetEquals(["background-recording", "windowed-optimizations", "variable-refresh", "mouse-acceleration"]),
-            "settings: only the four Windows gaming settings can be changed");
+        Check(balanced.All(c => Guardrails.Allowed(c)) && PerformanceSettings.WindowsGamingTargets.SetEquals(["game-mode", "background-recording", "windowed-optimizations", "variable-refresh", "mouse-acceleration"]),
+            "settings: only the five Windows gaming settings can be changed");
+    }
+
+    private static DiagnosticResult Finding(string module, string id, FindingSeverity severity, string recommendation) =>
+        new(module, id, DiagnosticCategory.Performance, CollectionOutcome.Completed, severity, id, "Fixture explanation.", Now, Now, recommendation: recommendation,
+            metadata: new Dictionary<string, string> { ["current"] = "4800 MT/s", ["recommended"] = "6000 MT/s", ["remedy"] = GamingHealth.RemedyHardware });
+
+    private static void Tune()
+    {
+        var rtx = Gpu(GpuVendor.Nvidia, "NVIDIA GeForce RTX 4070", 12 * GraphicsFacts.GiB, 0, 1);
+        var desktop = Desktop(Display(60, 1, 60, 144, 165), rtx);
+        var untuned = Windows(gameMode: false, maxAc: 80) with { WindowedOptimizations = false, BackgroundRecording = true, Mouse = [6, 10, 1], HardwareScheduling = false };
+        var findings = new[] { Finding("perf-memory", "memory-speed", FindingSeverity.Warning, "Enable XMP or EXPO in the BIOS."), Finding("perf-storage", "trim", FindingSeverity.Healthy, "") };
+        var inputs = new TuneInputs(desktop, untuned, Defaults(), findings);
+        ProposedChange? At(TunePlan plan, string kind, string target) => plan.Changes.SingleOrDefault(c => c.Kind == kind && c.Target == target);
+        string? Nv(TunePlan plan, uint id) => At(plan, NvidiaPresets.ChangeKind, NvidiaSettings.Hex(id))?.After;
+        bool Has(TunePlan plan, string id) => plan.Changes.Any(c => c.Id == id);
+        const string Wg = "Windows gaming setting";
+
+        var competitive = TunePlanner.Plan(TuneScenario.GamingPerformance, AdaptiveSync.Yes, inputs);
+        Check(At(competitive, "Display mode", @"\\.\DISPLAY1")?.After == "2560x1440@165" && At(competitive, Wg, "mouse-acceleration") is { After: "0,0,0", Optional: false }
+            && At(competitive, Wg, "game-mode")?.After == "on" && At(competitive, Wg, "windowed-optimizations")?.After == "on" && At(competitive, Wg, "variable-refresh")?.After == "on"
+            && At(competitive, Wg, "background-recording") is { After: "off", Optional: false } && At(competitive, "Processor power", "381b4222-f694-41f0-9685-ff5bb260df2e|ac")?.After == "100",
+            "tune: Gaming + Performance sets the highest refresh rate, Game Mode, windowed optimizations, VRR, no background recording, full processor and no mouse acceleration");
+        Check(Nv(competitive, NvidiaSettings.VerticalSyncId) == NvidiaSettings.Hex(NvidiaSettings.VsyncOn) && Nv(competitive, NvidiaSettings.FrameRateLimitId) == "0x000000A2"
+            && Nv(competitive, NvidiaSettings.PreRenderedFramesId) == "0x00000001" && Nv(competitive, NvidiaSettings.PreferredRefreshRateId) == "0x00000001",
+            "tune: with G-SYNC, V-Sync is on in the driver and the cap is 3 below the new 165 Hz, with Low Latency Mode and the highest refresh rate");
+        Check(Nv(competitive, NvidiaSettings.PowerManagementId) is null && Has(competitive, "tune-per-game-clocks"), "tune: full GPU clocks are suggested per game, never globally");
+        Check(Has(competitive, "tune-hags") && Has(competitive, "tune-adaptive-sync") && Has(competitive, "tune-in-game") && Has(competitive, "memory-speed")
+            && competitive.Changes.Single(c => c.Id == "memory-speed").Manual == "Enable XMP or EXPO in the BIOS." && competitive.AlreadyGood.Any(g => g.Area == TuneArea.Storage),
+            "tune: GPU scheduling for RTX 40, the adaptive-sync switch, in-game settings and memory speed are steps for you; healthy checks are listed");
+        Check(competitive.Changes.Where(c => c.HankiApplies).All(c => Guardrails.Allowed(c) && Navigation.IsPerformanceChange(c.Kind!))
+            && competitive.Changes.Where(c => c.HankiApplies).GroupBy(c => (c.Kind, c.Target)).All(g => g.Count() == 1), "tune: every change is a Recovery-backed Performance change, one per setting");
+        Check(competitive.Changes.All(c => !Navigation.UsesFaultLanguage(c.Why) && !Navigation.UsesFaultLanguage(c.Setting)), "tune: explanations aren't written as faults");
+
+        var noSync = TunePlanner.Plan(TuneScenario.GamingPerformance, AdaptiveSync.No, inputs);
+        Check(Nv(noSync, NvidiaSettings.VerticalSyncId) == NvidiaSettings.Hex(NvidiaSettings.VsyncOff) && Nv(noSync, NvidiaSettings.FrameRateLimitId) is null && At(noSync, Wg, "variable-refresh") is null,
+            "tune: without adaptive sync, competitive play turns V-Sync off and adds no cap");
+        var unsure = TunePlanner.Plan(TuneScenario.GamingPerformance, AdaptiveSync.NotSure, inputs);
+        Check(Nv(unsure, NvidiaSettings.VerticalSyncId) is null && Nv(unsure, NvidiaSettings.FrameRateLimitId) is null && Has(unsure, "tune-sync-unknown"),
+            "tune: when you're not sure about adaptive sync, V-Sync and caps are left alone and you're told how to check");
+        var quality = TunePlanner.Plan(TuneScenario.GamingQuality, AdaptiveSync.No, inputs);
+        Check(Nv(quality, NvidiaSettings.VerticalSyncId) == NvidiaSettings.Hex(NvidiaSettings.VsyncOn) && Nv(quality, NvidiaSettings.TextureFilteringId) == NvidiaSettings.Hex(NvidiaSettings.TextureHighQuality)
+            && At(quality, Wg, "background-recording")!.Optional && Nv(quality, NvidiaSettings.PreRenderedFramesId) is null, "tune: Gaming + Quality keeps V-Sync on and sharp textures");
+        var creative = TunePlanner.Plan(TuneScenario.Creative, AdaptiveSync.NotSure, inputs);
+        Check(!creative.Changes.Any(c => c.Kind == NvidiaPresets.ChangeKind) && At(creative, Wg, "mouse-acceleration") is null && At(creative, Wg, "game-mode") is null
+            && At(creative, "Processor power", "381b4222-f694-41f0-9685-ff5bb260df2e|ac") is not null && Has(creative, "memory-speed") && !Has(creative, "tune-in-game"),
+            "tune: Creative work leaves game settings alone but gives the processor full speed");
+
+        var laptop = new GraphicsInventory([rtx], [Display(165, 1, 60, 165)], true, false, true, false, []);
+        var lowPower = TunePlanner.Plan(TuneScenario.LowPower, AdaptiveSync.NotSure,
+            new TuneInputs(laptop, untuned, With(Defaults(), NvidiaSettings.PowerManagementId, "0x00000001", 1), findings));
+        Check(At(lowPower, "Display mode", @"\\.\DISPLAY1") is { After: "2560x1440@60", Optional: true } && Nv(lowPower, NvidiaSettings.FrameRateLimitId) == "0x0000003C"
+            && Nv(lowPower, NvidiaSettings.PowerManagementId) == "default" && At(lowPower, "Processor power", "381b4222-f694-41f0-9685-ff5bb260df2e|ac") is null && !Has(lowPower, "memory-speed"),
+            "tune: Low power on a laptop offers 60 Hz, caps at 60 FPS, undoes global maximum GPU clocks and leaves the processor and memory alone");
+
+        var tuned = Windows() with { WindowedOptimizations = true, Mouse = [0, 0, 0] };
+        var done = TunePlanner.Plan(TuneScenario.GamingPerformance, AdaptiveSync.No, new TuneInputs(Desktop(Display(165, 1, 165), rtx), tuned,
+            With(With(With(Defaults(), NvidiaSettings.PreRenderedFramesId, "0x00000001", 1), NvidiaSettings.VerticalSyncId, "0x08416747", NvidiaSettings.VsyncOff), NvidiaSettings.PreferredRefreshRateId, "0x00000001", 1), []));
+        Check(done.Changes.All(c => !c.HankiApplies || c.Optional) && done.AlreadyGood.Count >= 6, "tune: a PC already set up gets no required changes, and sees what was checked");
+
+        var radeon = Desktop(Display(165, 1, 165), Gpu(GpuVendor.Amd, "AMD Radeon RX 7800 XT", 16 * GraphicsFacts.GiB, 0, 1));
+        var amd = TunePlanner.Plan(TuneScenario.GamingPerformance, AdaptiveSync.Yes, new TuneInputs(radeon, tuned, null, []));
+        Check(amd.Changes.Single(c => c.Id == "tune-amd").Manual!.Contains("Anti-Lag on") && amd.Changes.Single(c => c.Id == "tune-amd").Manual!.Contains("162 FPS") && !amd.Changes.Any(c => c.Kind == NvidiaPresets.ChangeKind),
+            "tune: Radeon owners get the matching AMD Software settings as a step");
+        Check(Enum.GetValues<TuneScenario>().All(v => TunePlanner.Name(v).Length > 0 && !Navigation.UsesFaultLanguage(TunePlanner.Describe(v))), "tune: every choice has a name and a plain description");
     }
 
     private static void Library()

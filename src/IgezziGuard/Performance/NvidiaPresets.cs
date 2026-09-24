@@ -26,7 +26,7 @@ public static class NvidiaPresets
             new(NvidiaSettings.PreRenderedFramesId, 1, "Low Latency Mode: the driver queues one frame instead of letting the game queue several, which lowers input lag when the graphics card is the limit. Games with NVIDIA Reflex use Reflex instead."),
             new(NvidiaSettings.VerticalSyncId, NvidiaSettings.VsyncApplication, "Vertical sync forced on adds input lag; letting each game decide is usual for competitive play."),
             new(NvidiaSettings.PreferredRefreshRateId, 1, "Games that don't choose a refresh rate get your display's highest, so they aren't stuck at 60 Hz."),
-            new(NvidiaSettings.PowerManagementId, NvidiaSettings.PowerPreferMaximum, "Keeps the graphics card at full clocks in games, for steadier frame times. It also stays clocked up in other 3D apps and uses more power.", Optional: true),
+            new(NvidiaSettings.PowerManagementId, NvidiaSettings.PowerPreferMaximum, "Keeps the graphics card at full clocks in games, for steadier frame times. Set for all games it also keeps the card clocked up in other 3D apps, which can add 15–25 W; Gaming → Games sets it for one game instead.", Optional: true),
             new(NvidiaSettings.TextureFilteringId, NvidiaSettings.TexturePerformance, "“Performance” texture filtering trades a little texture sharpness for a small frame-rate gain.", Optional: true),
         };
         if (display > 63) competitive.Add(new(NvidiaSettings.FrameRateLimitId, display - 3,
@@ -39,8 +39,8 @@ public static class NvidiaPresets
             $"Frames above the display's {display} Hz aren't shown, so capping there saves power, heat and fan noise in every game."));
         return [
             new("Competitive (low latency)", "Lower input lag and steadier frame times: Low Latency Mode, vertical sync left to the game, the highest refresh rate, and optionally full GPU clocks and a frame cap for G-SYNC or FreeSync.", competitive),
-            new("Maximum FPS", "The most frames: full GPU clocks, faster texture filtering, no driver frame cap and no vertical sync. Image quality drops a little and the card uses more power.", [
-                new(NvidiaSettings.PowerManagementId, NvidiaSettings.PowerPreferMaximum, "Keeps the graphics card at full clocks in games, avoiding brief slow-downs while it ramps up. It also stays clocked up in other 3D apps and uses more power."),
+            new("Maximum FPS", "The most frames: faster texture filtering, no driver frame cap and no vertical sync, and optionally full GPU clocks. Image quality drops a little.", [
+                new(NvidiaSettings.PowerManagementId, NvidiaSettings.PowerPreferMaximum, "Keeps the graphics card at full clocks in games, avoiding brief slow-downs while it ramps up. Set for all games it also keeps the card clocked up in other 3D apps, which can add 15–25 W; Gaming → Games sets it for one game instead.", Optional: true),
                 new(NvidiaSettings.TextureFilteringId, NvidiaSettings.TextureHighPerformance, "“High performance” texture filtering gives the most frames, with slightly blurrier textures at angles."),
                 new(NvidiaSettings.AnisotropicSampleOptimizationId, 1, "Uses fewer texture samples for anisotropic filtering: a small speed-up with a small quality cost."),
                 new(NvidiaSettings.VerticalSyncId, NvidiaSettings.VsyncOff, "No vertical sync, so frames aren't held back to the refresh rate. You may see tearing."),

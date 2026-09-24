@@ -10,7 +10,7 @@ namespace IgezziGuard;
 ///   Processor power: target "{plan guid}|ac",        value "100"
 ///   NVIDIA setting:  target "game.exe|0x1057EB71",   value "0x00000001", "predefined:0x…" (NVIDIA's own value) or "default"
 ///   NVIDIA global setting: target "0x1057EB71",      value as for NVIDIA setting, in the global profile (all games)
-///   Windows gaming setting: target "background-recording", "windowed-optimizations" or "variable-refresh", value
+///   Windows gaming setting: target "game-mode", "background-recording", "windowed-optimizations" or "variable-refresh", value
 ///                    "on", "off" or "default" (never changed); target "mouse-acceleration", value "6,10,1"
 /// </summary>
 internal static class PerformanceSettings
@@ -115,12 +115,15 @@ internal static class PerformanceSettings
     }
 
     // ---- Windows gaming settings: Game Bar background recording, DirectX options and mouse acceleration -------------
-    internal static readonly IReadOnlySet<string> WindowsGamingTargets = new HashSet<string>(StringComparer.Ordinal) { "background-recording", "windowed-optimizations", "variable-refresh", "mouse-acceleration" };
+    internal static readonly IReadOnlySet<string> WindowsGamingTargets = new HashSet<string>(StringComparer.Ordinal) { "game-mode", "background-recording", "windowed-optimizations", "variable-refresh", "mouse-acceleration" };
     private static string DirectXFlag(string target) => target == "windowed-optimizations" ? "SwapEffectUpgradeEnable" : "VRROptimizeEnable";
     private static string WindowsGaming(string target)
     {
         if (!WindowsGamingTargets.Contains(target)) throw new IOException("Invalid Windows gaming setting.");
         switch (target) {
+            case "game-mode":
+                using (var bar = Registry.CurrentUser.OpenSubKey(WindowsGamingProbe.GameBarKey))
+                    return WindowsGamingParsing.FlagState(bar?.GetValue("AutoGameModeEnabled") is int g ? g != 0 : null);
             case "background-recording":
                 using (var dvr = Registry.CurrentUser.OpenSubKey(WindowsGamingProbe.GameDvrKey))
                     return WindowsGamingParsing.FlagState(dvr?.GetValue("HistoricalCaptureEnabled") is int h ? h != 0 : null);
@@ -136,10 +139,11 @@ internal static class PerformanceSettings
         if (!WindowsGamingTargets.Contains(target)) throw new IOException("Invalid Windows gaming setting.");
         try {
             switch (target) {
-                case "background-recording": {
+                case "game-mode" or "background-recording": {
                     var on = WindowsGamingParsing.ParseFlagState(value);
-                    using var dvr = Registry.CurrentUser.CreateSubKey(WindowsGamingProbe.GameDvrKey, writable: true);
-                    if (on is { } v) dvr.SetValue("HistoricalCaptureEnabled", v ? 1 : 0, RegistryValueKind.DWord); else dvr.DeleteValue("HistoricalCaptureEnabled", throwOnMissingValue: false);
+                    var (keyPath, name) = target == "game-mode" ? (WindowsGamingProbe.GameBarKey, "AutoGameModeEnabled") : (WindowsGamingProbe.GameDvrKey, "HistoricalCaptureEnabled");
+                    using var key = Registry.CurrentUser.CreateSubKey(keyPath, writable: true);
+                    if (on is { } v) key.SetValue(name, v ? 1 : 0, RegistryValueKind.DWord); else key.DeleteValue(name, throwOnMissingValue: false);
                     break;
                 }
                 case "mouse-acceleration": WindowsGamingProbe.SetMouse(WindowsGamingParsing.ParseMouse(value)); break;

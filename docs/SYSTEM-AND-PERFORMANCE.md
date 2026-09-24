@@ -156,4 +156,5 @@ Hanki controls and theme.
 | PERF-302 | CPU → Processor | Done. |
 | PERF-303, 304, 305 | Memory → Memory health | Done: commit headroom, module speed vs rating (XMP/EXPO guidance only), channels, pagefile health. |
 | PERF-306, 307, 308 | Storage | Done: media per drive, games on hard disks, free space, TRIM, optimization schedule, ReTrim (administrator, SSDs only), DirectStorage readiness. |
-| PERF-313 | Performance overview | Done: one read-only check across areas. |
+| PERF-313 | Performance overview | Done: one read-only check across areas; now the scan behind Tune my PC. |
+| PERF-320 | Performance overview → Tune my PC, `Performance/TunePlanner.cs`, `TunePanel.cs` | Done: asks what you want today (Gaming + Performance, Gaming + Quality, Creative work, Low power) and whether the display has G-SYNC/FreeSync, reads display, Windows, mouse, NVIDIA, processor, memory and storage settings, and shows a plan: changes Hanki makes (reviewed, in Recovery) and steps for you. Rules and sources: [TUNING.md](TUNING.md). |

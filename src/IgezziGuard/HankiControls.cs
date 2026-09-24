@@ -454,3 +454,71 @@ internal sealed class Dashboard : UserControl
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { lastScan.Show(null, "Saved scan history could not be read. Original files were preserved."); }
     }
 }
+
+/// <summary>A large selectable option (title and one line); tiles sharing a parent behave as one radio group.</summary>
+internal sealed class ChoiceTile : Control
+{
+    private readonly string title, description;
+    private readonly Color accent;
+    private readonly Font titleFont, bodyFont;
+    private bool hover, selected;
+    public event Action? Chosen;
+    public object? Value { get; init; }
+    public bool Selected
+    {
+        get => selected;
+        set { selected = value; AccessibleDescription = (value ? "Selected. " : "") + description; Invalidate(); }
+    }
+    public ChoiceTile(string title, string description, Color? accent = null, bool compact = false)
+    {
+        this.title = title; this.description = description; this.accent = accent ?? HankiTheme.Accent;
+        titleFont = new Font("Segoe UI Semibold", compact ? 11f : 13f); bodyFont = new Font("Segoe UI", 10f);
+        Text = title; AccessibleName = title; AccessibleDescription = description; AccessibleRole = AccessibleRole.RadioButton;
+        TabStop = true; Cursor = Cursors.Hand; Height = compact ? 48 : 112; Width = compact ? 150 : 236;
+        SetStyle(ControlStyles.UserPaint | ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.ResizeRedraw | ControlStyles.Selectable, true);
+        Click += (_, _) => Choose();
+        KeyDown += (_, e) => { if (e.KeyCode is Keys.Enter or Keys.Space) { Choose(); e.Handled = true; } };
+    }
+    private void Choose()
+    {
+        foreach (var tile in Parent?.Controls.OfType<ChoiceTile>() ?? []) tile.Selected = tile == this;
+        Chosen?.Invoke();
+    }
+    protected override void Dispose(bool disposing) { if (disposing) { titleFont.Dispose(); bodyFont.Dispose(); } base.Dispose(disposing); }
+    protected override void OnMouseEnter(EventArgs e) { hover = true; Invalidate(); base.OnMouseEnter(e); }
+    protected override void OnMouseLeave(EventArgs e) { hover = false; Invalidate(); base.OnMouseLeave(e); }
+    protected override void OnMouseDown(MouseEventArgs e) { Focus(); base.OnMouseDown(e); }
+    protected override void OnGotFocus(EventArgs e) { Invalidate(); base.OnGotFocus(e); }
+    protected override void OnLostFocus(EventArgs e) { Invalidate(); base.OnLostFocus(e); }
+    protected override void OnPaint(PaintEventArgs e)
+    {
+        var g = e.Graphics; float s = DeviceDpi / 96f;
+        bool hc = SystemInformation.HighContrast;
+        g.Clear(Parent?.BackColor ?? HankiTheme.Canvas); g.SmoothingMode = SmoothingMode.AntiAlias;
+        var text = hc ? SystemColors.ControlText : HankiTheme.Text; var muted = hc ? SystemColors.ControlText : HankiTheme.Muted;
+        using (var path = HankiButton.Rounded(new RectangleF(1, 1, Width - 2.5f, Height - 2.5f), 10 * s)) {
+            var fill = hc ? (selected ? SystemColors.Highlight : SystemColors.Control) : selected ? Blend(HankiTheme.Surface, accent, 0.16f) : hover ? HankiTheme.Raised : HankiTheme.Surface;
+            using var brush = new SolidBrush(fill); g.FillPath(brush, path);
+            bool ring = selected || (Focused && ShowFocusCues);
+            using var pen = new Pen(hc ? SystemColors.ControlText : ring ? accent : hover ? Color.FromArgb(70, 80, 96) : HankiTheme.Border, ring ? 2 * s : 1);
+            g.DrawPath(pen, path);
+        }
+        if (hc && selected) text = muted = SystemColors.HighlightText;
+        int pad = (int)(14 * s), dot = (int)(16 * s);
+        // Radio mark, so the selection doesn't rely on color alone.
+        var mark = new RectangleF(pad, (Height - dot) / 2f, dot, dot);
+        if (Height > 60 * s) mark.Y = pad + 2 * s;
+        using (var ringPen = new Pen(selected ? (hc ? text : accent) : muted, 1.6f * s)) g.DrawEllipse(ringPen, mark);
+        if (selected) { using var fillDot = new SolidBrush(hc ? text : accent); g.FillEllipse(fillDot, RectangleF.Inflate(mark, -4 * s, -4 * s)); }
+        int left = pad + dot + (int)(10 * s);
+        if (Height <= 60 * s) {
+            TextRenderer.DrawText(g, title, titleFont, new Rectangle(left, 0, Width - left - pad, Height), text, TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis | TextFormatFlags.NoPrefix);
+            return;
+        }
+        TextRenderer.DrawText(g, title, titleFont, new Rectangle(left, pad - (int)(2 * s), Width - left - pad, (int)(26 * s)), text, TextFormatFlags.Left | TextFormatFlags.Top | TextFormatFlags.EndEllipsis | TextFormatFlags.NoPrefix);
+        TextRenderer.DrawText(g, description, bodyFont, new Rectangle(pad, pad + (int)(30 * s), Width - pad * 2, Height - pad * 2 - (int)(28 * s)), muted,
+            TextFormatFlags.Left | TextFormatFlags.Top | TextFormatFlags.WordBreak | TextFormatFlags.EndEllipsis | TextFormatFlags.NoPrefix);
+    }
+    private static Color Blend(Color a, Color b, float amount) => Color.FromArgb(
+        (int)(a.R + (b.R - a.R) * amount), (int)(a.G + (b.G - a.G) * amount), (int)(a.B + (b.B - a.B) * amount));
+}

@@ -86,32 +86,13 @@ internal static class PerformanceStatus
     }
 }
 
-/// <summary>Performance overview: what each Performance section is for, and how Hanki optimizes safely.</summary>
+/// <summary>Performance overview: Tune my PC first, then the detailed tools and what Hanki deliberately won't do.</summary>
 internal sealed class PerformanceOverviewPanel : UserControl
 {
     public PerformanceOverviewPanel(Action<string> navigate)
     {
         Dock = DockStyle.Fill; AutoScroll = true; Padding = new Padding(0, 4, 8, 16);
-        var hero = new RoundedPanel { Dock = DockStyle.Top, AutoSize = true, Padding = new Padding(26, 22, 26, 22), MinimumSize = new Size(0, 170) };
-        var stack = new FlowLayoutPanel { Dock = DockStyle.Fill, AutoSize = true, FlowDirection = FlowDirection.TopDown, WrapContents = false, Tag = "card" };
-        var eyebrow = new Label { Text = "HOW HANKI OPTIMIZES", AutoSize = true, Font = new Font("Segoe UI", 8.25f, FontStyle.Bold), Tag = "accent-performance", Margin = new Padding(0, 0, 0, 6) };
-        var headline = new Label { Text = "Measure first. Change one thing. Measure again.", AutoSize = true, Font = new Font("Segoe UI Semibold", 16f), Margin = new Padding(0, 0, 0, 8) };
-        var text = new Label { AutoSize = true, Tag = "intro", Margin = Padding.Empty, Text =
-            "Performance findings are observations and opportunities, not faults: a healthy PC can still have room to optimize. " +
-            "Hanki records a baseline, saves your current settings, applies only changes you approve, measures again, and lets you keep or revert. " +
-            "It never overclocks from here, never turns off security features, and doesn't apply internet “FPS tweaks” without evidence." };
-        // HANKI-PERF-313: one read-only check across every area, summarised per area.
-        var check = new HankiButton { Text = "Run performance check", Primary = true, AutoSize = true, Margin = new Padding(0, 14, 0, 0) };
-        var status = new Label { AutoSize = true, Margin = new Padding(0, 10, 0, 0), Text = PerformanceStatus.Describe(PerformanceStatus.Latest()), AccessibleName = "Performance check results" };
-        check.Click += async (_, _) => {
-            check.Enabled = false; status.Text = "Checking gaming setup, processor, memory and storage (read-only)…";
-            try { status.Text = await PerformanceCheck.RunAsync(CancellationToken.None); }
-            catch (Exception ex) when (ex is IOException or InvalidOperationException or System.ComponentModel.Win32Exception) { status.Text = "The check couldn't finish: " + ex.Message; }
-            finally { check.Enabled = true; }
-        };
-        stack.Controls.AddRange([eyebrow, headline, text, check, status]);
-        stack.SizeChanged += (_, _) => { var wrap = new Size(Math.Max(200, stack.ClientSize.Width - 8), 0); headline.MaximumSize = text.MaximumSize = status.MaximumSize = wrap; };
-        hero.Controls.Add(stack);
+        var tune = new TunePanel();
 
         var cards = new FlowLayoutPanel { Dock = DockStyle.Top, AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink, Margin = Padding.Empty };
         foreach (var page in new[] { "Gaming", "GPU", "CPU", "Memory", "Storage", "Performance Lab" }) {
@@ -124,43 +105,19 @@ internal sealed class PerformanceOverviewPanel : UserControl
             foreach (Control card in cards.Controls) card.Width = Math.Max(220, (width - 14 * columns) / columns);
         }
         SizeChanged += (_, _) => FitCards();
-        var section = new Label { Text = "PERFORMANCE AREAS", Dock = DockStyle.Top, AutoSize = false, Height = 44, Tag = "intro",
-            Font = new Font("Segoe UI", 8.25f, FontStyle.Bold), TextAlign = ContentAlignment.BottomLeft, Padding = new Padding(2, 0, 0, 8) };
-        // HANKI-GAME-211 / HANKI-PERF-314: what Hanki deliberately won't do, and why.
-        var refused = new RoundedPanel { Dock = DockStyle.Top, AutoSize = true, Padding = new Padding(26, 18, 26, 18) };
-        var refusedText = new Label { AutoSize = true, Tag = "intro", Dock = DockStyle.Top, Text = string.Join("\r\n", Guardrails.NotRecommended.Select(g => $"•  {g.Tweak}: {g.Why}")) };
+        var section = new Label { Text = "DETAILED TOOLS", Dock = DockStyle.Top, AutoSize = false, Height = 48, Tag = "intro",
+            Font = new Font("Segoe UI", 9f, FontStyle.Bold), TextAlign = ContentAlignment.BottomLeft, Padding = new Padding(2, 0, 0, 8) };
+        // HANKI-GAME-211 / HANKI-PERF-314: what Hanki deliberately won't do, and why; one click away.
+        var refused = new RoundedPanel { Dock = DockStyle.Top, AutoSize = true, Padding = new Padding(26, 18, 26, 18), Visible = false };
+        var refusedText = new Label { AutoSize = true, Tag = "intro", Dock = DockStyle.Top, Font = new Font("Segoe UI", 10f), Text = string.Join("\r\n", Guardrails.NotRecommended.Select(g => $"•  {g.Tweak}: {g.Why}")) };
         refused.Controls.Add(refusedText);
         refused.SizeChanged += (_, _) => refusedText.MaximumSize = new Size(Math.Max(200, refused.ClientSize.Width - refused.Padding.Horizontal), 0);
-        var refusedTitle = new Label { Text = "TWEAKS HANKI WON'T MAKE", Dock = DockStyle.Top, AutoSize = false, Height = 44, Tag = "intro",
-            Font = new Font("Segoe UI", 8.25f, FontStyle.Bold), TextAlign = ContentAlignment.BottomLeft, Padding = new Padding(2, 0, 0, 8) };
-        Controls.Add(refused); Controls.Add(refusedTitle);
-        Controls.Add(cards); Controls.Add(section); Controls.Add(hero);
+        var refusedToggle = new HankiButton { Text = $"Tweaks Hanki won't make ({Guardrails.NotRecommended.Count})", Appearance = HankiButtonStyle.Quiet, AutoSize = true, Dock = DockStyle.Top };
+        refusedToggle.Click += (_, _) => { refused.Visible = !refused.Visible; refusedToggle.Text = refused.Visible ? "Hide the tweaks Hanki won't make" : $"Tweaks Hanki won't make ({Guardrails.NotRecommended.Count})"; };
+        var refusedGap = new Panel { Dock = DockStyle.Top, Height = 8, Tag = "gap" };
+        Controls.Add(refused); Controls.Add(refusedGap); Controls.Add(refusedToggle);
+        Controls.Add(cards); Controls.Add(section); Controls.Add(tune);
         FitCards();
-    }
-}
-
-/// <summary>The overview's read-only check across gaming, CPU, memory and storage, saved as the latest Performance check.</summary>
-internal static class PerformanceCheck
-{
-    internal static async Task<string> RunAsync(CancellationToken token)
-    {
-        var gaming = new GamingState();
-        await Task.Run(gaming.Collect, token);
-        var (cpu, memory, storage) = await SystemFactsProbe.Collect(token);
-        var now = DateTimeOffset.UtcNow; var power = GraphicsProbe.Power();
-        IReadOnlyList<GameEntry> games; try { games = GameLibrary.Read(GameLibrary.StorePath); } catch (IOException) { games = []; }
-        var areas = new (string Name, IReadOnlyList<DiagnosticResult> Findings)[] {
-            ("Gaming", gaming.Findings), ("CPU", SystemAnalyzers.Cpu(cpu, gaming.Windows!, power.Portable, power.OnAc, now)), ("Memory", SystemAnalyzers.Memory(memory, now)),
-            ("Storage", SystemAnalyzers.Storage(storage, games, Path.GetPathRoot(Environment.SystemDirectory)?[0] ?? 'C', now))
-        };
-        // Findings from different areas can share ids ("power-mode"); keep one of each for the saved check.
-        var all = areas.SelectMany(a => a.Findings).GroupBy(f => (f.ModuleId, f.FindingId)).Select(g => g.First()).ToArray();
-        try { PerformanceStatus.History.Add(new DiagnosticScan(Guid.NewGuid(), now, DateTimeOffset.UtcNow, areas.Length, areas.Length, false, all)); } catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
-        string Line(string name, IReadOnlyList<DiagnosticResult> findings) {
-            var open = findings.Where(f => f.Severity is FindingSeverity.Warning or FindingSeverity.Critical).ToArray();
-            return $"{name}: " + (open.Length == 0 ? "no opportunities found" : $"{open.Length} {(open.Length == 1 ? "opportunity" : "opportunities")} ({string.Join("; ", open.Select(f => f.Title))})");
-        }
-        return string.Join("\r\n", areas.Select(a => Line(a.Name, a.Findings)).Prepend($"GPU: {gaming.Graphics?.HighPerformance?.Name ?? "not found"}")) + "\r\nOpen each area for details and to review changes.";
     }
 }
 

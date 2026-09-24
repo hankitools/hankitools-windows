@@ -9,7 +9,7 @@ namespace IgezziGuard;
 internal static class WindowsGamingProbe
 {
     internal const string GpuPreferencesKey = @"Software\Microsoft\DirectX\UserGpuPreferences", DirectXGlobalValue = "DirectXUserGlobalSettings",
-        GameDvrKey = @"Software\Microsoft\Windows\CurrentVersion\GameDVR";
+        GameDvrKey = @"Software\Microsoft\Windows\CurrentVersion\GameDVR", GameBarKey = @"Software\Microsoft\GameBar";
     private static readonly Guid ProcessorGroup = new("54533251-82be-4824-96c1-47b60b740d00"), ProcessorMaximum = new("bc5038f7-23e0-4960-96da-33abaf5935ec"),
         ProcessorMinimum = new("893dee8e-2bef-41e0-89c6-b55d0929964c");
 
@@ -18,7 +18,7 @@ internal static class WindowsGamingProbe
         bool? gameMode = null, scheduling = null;
         var preferences = new List<AppGpuPreference>();
         string? global = null;
-        using (var gameBar = Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\GameBar"))
+        using (var gameBar = Registry.CurrentUser.OpenSubKey(GameBarKey))
             if (gameBar?.GetValue("AutoGameModeEnabled") is int mode) gameMode = mode != 0;
         try {
             using var drivers = Registry.LocalMachine.OpenSubKey(@"SYSTEM\CurrentControlSet\Control\GraphicsDrivers");
