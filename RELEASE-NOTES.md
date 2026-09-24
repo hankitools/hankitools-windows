@@ -1,4 +1,4 @@
-# Next version (not released yet)
+# Hanki Tools 0.18.0-rc.1 — System and Performance candidate
 
 Hanki is now two areas in one app. **Hanki System** finds what's wrong with Windows and fixes it safely. **Hanki Performance** measures what limits your PC or game and optimizes it, one reviewed and reversible change at a time. Nothing was removed; see docs/SYSTEM-AND-PERFORMANCE.md for where each tool moved.
 
