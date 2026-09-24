@@ -10,7 +10,8 @@ public sealed class AmdPanel : ToolPage
     private readonly GamingState state;
     private AmdGpuSettings? current;
     private bool loaded;
-    private const string NotReady = "Radeon settings aren't available on this PC. They need an AMD Radeon graphics card with AMD Software: Adrenalin Edition installed.";
+    private const string Needs = "Radeon settings need an AMD Radeon graphics card with AMD Software: Adrenalin Edition installed.";
+    private const string NotReady = "Radeon settings aren't available on this PC. " + Needs;
 
     internal AmdPanel(GamingState state) : base("Radeon settings from AMD Software: Anti-Lag, Chill, Boost, Image Sharpening, Enhanced Sync, Wait for Vertical Refresh, Frame Rate Target Control and Anisotropic Filtering. You review each change first, and Hanki saves the current value in Recovery so you can undo it. Not yet tested on AMD hardware: please report anything that looks wrong.")
     {
@@ -26,7 +27,7 @@ public sealed class AmdPanel : ToolPage
         await Run(async token => await Task.Run(() => {
             state.Graphics ??= GraphicsProbe.Collect();
             try { current = Amd.ReadSettings(); }
-            catch (AmdException ex) { current = null; return Diagnosis.From(ex.Message, [new("Radeon settings", NotReady + " " + ex.Message, CardStatus.Unknown)], "Radeon settings unavailable"); }
+            catch (AmdException ex) { current = null; return Diagnosis.From(ex.Message, [new("Radeon settings", $"{ex.Message} {Needs}", CardStatus.Unknown)], "Radeon settings unavailable"); }
             var report = new StringBuilder($"Radeon settings • {current.GpuName} • {DateTimeOffset.Now:g}\r\nRead-only; nothing was changed.\r\n\r\n");
             foreach (var s in current.Settings) report.AppendLine($"{AmdSettings.Name(s.Kind)}: {s.Text}" + (s.RangeMin is { } lo && s.RangeMax is { } hi ? $" (driver range {lo}–{hi})" : ""));
             report.AppendLine("\r\nSettings your card or driver doesn't support aren't listed. Tune my PC applies the matching Radeon settings for each choice.");

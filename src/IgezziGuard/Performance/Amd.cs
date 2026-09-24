@@ -86,7 +86,7 @@ internal static class Amd
 
         internal Session()
         {
-            if (!NativeLibrary.TryLoad(Library, out library)) throw new AmdException("AMD's driver interface (ADLX) isn't installed. It comes with AMD Software: Adrenalin Edition.");
+            if (!NativeLibrary.TryLoad(Library, out library)) throw new AmdException("AMD's driver interface (ADLX) wasn't found.");
             try {
                 if (!NativeLibrary.TryGetExport(library, "ADLXInitialize", out var start) || !NativeLibrary.TryGetExport(library, "ADLXTerminate", out var stop))
                     throw new AmdException("AMD's driver interface (ADLX) on this PC is missing functions Hanki needs. Updating AMD Software should fix this.");

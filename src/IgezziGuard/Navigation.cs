@@ -36,7 +36,7 @@ public static class Navigation
         new("Performance overview", "Tune my PC", ProductArea.Performance, "Performance",
             "Say what you want today, review Hanki's plan, and apply only what you approve."),
         new("Gaming", "Gaming", ProductArea.Performance, "Gaming",
-            "Refresh rate, GPU choice, Windows and driver settings for games, your game list and NVIDIA presets."),
+            "Refresh rate, GPU choice and Windows settings for games, your game list, and NVIDIA and AMD Radeon settings."),
         new("GPU", "GPU", ProductArea.Performance, "GPU",
             "Graphics hardware, drivers, displays and what Hanki can adjust."),
         new("CPU", "CPU", ProductArea.Performance, "CPU",
