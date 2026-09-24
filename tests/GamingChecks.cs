@@ -5,7 +5,7 @@ internal static class GamingChecks
 {
     private static void Check(bool ok, string text) => DiagnosticChecks.Check(ok, text);
     private static readonly DateTimeOffset Now = new(2026, 9, 24, 12, 0, 0, TimeSpan.Zero);
-    internal static void Run() { Facts(); Health(); Profiles(); NvidiaGlobal(); WindowsGaming(); Tune(); Background(); Library(); Live(); }
+    internal static void Run() { Facts(); Health(); Profiles(); NvidiaGlobal(); WindowsGaming(); Tune(); Background(); Launch(); Library(); Live(); }
 
     private static GpuAdapter Gpu(GpuVendor vendor, string name, ulong memory, int rank, long luid) =>
         new(name, vendor, 0, 0, luid, memory, 8 * GraphicsFacts.GiB, rank, "32.0.16.1692", new DateTime(2026, 9, 4), GraphicsFacts.LikelyIntegrated(vendor, memory));
@@ -319,6 +319,24 @@ internal static class GamingChecks
         Check(plan.Items.Any(i => i.Area == TuneArea.Background && i.Change.Id == "busy:chrome" && i.Change.Optional && !i.Change.HankiApplies)
             && !TunePlanner.Plan(TuneScenario.Creative, AdaptiveSync.No, new TuneInputs(Desktop(Display(165, 1, 165)), Windows(), null, findings)).Items.Any(i => i.Area == TuneArea.Background),
             "tune: busy programs and a second limiter become optional steps when gaming");
+    }
+
+    private static void Launch()
+    {
+        var t = new DateTime(2026, 9, 24, 12, 0, 0);
+        Check(LaunchMeasure.PickProcess([(10, "cs2", t, false), (11, "CS2", t.AddSeconds(5), true), (12, "cs2", t.AddSeconds(1), true), (13, "steam", t.AddSeconds(9), true)], "cs2") == 11
+            && LaunchMeasure.PickProcess([(10, "cs2", t, false)], "cs2") is null, "launch: the newest window of the game's executable is measured, not its launcher");
+        PerformanceMeasurement Run(DateTimeOffset start, double fps) => new(start, start.AddSeconds(120), new Dictionary<string, double> { [PerformanceMetrics.FpsAverage] = fps, [PerformanceMetrics.FpsLow1] = fps * 0.7 }, "Performance Lab monitor");
+        var first = LaunchMeasure.Session("CS2", Run(Now, 200), null, [], "GPU-limited");
+        Check(first is { Outcome: SessionOutcome.Measured, After: null } && first.Name == LaunchMeasure.SessionName("CS2"), "launch: the first run of a game is saved as a measurement");
+        var changes = new[] {
+            new SettingChange(Guid.NewGuid(), Now.AddMinutes(10), "NVIDIA global setting", "0x007BA09E", "default", "0x00000001", "Applied"),
+            new SettingChange(Guid.NewGuid(), Now.AddMinutes(11), "IPv4 DNS", "x", "", "1.1.1.1", "Applied"),
+            new SettingChange(Guid.NewGuid(), Now.AddMinutes(-30), "Display mode", @"\\.\DISPLAY1", "a", "b", "Applied") };
+        var second = LaunchMeasure.Session("CS2", Run(Now.AddMinutes(20), 220), first, changes, "GPU-limited");
+        Check(second.Outcome == SessionOutcome.Improved && second.Baseline == first.Baseline && second.ChangesTested.SequenceEqual([changes[0].Id]),
+            "launch: the next run is compared with the last one, with only the Performance changes made in between");
+        Check(LaunchMeasure.Previous([first, second, first with { Name = LaunchMeasure.SessionName("Other") }], "CS2") == (second.Created >= first.Created ? second : first), "launch: the most recent run of the same game is the comparison");
     }
 
     private static void Library()

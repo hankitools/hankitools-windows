@@ -109,6 +109,7 @@ public sealed class GamesPanel : ToolPage
         goal.Items.AddRange(Enum.GetValues<GamingGoal>().Select(g => (object)GamingProfiles.Name(g)).ToArray()); goal.SelectedIndex = 0;
         Bar.Controls.Add(goal);
         Button("Optimize this game", Optimize);
+        Button("Launch and measure", LaunchAndMeasure);
         Button("Find installed games", Find);
         Button("Add a game…", Add);
         Button("Remove from list", Remove);
@@ -214,6 +215,48 @@ public sealed class GamesPanel : ToolPage
             text.AppendLine($"\r\nGoal: {GamingProfiles.Name(game.Goal)}. {GamingProfiles.Describe(game.Goal)}\r\nChoose Optimize this game to review what would change.");
             return text.ToString();
         }, token));
+    }
+
+    /// <summary>HANKI-GAME-219: start the game, wait for its window and loading, measure a fixed stretch, compare with the last run.</summary>
+    private async void LaunchAndMeasure()
+    {
+        if (Selected is not { } game) { Output.Text = "Choose a game first, or add one."; return; }
+        if (!File.Exists(game.Executable)) { Output.Text = "The game's .exe isn't there any more. Add it again with Add a game…"; return; }
+        if (!Review($"Start {game.Name} and measure it?\r\n\nHanki waits for the game's window, gives it {LaunchMeasure.WarmupSeconds} seconds to load, then measures {LaunchMeasure.MeasureSeconds / 60} minutes of play. " +
+            "Play as you normally would. Closing the game or choosing Cancel stops early and keeps what was measured. Frame rates need Hanki to run as administrator.")) return;
+        var progress = new Progress<string>(text => { if (IsBusy) Output.Text = text; });
+        IProgress<string> report = progress;
+        await Run(async token => {
+            try { using var started = Process.Start(new ProcessStartInfo(game.Executable) { UseShellExecute = true, WorkingDirectory = Path.GetDirectoryName(game.Executable) ?? "" }); }
+            catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or InvalidOperationException) {
+                return Diagnosis.From($"{game.Name} couldn't be started: {ex.Message}", [new("The game didn't start", ex.Message + " Start it from its launcher, then measure it in Performance Lab → Monitor.", CardStatus.Unknown)]);
+            }
+            report.Report($"Starting {game.Name}. Waiting for its window, up to {LaunchMeasure.WindowTimeout.TotalMinutes:0} minutes; some games open their launcher first.");
+            using var target = await LaunchMeasure.WaitForGame(Path.GetFileNameWithoutExtension(game.Executable), token);
+            if (target is null)
+                return Diagnosis.From($"{game.Name} didn't open a window.", [new("No game window", $"{game.Name} didn't open a window within {LaunchMeasure.WindowTimeout.TotalMinutes:0} minutes. If it starts through a launcher, start it there, then measure it in Performance Lab → Monitor.", CardStatus.Unknown)]);
+            for (int left = LaunchMeasure.WarmupSeconds; left > 0; left--) {
+                report.Report($"{game.Name} is running. Measuring starts in {left} seconds, after loading: get into the game and play as usual.");
+                await Task.Delay(1000, token);
+            }
+            var run = await PerformanceRecorder.Record(LaunchMeasure.MeasureSeconds, target, progress, token);
+            var summary = LabMonitorPanel.Summary(run, null);
+            var store = PerformanceSessionsPanel.Store;
+            PerformanceSession? previous = null;
+            try { previous = LaunchMeasure.Previous(store.Read(), game.Name); } catch (IOException) { }
+            IReadOnlyList<SettingChange> changes = [];
+            try { changes = WindowsSettings.Journal().Read(); } catch (Exception ex) when (ex is IOException or System.Text.Json.JsonException) { }
+            var session = LaunchMeasure.Session(game.Name, BottleneckEngine.Measurement(run), previous, changes, BottleneckEngine.Analyze(run).Diagnosis);
+            try { store.Add(session); } catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException) { }
+            if (session.After is null)
+                return summary with { Report = "First measured run of this game; your next run is compared with it. Saved to History → Performance sessions.\r\n\r\n" + summary.Report };
+            var tested = changes.Where(c => session.ChangesTested.Contains(c.Id)).Select(c => $"• {c.Kind}: {c.Target}: {c.Before} → {c.After}").ToArray();
+            string outcome = PerformanceComparison.Describe(session.Outcome);
+            var cards = summary.Cards.Prepend(new ResultCard("Compared with your last run", $"{outcome} Last run: {previous!.Created.ToLocalTime():g}. " +
+                (tested.Length == 0 ? "No settings were changed in between." : $"{tested.Length} {(tested.Length == 1 ? "setting was" : "settings were")} changed in between."), CardStatus.Info)).ToList();
+            return Diagnosis.From("COMPARED WITH YOUR LAST RUN\r\n" + outcome + "\r\n" + PerformanceComparison.Table(session.Baseline, session.After) +
+                "\r\n\r\nChanges made in between (from Recovery):\r\n" + (tested.Length == 0 ? "none" : string.Join("\r\n", tested)) + "\r\n\r\n" + summary.Report, cards, summary.Headline);
+        });
     }
 
     private async void Optimize()
