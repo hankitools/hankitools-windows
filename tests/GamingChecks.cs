@@ -5,7 +5,7 @@ internal static class GamingChecks
 {
     private static void Check(bool ok, string text) => DiagnosticChecks.Check(ok, text);
     private static readonly DateTimeOffset Now = new(2026, 9, 24, 12, 0, 0, TimeSpan.Zero);
-    internal static void Run() { Facts(); Health(); Profiles(); Library(); Live(); }
+    internal static void Run() { Facts(); Health(); Profiles(); NvidiaGlobal(); Library(); Live(); }
 
     private static GpuAdapter Gpu(GpuVendor vendor, string name, ulong memory, int rank, long luid) =>
         new(name, vendor, 0, 0, luid, memory, 8 * GraphicsFacts.GiB, rank, "32.0.16.1692", new DateTime(2026, 9, 4), GraphicsFacts.LikelyIntegrated(vendor, memory));
@@ -114,6 +114,89 @@ internal static class GamingChecks
         var limits = game with { Nvidia = new NvidiaProfileView("WoW", "Wow.exe", true, [new(NvidiaSettings.Get(NvidiaSettings.FrameRateLimitId), 141, NvidiaSettingSource.ThisProfile, false)]), NvidiaGlobal = Global(fps: 144) };
         Check(GamingProfiles.Conflicts(limits, 165).Any(n => n.Contains("Two NVIDIA frame limits")) && GamingProfiles.Conflicts(limits, 165).Last().Contains("isn't visible"), "limiters: two NVIDIA limits are reported, with what Hanki can't see");
         Check(GamingProfiles.Conflicts(game, 165).Count == 0, "limiters: no conflicts, no notes");
+    }
+
+    // The driver's own names from NVIDIA's public SDK (NvApiDriverSettings.h), one per catalog setting.
+    private static readonly Dictionary<uint, string> SdkNames = new() {
+        [NvidiaSettings.PowerManagementId] = "Power management mode", [NvidiaSettings.FrameRateLimitId] = "Frame Rate Limiter", [NvidiaSettings.VerticalSyncId] = "Vertical Sync",
+        [NvidiaSettings.PreRenderedFramesId] = "Maximum pre-rendered frames", [NvidiaSettings.TextureFilteringId] = "Texture filtering - Quality",
+        [NvidiaSettings.AnisotropicModeId] = "Anisotropic filtering mode", [NvidiaSettings.AnisotropicLevelId] = "Anisotropic filtering setting",
+        [NvidiaSettings.AnisotropicSampleOptimizationId] = "Texture filtering - Anisotropic sample optimization", [NvidiaSettings.NegativeLodBiasId] = "Texture filtering - Negative LOD bias",
+        [NvidiaSettings.ThreadedOptimizationId] = "Threaded optimization", [NvidiaSettings.ShaderCacheSizeId] = "Shader disk cache maximum size", [NvidiaSettings.FxaaId] = "Enable FXAA",
+        [NvidiaSettings.AmbientOcclusionId] = "Ambient Occlusion", [NvidiaSettings.MonitorTechnologyId] = "G-SYNC", [NvidiaSettings.PreferredRefreshRateId] = "Preferred refresh rate",
+        [NvidiaSettings.TripleBufferingId] = "Triple buffering",
+    };
+    /// <summary>Global settings at the driver defaults (values from the SDK's *_DEFAULT entries).</summary>
+    private static List<NvidiaGlobalSetting> Defaults() => NvidiaSettings.Catalog.Select(s => new NvidiaGlobalSetting(s, "default", s.Id switch {
+        NvidiaSettings.PowerManagementId => NvidiaSettings.PowerNormal, NvidiaSettings.VerticalSyncId => NvidiaSettings.VsyncApplication,
+        NvidiaSettings.AnisotropicLevelId => 1u, NvidiaSettings.ShaderCacheSizeId => 0x4000u, _ => 0u }, "default")).ToList();
+    private static List<NvidiaGlobalSetting> With(List<NvidiaGlobalSetting> list, uint id, string state, uint? effective, string reset = "default") =>
+        list.Select(s => s.Setting.Id == id ? new NvidiaGlobalSetting(s.Setting, state, effective, reset) : s).ToList();
+
+    private static void NvidiaGlobal()
+    {
+        Check(NvidiaSettings.Catalog.Select(s => s.Id).Distinct().Count() == NvidiaSettings.Catalog.Count && SdkNames.Count == NvidiaSettings.Catalog.Count, "nvidia: every catalog id is unique and has its SDK name");
+        Check(NvidiaSettings.Catalog.All(s => NvidiaSettings.NameMatches(s, SdkNames[s.Id])), "nvidia: each setting accepts the driver's own SDK name");
+        var confusable = NvidiaSettings.Catalog.SelectMany(s => SdkNames.Where(n => n.Key != s.Id && NvidiaSettings.NameMatches(s, n.Value)).Select(n => $"{s.Name} accepts \"{n.Value}\"")).ToArray();
+        Check(confusable.Length == 0, "nvidia: no setting accepts another setting's name" + (confusable.Length > 0 ? ": " + string.Join("; ", confusable) : ""));
+        var frl = NvidiaSettings.Get(NvidiaSettings.FrameRateLimitId);
+        Check(NvidiaSettings.Allowed(frl, 0) && !NvidiaSettings.Allowed(frl, 19) && NvidiaSettings.Allowed(frl, 20) && NvidiaSettings.Allowed(frl, 1000) && !NvidiaSettings.Allowed(frl, 1001)
+            && !NvidiaSettings.Allowed(NvidiaSettings.Get(NvidiaSettings.PowerManagementId), 7) && NvidiaSettings.Allowed(NvidiaSettings.Get(NvidiaSettings.AnisotropicLevelId), 16), "nvidia: only SDK values and the Control Panel frame-limit range are offered");
+        Check(NvidiaSettings.State(1, NvidiaSettingSource.ThisProfile, false) == "0x00000001" && NvidiaSettings.State(1, NvidiaSettingSource.ThisProfile, true) == "predefined:0x00000001"
+            && NvidiaSettings.State(1, NvidiaSettingSource.BaseProfile, false) == "default" && NvidiaSettings.ResetState(5) == "predefined:0x00000005" && NvidiaSettings.ResetState(null) == "default"
+            && NvidiaSettings.StateValue("predefined:0x0000000A") == 10 && NvidiaSettings.StateValue("default") is null && !NvidiaSettings.ValidState("predefined:") && !NvidiaSettings.ValidState("0xZZ"),
+            "nvidia: setting states round-trip as Recovery stores them");
+
+        var presets = NvidiaPresets.BuiltIn(165);
+        Check(presets.All(p => p.Values.All(v => v.Value is null || NvidiaSettings.Allowed(NvidiaSettings.Get(v.Id), v.Value.Value))), "presets: built-in presets only use offered values");
+        Check(presets.All(p => !Navigation.UsesFaultLanguage(p.Description) && p.Values.All(v => !Navigation.UsesFaultLanguage(v.Why))), "presets: explanations aren't written as faults");
+        var defaults = Defaults();
+        var competitive = NvidiaPresets.Propose(presets.Single(p => p.Name.StartsWith("Competitive")), defaults);
+        string? After(IReadOnlyList<ProposedChange> changes, uint id) => changes.SingleOrDefault(c => c.Target == NvidiaSettings.Hex(id))?.After;
+        Check(After(competitive, NvidiaSettings.PreRenderedFramesId) == "0x00000001" && After(competitive, NvidiaSettings.PreferredRefreshRateId) == "0x00000001"
+            && competitive.Single(c => c.Target == NvidiaSettings.Hex(NvidiaSettings.FrameRateLimitId)) is { After: "0x000000A2", Optional: true }
+            && competitive.Single(c => c.Target == NvidiaSettings.Hex(NvidiaSettings.PowerManagementId)).Optional && After(competitive, NvidiaSettings.VerticalSyncId) is null,
+            "presets: Competitive turns on low latency and the highest refresh rate, offers full clocks and a cap 3 below 165 Hz, and skips what's already set");
+        Check(competitive.All(c => c.Kind == NvidiaPresets.ChangeKind && c.Target!.Length == 10 && Guardrails.Allowed(c) && Navigation.IsPerformanceChange(c.Kind!)), "presets: changes are Recovery-backed global NVIDIA changes");
+        Check(NvidiaPresets.Propose(NvidiaPresets.BuiltIn(60).Single(p => p.Name.StartsWith("Competitive")), defaults).All(c => c.Target != NvidiaSettings.Hex(NvidiaSettings.FrameRateLimitId)), "presets: no adaptive-sync cap at 60 Hz");
+        Check(After(NvidiaPresets.Propose(presets.Single(p => p.Name == "Maximum FPS"), defaults), NvidiaSettings.FrameRateLimitId) is null, "presets: a value games already get isn't proposed again");
+        var reset = presets.Single(p => p.Name == "NVIDIA defaults");
+        Check(NvidiaPresets.Propose(reset, defaults).Count == 0, "presets: NVIDIA defaults on default settings proposes nothing");
+        var tuned = With(With(defaults, NvidiaSettings.PowerManagementId, "0x00000001", 1), NvidiaSettings.TextureFilteringId, "0x00000014", 20, "predefined:0x00000000");
+        var back = NvidiaPresets.Propose(reset, tuned);
+        Check(back.Count == 2 && After(back, NvidiaSettings.PowerManagementId) == "default" && After(back, NvidiaSettings.TextureFilteringId) == "predefined:0x00000000",
+            "presets: NVIDIA defaults removes your values, or restores NVIDIA's own predefined value");
+
+        var choices = NvidiaPresets.Choices(frl, 165);
+        Check(choices[0] == ("NVIDIA default", null) && choices.Any(c => c.Value == 162) && choices.Any(c => c.Value == 165) && choices.Any(c => c.Value == 0)
+            && choices.Skip(1).All(c => NvidiaSettings.Allowed(frl, c.Value!.Value)), "editor: frame-limit choices suit the display and stay in range");
+        var odd = new NvidiaGlobalSetting(frl, "0x00000025", 37, "default");
+        Check(NvidiaPresets.Choices(frl, 165, odd).Any(c => c.Value == 37), "editor: a limit you set elsewhere stays selectable");
+        Check(NvidiaPresets.Change(odd, 37, "same") is null && NvidiaPresets.Change(odd, 5000, "out of range") is null && NvidiaPresets.Change(odd, null, "reset") is { After: "default" },
+            "editor: unchanged or unsupported values make no change");
+
+        var mine = NvidiaPresets.Capture("  My esports  ", With(tuned, NvidiaSettings.VerticalSyncId, "predefined:0x08416747", NvidiaSettings.VsyncOff, "predefined:0x08416747"));
+        Check(mine.Name == "My esports" && mine.Values.Count == defaults.Count && mine.Values[NvidiaSettings.Hex(NvidiaSettings.PowerManagementId)] == "0x00000001"
+            && mine.Values[NvidiaSettings.Hex(NvidiaSettings.VerticalSyncId)] == "default" && mine.Values[NvidiaSettings.Hex(NvidiaSettings.FrameRateLimitId)] == "default",
+            "my presets: your own values are kept and NVIDIA's are saved as defaults");
+        var fromUser = NvidiaPresets.FromUser(mine);
+        Check(!fromUser.BuiltIn && fromUser.Values.Single(v => v.Id == NvidiaSettings.PowerManagementId).Value == 1 && NvidiaPresets.Propose(fromUser, tuned).Count == 0
+            && NvidiaPresets.Propose(fromUser, defaults).Any(c => c.Target == NvidiaSettings.Hex(NvidiaSettings.PowerManagementId) && c.After == "0x00000001"), "my presets: applying a saved preset restores its values");
+        Check(NvidiaPresets.NameProblem("", []) is not null && NvidiaPresets.NameProblem("maximum fps", []) is not null && NvidiaPresets.NameProblem("Mine", ["mine"]) is not null
+            && NvidiaPresets.NameProblem(new string('x', 61), []) is not null && NvidiaPresets.NameProblem("Evening", ["Mine"]) is null, "my presets: names are checked");
+        var file = Path.Combine(Path.GetTempPath(), "HankiChecks-presets-" + Guid.NewGuid().ToString("N") + ".json");
+        try {
+            NvidiaPresets.Write(file, [mine]);
+            Check(NvidiaPresets.Read(file).Single().Values.SequenceEqual(mine.Values), "my presets: saved presets read back unchanged");
+            File.WriteAllText(file, "{\"Version\":1,\"Presets\":[{\"Name\":\"x\",\"Values\":{\"power\":\"0x1\"}}]}");
+            bool damaged = false;
+            try { NvidiaPresets.Read(file); } catch (IOException) { damaged = true; }
+            Check(damaged && File.Exists(file), "my presets: a damaged file is reported and kept");
+        } finally { foreach (var f in Directory.GetFiles(Path.GetTempPath(), Path.GetFileName(file) + "*")) File.Delete(f); }
+
+        bool refused = false;
+        foreach (var target in new[] { "0x12345678", "1057EB71", "Wow.exe|0x1057EB71", "0x1057EB7" }) { try { PerformanceSettings.ParseNvidiaGlobalTarget(target); } catch (IOException) { refused = true; continue; } refused = false; break; }
+        Check(refused && PerformanceSettings.ParseNvidiaGlobalTarget("0x1057EB71") == NvidiaSettings.PowerManagementId, "settings: global NVIDIA targets must be a known setting id");
     }
 
     private static void Library()

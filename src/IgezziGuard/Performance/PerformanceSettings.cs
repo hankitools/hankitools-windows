@@ -9,16 +9,18 @@ namespace IgezziGuard;
 ///   GPU preference:  target the executable's path,   value "GpuPreference=2;" or "" (Windows decides)
 ///   Processor power: target "{plan guid}|ac",        value "100"
 ///   NVIDIA setting:  target "game.exe|0x1057EB71",   value "0x00000001", "predefined:0x…" (NVIDIA's own value) or "default"
+///   NVIDIA global setting: target "0x1057EB71",      value as for NVIDIA setting, in the global profile (all games)
 /// </summary>
 internal static class PerformanceSettings
 {
-    internal static bool Handles(string kind) => kind is "Display mode" or "GPU preference" or "Processor power" or "NVIDIA setting";
+    internal static bool Handles(string kind) => kind is "Display mode" or "GPU preference" or "Processor power" or "NVIDIA setting" or NvidiaPresets.ChangeKind;
 
     internal static string Read(string kind, string target) => kind switch {
         "Display mode" => DisplayMode(target),
         "GPU preference" => GpuPreference(target),
         "Processor power" => Processor(target).ToString(),
         "NVIDIA setting" => NvidiaSetting(target),
+        NvidiaPresets.ChangeKind => Nvidia.ReadProfileSetting(null, ParseNvidiaGlobalTarget(target)),
         _ => throw new IOException("Unsupported setting.")
     };
     internal static void Write(string kind, string target, string value)
@@ -28,6 +30,10 @@ internal static class PerformanceSettings
             case "GPU preference": SetGpuPreference(target, value); break;
             case "Processor power": SetProcessor(target, value); break;
             case "NVIDIA setting": SetNvidiaSetting(target, value); break;
+            case NvidiaPresets.ChangeKind:
+                if (!NvidiaSettings.ValidState(value)) throw new IOException("Invalid NVIDIA setting value.");
+                Nvidia.WriteProfileSetting(null, ParseNvidiaGlobalTarget(target), value);
+                break;
             default: throw new IOException("Unsupported setting.");
         }
     }
@@ -113,14 +119,18 @@ internal static class PerformanceSettings
             throw new IOException("Invalid NVIDIA setting target.");
         return (parts[0], id);
     }
+    /// <summary>A catalog setting id, "0x1057EB71", in the global profile.</summary>
+    internal static uint ParseNvidiaGlobalTarget(string target) =>
+        target.Length == 10 && target.StartsWith("0x", StringComparison.Ordinal) && uint.TryParse(target[2..], System.Globalization.NumberStyles.HexNumber, null, out var id) &&
+        NvidiaSettings.Catalog.Any(s => s.Id == id) ? id : throw new IOException("Invalid NVIDIA setting target.");
     private static string NvidiaSetting(string target)
     {
         var (exe, id) = ParseNvidiaTarget(target);
-        return Nvidia.ReadApplicationSetting(exe, id);
+        return Nvidia.ReadProfileSetting(exe, id);
     }
     private static void SetNvidiaSetting(string target, string value)
     {
         var (exe, id) = ParseNvidiaTarget(target);
-        Nvidia.WriteApplicationSetting(exe, id, value);
+        Nvidia.WriteProfileSetting(exe, id, value);
     }
 }

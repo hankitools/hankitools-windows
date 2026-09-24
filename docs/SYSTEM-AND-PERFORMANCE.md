@@ -85,9 +85,15 @@ Performance Lab → Monitor saves runs as sessions today. Optimization tests
 
 Recovery (`ChangeJournal`, `recovery.json`) stays the one rollback mechanism for both
 areas. Journal kinds listed in `Navigation.PerformanceChangeKinds` ("Power plan",
-"Display mode", "GPU preference", "NVIDIA setting", "Processor power") belong to
-Performance sessions; everything else appears in System actions
-(`src/IgezziGuard/History/SystemActions.cs`, together with scans and the repair audit).
+"Display mode", "GPU preference", "NVIDIA setting", "NVIDIA global setting",
+"Processor power") belong to Performance sessions; everything else appears in System
+actions (`src/IgezziGuard/History/SystemActions.cs`, together with scans and the repair
+audit).
+
+A reviewed Performance change to a setting Hanki already changed replaces that change
+(`ChangeReview`): Hanki undoes its earlier change, but only while the setting still has
+Hanki's value, and records the new one from your original value. Recovery so keeps one
+active entry per setting, and its undo always goes back to where you started.
 
 ## Safety distinction
 
@@ -95,6 +101,10 @@ System actions restore a known healthy state. Performance changes are experiment
 every write follows: baseline → snapshot (Recovery journal) → apply only approved
 changes → measure → keep or revert. Selecting a profile never changes anything by
 itself.
+
+Goals and Optimize This Game change a game's own driver profile. NVIDIA's global
+profile (every game without its own value) changes only from Gaming → NVIDIA, where you
+choose a preset or a value yourself and review it like any other change.
 
 Rules for every GAME, GPU and PERF story (GAME-211, PERF-314):
 
@@ -131,6 +141,7 @@ Hanki controls and theme.
 | GPU-108 | `Performance/WindowsGamingProbe.cs` | Done: Game Mode, GPU scheduling, per-app GPU choices, power mode and processor limits (read); GPU choice and processor maximum can be applied. |
 | GPU-109, GAME-212, PERF-312 | Lab → Monitor, `PerformanceComparison` | Done: baselines, comparable before/after, keep or restore through Performance sessions. |
 | GPU-110 | Lab → Advanced Tuning | Deliberately separate and not started (placeholder only). |
+| GPU-113 | Gaming → NVIDIA, `Performance/NvidiaPresets.cs` | Done: NVIDIA global settings (16 from the public NVAPI SDK, each checked against the driver's own name) with built-in presets, a settings editor and your own saved presets (`nvidia-presets.json`). Changes are reviewed, recorded in Recovery as "NVIDIA global setting" and restorable. |
 | GPU-111, GAME-213 | Gaming page | Done: overview with goals and review, games tab. |
 | GPU-112, GAME-214 | `Performance/GamingDiagnostic.cs` | Done: Fix My PC shows only high-impact gaming findings, pointing to Gaming; never applies them. |
 | GAME-205 | `Performance/GameLibrary.cs` | Done: Steam, Epic, GOG and publisher records, manual .exe, rescans without duplicates. |

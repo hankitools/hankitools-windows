@@ -245,6 +245,15 @@ internal static class ChangeReview
             try {
                 var before = await backend.Read(change.Kind!, change.Target!, CancellationToken.None);
                 if (before == change.After) { lines.Add($"• {change.Setting}: already {change.Recommended}."); continue; }
+                // An earlier Hanki change to this setting is replaced rather than stacked, so Recovery keeps one entry whose
+                // "before" is your original value. Only a change still in place is replaced; anything else is left for you.
+                var open = journal.Read().LastOrDefault(e => e.Kind == change.Kind && e.Target == change.Target && e.Status is not ("Undone" or ChangeJournal.NotApplied));
+                if (open is not null) {
+                    if (open.Status != "Applied" || open.After != before) { lines.Add($"✗ {change.Setting}: not changed. An earlier change to it is pending or was changed outside Hanki; check it in Recovery first."); continue; }
+                    await journal.Undo(open.Id, CancellationToken.None);
+                    before = open.Before;
+                    if (before == change.After) { lines.Add($"✓ {change.Setting}: back to your original value, {change.Recommended}."); continue; }
+                }
                 await journal.Apply(change.Kind!, change.Target!, before, change.After!, CancellationToken.None);
                 var entry = journal.Read().Last(e => e.Kind == change.Kind && e.Target == change.Target && e.Status == "Applied");
                 if (change.Kind == "Display mode" && !KeepDisplayDialog.Keep(owner, change.Recommended)) {
