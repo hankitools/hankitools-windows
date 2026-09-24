@@ -117,7 +117,7 @@ internal static class BatteryStartup
         new[] { "Recent startups (newest first):" }.Concat((facts.Boots ?? []).OrderByDescending(b => b.Time).Select(b => $"{b.Time.ToLocalTime():g} · {BootType(b.Type)}"));
 }
 
-/// <summary>Full System Scan module; Performance → Battery & startup uses the same collector and rules.</summary>
+/// <summary>Full System Scan module; Diagnose → Battery & startup uses the same collector and rules.</summary>
 internal sealed class BatteryStartupDiagnostic(IDiagnosticProbe? source = null) : IDiagnosticModule
 {
     private readonly IDiagnosticProbe source = source ?? new WindowsDiagnosticProbe();

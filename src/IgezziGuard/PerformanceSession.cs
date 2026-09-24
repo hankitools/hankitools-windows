@@ -3,7 +3,7 @@ using System.Runtime.InteropServices;
 
 namespace IgezziGuard;
 
-internal static class PerformanceSession
+internal static class PerformanceSampler
 {
     public static async Task<PerformanceRun> Sample(CancellationToken token, int seconds = 30, IProgress<string>? progress = null)
     {
@@ -56,9 +56,9 @@ public sealed class SamplingPanel : UserControl
         panel = new DiagnosticPanel("Sample for 30 seconds",
             "Measures how busy the processor is and how full memory gets over 30 seconds. Keep doing what normally feels slow while it runs. " +
             "The first run becomes your baseline, and later runs are compared with it, so you can see whether a change helped. Nothing is changed or uploaded. Disk and GPU are measured in the Monitoring tab.", "How this works", async token => {
-                var current = await PerformanceSession.Sample(token);
-                if (baseline is null) { baseline = current; return PerformanceInsights.Sample(current, null, "BASELINE\r\n" + PerformanceSession.Describe(current) + "\r\nRun another session for comparison. Baseline exists only until reset/app exit. CPU readings on systems with over 64 logical processors may cover only the calling processor group."); }
-                return PerformanceInsights.Sample(current, baseline, "BASELINE\r\n" + PerformanceSession.Describe(baseline) + "\r\nCURRENT\r\n" + PerformanceSession.Describe(current) +
+                var current = await PerformanceSampler.Sample(token);
+                if (baseline is null) { baseline = current; return PerformanceInsights.Sample(current, null, "BASELINE\r\n" + PerformanceSampler.Describe(current) + "\r\nRun another session for comparison. Baseline exists only until reset/app exit. CPU readings on systems with over 64 logical processors may cover only the calling processor group."); }
+                return PerformanceInsights.Sample(current, baseline, "BASELINE\r\n" + PerformanceSampler.Describe(baseline) + "\r\nCURRENT\r\n" + PerformanceSampler.Describe(current) +
                     $"\r\nChange in mean CPU: {current.AverageCpu - baseline.AverageCpu:+0.0;-0.0;0.0} percentage points\r\n" +
                     $"Change in mean commit: {current.AverageCommitPercent - baseline.AverageCommitPercent:+0.0;-0.0;0.0} percentage points\r\n" +
                     "These are observations, not proof that a tweak helped. Workload differences, pagefile growth, cache, background activity and thermal conditions affect comparisons. Thirty seconds is a short observation window; repeat under representative load. No settings changed.");

@@ -1,5 +1,8 @@
 # HANKI-101 — Existing diagnostic architecture audit
 
+> The app is now split into Hanki System and Hanki Performance; see
+> [docs/SYSTEM-AND-PERFORMANCE.md](docs/SYSTEM-AND-PERFORMANCE.md) (HANKI-ARCH-200).
+
 Audited on 2026-09-22 against `main` commit
 `5063669a209e2fbfa4ab224b1a13772c6ceefea7` (application version `0.16.0-rc.3`).
 Scope: [issue #1](https://github.com/hankitools/hankitools-windows/issues/1).

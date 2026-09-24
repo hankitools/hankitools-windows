@@ -24,7 +24,7 @@ public sealed class FullScanPanel : ToolPage
         Button("Show scan summary", () => { if (latest is not null) Output.Text = Summary(latest); });
         // Technician only; the licence can change while Hanki is open, so visibility follows it.
         var customerReport = Button("Customer report", () => {
-            if (latest is null) { Output.Text = "Run a full scan first. To report on an earlier scan, open Diagnostic history."; return; }
+            if (latest is null) { Output.Text = "Run a full scan first. To report on an earlier scan, open System actions → Saved scans."; return; }
             if (CustomerReportFlow.Create(this, latest, repairs) is { } status) Output.Text = status;
         });
         customerReport.Visible = entitlements.Allows(HankiCapability.CustomerReports);

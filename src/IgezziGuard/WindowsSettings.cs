@@ -13,6 +13,8 @@ internal sealed class WindowsSettings : ISettingBackend
     internal static string PowerExe => Path.Combine(Environment.SystemDirectory, "powercfg.exe");
     public async Task<string> Read(string kind, string target, CancellationToken token)
     {
+        // Hanki Performance changes share this journal, so Recovery can undo them too.
+        if (PerformanceSettings.Handles(kind)) return await Task.Run(() => Safely(() => PerformanceSettings.Read(kind, target)), token);
         switch (kind) {
             case "Power plan":
                 if (target != "Active") throw new IOException("Unknown power target.");
@@ -34,6 +36,7 @@ internal sealed class WindowsSettings : ISettingBackend
     }
     public async Task Write(string kind, string target, string value, CancellationToken token)
     {
+        if (PerformanceSettings.Handles(kind)) { await Task.Run(() => Safely(() => { PerformanceSettings.Write(kind, target, value); return ""; }), token); return; }
         switch (kind) {
             case "Power plan":
                 if (target != "Active" || !Guid.TryParse(value, out var plan)) throw new IOException("Invalid power target.");
@@ -52,6 +55,13 @@ internal sealed class WindowsSettings : ISettingBackend
                 break;
             default: throw new IOException("Unsupported setting.");
         }
+    }
+    /// <summary>Driver and registry failures surface as IOException, which the journal and pages already handle.</summary>
+    private static string Safely(Func<string> action)
+    {
+        try { return action(); }
+        catch (NvidiaException ex) { throw new IOException(ex.Message, ex); }
+        catch (Exception ex) when (ex is UnauthorizedAccessException or System.Security.SecurityException) { throw new IOException("Windows didn't allow the change: " + ex.Message, ex); }
     }
     internal static NetworkInterface Adapter(string id) => NetworkInterface.GetAllNetworkInterfaces().SingleOrDefault(a => Guid.TryParse(a.Id, out var guid) && guid == Guid.Parse(id)) ?? throw new IOException("Adapter no longer present.");
     internal static string NormalizeDns(string text) {

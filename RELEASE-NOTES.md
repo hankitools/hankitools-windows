@@ -1,3 +1,16 @@
+# Next version (not released yet)
+
+Hanki is now two areas in one app. **Hanki System** finds what's wrong with Windows and fixes it safely. **Hanki Performance** measures what limits your PC or game and optimizes it, one reviewed and reversible change at a time. Nothing was removed; see docs/SYSTEM-AND-PERFORMANCE.md for where each tool moved.
+
+- Home shows both areas with their status. Full System Scan is now Fix My PC; Battery & startup moved to Diagnose; file-scan history moved into Shield.
+- Gaming: a read-only gaming check (refresh rate, which GPU games use, Game Mode, power settings, NVIDIA settings), six goals (Balanced, Maximum FPS, Competitive, Visual quality, Quiet, Laptop), a game list found from Steam, Epic, GOG and other launchers, and Optimize this game. Every change is reviewed first, recorded in Recovery and can be restored.
+- NVIDIA: per-game driver settings (power mode, frame limit, low latency, texture filtering) through NVIDIA's own interface, checked against the driver's names. AMD Radeon settings aren't read yet.
+- GPU, CPU, Memory and Storage pages: graphics hardware and displays, processor power limits, memory speed and commit headroom, pagefile health, drive types, games on hard disks, TRIM and DirectStorage readiness.
+- Performance Lab: a new monitor that measures every second (per-thread CPU, GPU load, temperature and video memory, memory, disk, busiest programs) and records frame rates for DirectX games when Hanki runs as administrator; a Bottleneck Analyzer that shows its evidence and confidence; Stutter Diagnostics; baselines and fair before/after comparisons.
+- History: System actions (scans, repairs, recorded changes) and Performance sessions (measurements, the settings tested, keep or restore) are kept apart.
+- Fix My PC mentions significant gaming configuration problems and points to Gaming; it never changes them itself and never overclocks.
+- Hanki explains common internet “FPS tweaks” it won't make, and why.
+
 # Hanki Tools 0.17.0
 
 Hanki Tools 0.17 is the first full release of the 0.17 series. It is not code-signed yet: signing through the SignPath Foundation program is pending, so Windows SmartScreen warns before the first run. Compare the published SHA-256 checksum before running it.

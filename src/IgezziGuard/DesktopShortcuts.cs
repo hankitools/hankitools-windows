@@ -31,6 +31,9 @@ internal static class DesktopShortcuts
                 case "pagefile":
                     start.FileName = Path.Combine(system, "SystemPropertiesPerformance.exe");
                     break;
+                case "defrag":
+                    start.FileName = Path.Combine(system, "dfrgui.exe"); // Optimize Drives
+                    break;
                 case "chatgpt":
                     start.FileName = "https://chatgpt.com/"; // No report, prompt or identifiers in URL.
                     break;

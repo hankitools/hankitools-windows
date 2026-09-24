@@ -17,7 +17,7 @@ public sealed class UpdateHealthPanel : ToolPage
     }
 }
 
-/// <summary>Performance → Battery & startup. Read-only: battery wear, restarts and startup records.</summary>
+/// <summary>Diagnose → Battery & startup. Read-only: battery wear, restarts and startup records.</summary>
 public sealed class BatteryStartupPanel : ToolPage
 {
     protected override bool ReadOnlyTool => true;

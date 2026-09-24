@@ -24,7 +24,23 @@ internal sealed class ToolIcon : Control
             case "Assistant": graphics.DrawRectangle(p,4,5,24,18); graphics.DrawLines(p,new Point[] {new(9,23),new(9,29),new(15,23)}); break;
             case "Recovery": graphics.DrawArc(p,6,5,22,22,210,280); graphics.DrawLines(p,new Point[] {new(3,5),new(3,13),new(11,13)}); break;
             case "Home": graphics.DrawLines(p,new Point[] {new(3,15),new(16,4),new(29,15)}); graphics.DrawLines(p,new Point[] {new(7,13),new(7,28),new(25,28),new(25,13)}); break;
-            case "Full": // scan frame with check
+            case "Overview": graphics.DrawRectangle(p,4,4,10,10); graphics.DrawRectangle(p,18,4,10,10); graphics.DrawRectangle(p,4,18,10,10); graphics.DrawRectangle(p,18,18,10,10); break;
+            case "Gaming":
+                using (var pad = HankiButton.Rounded(new RectangleF(3,9,26,15), 7)) graphics.DrawPath(p, pad);
+                graphics.DrawLine(p,10,13,10,20); graphics.DrawLine(p,6.5f,16.5f,13.5f,16.5f); graphics.DrawEllipse(p,19,13,2.5f,2.5f); graphics.DrawEllipse(p,22.5f,17,2.5f,2.5f); break;
+            case "GPU": graphics.DrawRectangle(p,3,8,26,15); graphics.DrawEllipse(p,7,10.5f,10,10); graphics.DrawLine(p,21,12,26,12); graphics.DrawLine(p,21,15.5f,26,15.5f); graphics.DrawLine(p,21,19,26,19); graphics.DrawLine(p,6,23,6,28); graphics.DrawLine(p,6,28,16,28); break;
+            case "CPU":
+                graphics.DrawRectangle(p,9,9,14,14); graphics.DrawRectangle(p,13,13,6,6);
+                foreach (var i in new[] { 12, 16, 20 }) { graphics.DrawLine(p,i,4,i,9); graphics.DrawLine(p,i,23,i,28); graphics.DrawLine(p,4,i,9,i); graphics.DrawLine(p,23,i,28,i); }
+                break;
+            case "Memory":
+                graphics.DrawRectangle(p,3,9,26,12); graphics.DrawRectangle(p,7,12,4,6); graphics.DrawRectangle(p,14,12,4,6); graphics.DrawRectangle(p,21,12,4,6);
+                foreach (var x in new[] { 7, 11, 15, 19, 23, 27 }) graphics.DrawLine(p,x,21,x,25);
+                break;
+            case "Storage": graphics.DrawRectangle(p,4,8,24,16); graphics.DrawLine(p,4,19,28,19); graphics.DrawEllipse(p,22,20.6f,2,2); break;
+            case "Lab": graphics.DrawLines(p,new PointF[] {new(12,5),new(12,13),new(5,27),new(27,27),new(20,13),new(20,5)}); graphics.DrawLine(p,9.5f,5,22.5f,5); graphics.DrawLine(p,8.5f,20,23.5f,20); break;
+            case "Sessions": graphics.DrawLine(p,4,28,28,28); graphics.DrawRectangle(p,7,17,4,11); graphics.DrawRectangle(p,14,9,4,19); graphics.DrawRectangle(p,21,20,4,8); break;
+            case "Full": case "Fix": // scan frame with check
                 graphics.DrawLines(p,new Point[] {new(3,10),new(3,3),new(10,3)}); graphics.DrawLines(p,new Point[] {new(22,3),new(29,3),new(29,10)});
                 graphics.DrawLines(p,new Point[] {new(29,22),new(29,29),new(22,29)}); graphics.DrawLines(p,new Point[] {new(10,29),new(3,29),new(3,22)});
                 graphics.DrawLines(p,new Point[] {new(10,16),new(14,20),new(22,12)}); break;

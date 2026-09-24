@@ -28,6 +28,11 @@ internal static class UiSmokeTest
                 var missing = TroubleshootingPanel.Guides.SelectMany(g => g.Steps).Select(s => s.Route).OfType<string>()
                     .Where(route => form.Routes.All(r => r.Name != route)).Distinct().ToArray();
                 if (missing.Length > 0) throw new IOException("Guided check routes not found: " + string.Join("; ", missing));
+                // Every System, Performance, Performance Lab and History destination has a page (HANKI-ARCH-200).
+                var destinations = Navigation.Items.Select(i => i.Page).Concat(Navigation.LabTools.Select(t => "Performance Lab  /  " + t))
+                    .Concat(Navigation.Moved.Values);
+                var absent = destinations.Where(d => form.Routes.All(r => r.Name != d)).ToArray();
+                if (absent.Length > 0) throw new IOException("Navigation destinations without a page: " + string.Join("; ", absent));
             }
             catch (Exception ex) { error = ex.ToString(); }
             finally {

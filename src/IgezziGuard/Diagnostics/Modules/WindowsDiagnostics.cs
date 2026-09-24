@@ -195,10 +195,12 @@ internal static class WindowsDiagnosticCatalog
             if($resolved.Count -eq 0){row 'internet' 'unknown' 'TCP probe skipped: no test name resolved'}
             else{$target=$resolved[0];$tcp=New-Object System.Net.Sockets.TcpClient;try{$t=$tcp.ConnectAsync($target,443);if($t.Wait(5000) -and $tcp.Connected){row 'internet' 'healthy' ($target+':443 TCP reachable; not an HTTPS or whole-internet test')}else{row 'internet' 'unknown' ('TCP probe to '+$target+':443 timed out')}}catch{row 'internet' 'unknown' 'TCP probe failed; proxy, firewall or endpoint conditions may explain this'}finally{$tcp.Dispose()}}
             """, external: true));
-        // Plain-language modules shared with their own pages (Diagnose → Windows Update, Performance → Battery & startup).
+        // Plain-language modules shared with their own pages (Diagnose → Windows Update, Diagnose → Battery & startup).
         modules.Insert(2, new WindowsUpdateDiagnostic(probe));
         modules.Add(new BatteryStartupDiagnostic(probe));
         modules.Add(new ActivationDiagnostic(probe));
+        // Significant gaming configuration problems only; details and changes live in Performance → Gaming.
+        modules.Add(new GamingDiagnostic());
         return modules.ToArray();
     }
 }

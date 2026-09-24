@@ -65,7 +65,7 @@ public static class EventKnowledge
                 "Update or reinstall the app if it keeps happening."),
             ("microsoft-windows-resource-exhaustion-detector", 2004) => new("Running out of memory", EventImpact.Serious,
                 "Windows warned that memory was nearly exhausted and listed the biggest users.",
-                "Check Performance → Overview while the same apps are open; close or update the heaviest ones."),
+                "Check Performance → Memory while the same apps are open; close or update the heaviest ones."),
             ("service control manager", 7031 or 7034) => new("A service stopped unexpectedly", EventImpact.Review,
                 "A background service crashed. Windows often restarts it automatically.",
                 "If it repeats, update or reinstall the software that owns the service."),

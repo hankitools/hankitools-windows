@@ -50,7 +50,7 @@ internal static class ScheduledHealthChecks
         return System.Text.Json.JsonSerializer.Deserialize<ScheduleStatus>(output.StandardOutput, new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true })
             ?? throw new IOException("Schedule status unavailable.");
     }
-    /// <summary>One plain line for the Diagnostic history page.</summary>
+    /// <summary>One plain line for the saved-scans page (System actions).</summary>
     internal static string Describe(ScheduleStatus status)
     {
         if (!status.Exists) return "No scheduled check.";

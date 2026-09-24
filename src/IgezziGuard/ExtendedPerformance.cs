@@ -13,7 +13,7 @@ public sealed class ExtendedPerformancePanel : ToolPage
             int seconds = new[] { 30, 60, 300, 900 }[duration.SelectedIndex]; SavedSession? complete = null;
             var progress = new Progress<string>(text => { if (IsBusy) Output.Text = text; });
             await Run(async token => {
-                var cpu = PerformanceSession.Sample(token, seconds, progress); var devices = Devices(seconds, token);
+                var cpu = PerformanceSampler.Sample(token, seconds, progress); var devices = Devices(seconds, token);
                 await Task.WhenAll(cpu, devices); complete = new(1, Environment.MachineName, await cpu, await devices);
                 var report = Describe(complete) + (baseline is null ? "\r\nNo baseline selected. Save this run or use it as baseline." : Compare(baseline, complete));
                 return PerformanceInsights.Monitoring(complete, baseline, report);
@@ -21,6 +21,19 @@ public sealed class ExtendedPerformancePanel : ToolPage
         });
         Button("Use last run as baseline", () => { if (latest is not null) { baseline = latest; Output.Text = "Baseline selected.\r\n" + Describe(baseline); } });
         Button("Save last run", () => { if (latest is null) return; using var picker = new SaveFileDialog { Filter = "Hanki session|*.json", FileName = "Hanki-session-" + latest.Cpu.Started.ToString("yyyyMMdd-HHmmss") + ".json", OverwritePrompt = true }; if (picker.ShowDialog(this) == DialogResult.OK) try { File.WriteAllText(picker.FileName, JsonSerializer.Serialize(latest, new JsonSerializerOptions { WriteIndented = true })); } catch (Exception ex) { Output.Text = ex.Message; } });
+        Button("Save to Performance sessions", () => {
+            if (latest is null) { Output.Text = "Run a measurement first."; return; }
+            bool compared = baseline is not null && !ReferenceEquals(baseline, latest);
+            var before = PerformanceMetrics.FromMonitoring(compared ? baseline! : latest);
+            var after = compared ? PerformanceMetrics.FromMonitoring(latest) : null;
+            var outcome = PerformanceComparison.Outcome(before, after);
+            var session = new PerformanceSession(Guid.NewGuid(), PerformanceSessionStore.DefaultName(compared ? "Comparison" : "Monitoring", latest.Cpu.Started),
+                DateTimeOffset.Now, before, [], after, outcome, "");
+            try {
+                PerformanceSessionsPanel.Store.Add(session);
+                Output.Text = "Saved to History → Performance sessions.\r\n\r\n" + PerformanceComparison.Describe(outcome) + "\r\n\r\n" + PerformanceComparison.Table(before, after);
+            } catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException) { Output.Text = "Couldn't save the session: " + ex.Message; }
+        });
         Button("Load saved baseline", () => { using var picker = new OpenFileDialog { Filter = "Hanki session|*.json" }; if (picker.ShowDialog(this) != DialogResult.OK) return; try {
             if (new FileInfo(picker.FileName).Length > 5_000_000) throw new IOException("Session file too large.");
             var saved = JsonSerializer.Deserialize<SavedSession>(File.ReadAllText(picker.FileName)) ?? throw new IOException("Invalid session.");
@@ -39,7 +52,7 @@ public sealed class ExtendedPerformancePanel : ToolPage
         catch (Exception ex) when (ex is IOException or JsonException or System.ComponentModel.Win32Exception) { return [new(DateTimeOffset.Now, null, null, null, "Device collection unavailable: " + ex.Message)]; }
     }
     private static string Metric(IEnumerable<double?> values, string unit) { var data = values.Where(x => x.HasValue).Select(x => x!.Value).ToArray(); return data.Length == 0 ? "Unknown" : $"mean {data.Average():0.00}, peak {data.Max():0.00} {unit} ({data.Length} valid samples)"; }
-    private static string Describe(SavedSession s) => $"Machine: {s.Machine}\r\n" + PerformanceSession.Describe(s.Cpu) +
+    private static string Describe(SavedSession s) => $"Machine: {s.Machine}\r\n" + PerformanceSampler.Describe(s.Cpu) +
         $"Disk read: {Metric(s.Devices.Select(d => d.DiskRead / 1048576), "MiB/s")}\r\nDisk write: {Metric(s.Devices.Select(d => d.DiskWrite / 1048576), "MiB/s")}\r\nBusiest GPU engine: {Metric(s.Devices.Select(d => d.GpuBusy), "%")}\r\n" +
         "GPU samples aggregate process contributions per named engine and take the busiest engine across adapters; they are not an FPS measure. Device and CPU collection windows can differ. CPU may cover only the calling processor group on >64 logical processors.\r\n" +
         string.Join("\r\n", s.Devices.Where(d => !string.IsNullOrWhiteSpace(d.Notes)).Select(d => d.Notes).Distinct());

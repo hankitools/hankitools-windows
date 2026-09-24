@@ -45,7 +45,9 @@ public static class FindingAnalysis
             "events" => ("Repeated provider/ID signals may help narrow an investigation; they are not a root cause.", "Match the event window to the symptom and compare with crash timeline and dump evidence.", null, "Review repetition across separate incidents."),
             "performance" => ("A snapshot or startup count does not establish sustained resource pressure.", "Repeat monitoring during the same workload. Review startup impact in Task Manager before disabling entries.", null, "Do not disable pagefile, security services or accessibility tools for a score."),
             "update" => ("Update history, restart markers and service settings have different meanings; a single failed attempt that later installed is not a problem.", "Open Diagnose → Windows Update for the details, finish a requested restart, then use Check for updates in Windows Update.", null, "Hanki doesn't change Windows Update settings."),
-            "battery-startup" => ("Battery wear and restart history describe this PC's current state; they are not faults by themselves.", "Open Performance → Battery & startup for the details. Use Restart, not Shut down, now and then to finish updates and clear memory.", null, "No settings are changed."),
+            "battery-startup" => ("Battery wear and restart history describe this PC's current state; they are not faults by themselves.", "Open Diagnose → Battery & startup for the details. Use Restart, not Shut down, now and then to finish updates and clear memory.", null, "No settings are changed."),
+            // Gaming configuration is changed only in Performance → Gaming, with review and Recovery; never repaired automatically from here.
+            "gaming" => ("A gaming configuration issue that holds back performance; Windows itself is not faulty.", "Open Performance → Gaming to review it. Hanki changes it only after you approve, and you can undo it in Recovery.", null, "No automatic change from Fix My PC; no overclocking."),
             _ => null
         };
         return rule is { } value ? new(r.ModuleId + ":" + r.FindingId, r.Explanation, value.meaning, value.action,

@@ -26,16 +26,28 @@ public sealed class HankiForm : Form
     private readonly CrashTimelinePanel timeline = new();
     private readonly DuplicatePanel duplicates = new();
     private readonly StartupFoldersPanel startupFolders = new();
-    private readonly ExtendedPerformancePanel longPerformance = new();
+    private static readonly LabState lab = new();
+    private readonly LabMonitorPanel longPerformance = new(lab);
+    private readonly BottleneckPanel bottleneck = new(lab);
+    private readonly StutterPanel stutter = new(lab);
     private readonly TuningPanel tuning = new();
     private readonly NetworkToolsPanel networkTools = new();
     private readonly DefenderToolsPanel defenderTools = new();
     private readonly DumpAnalysisPanel dumps = new();
     private readonly TroubleshootingPanel guidance = new();
     private readonly RecoveryPanel recovery = new();
+    private readonly SystemActionsPanel systemActions = new();
+    private readonly PerformanceSessionsPanel performanceSessions = new();
+    private static readonly GamingState gaming = new();
+    private readonly GamingOverviewPanel gamingOverview = new(gaming);
+    private readonly GamesPanel gamesPanel = new(gaming);
+    private readonly GpuPanel gpuPanel = new();
+    private readonly CpuPanel cpuPanel = new();
+    private readonly MemoryHealthPanel memoryHealth = new();
+    private readonly StoragePanel storagePanel = new();
     /// <summary>Every navigable tool, as listed in Find a tool.</summary>
     internal IReadOnlyList<ToolLauncher.Route> Routes { get; private set; } = [];
-    private ToolPage[] ExtraPages => [activation, updateHealth, batteryStartup, diagnosticHistory, fullScan, duplicates, startupFolders, longPerformance, tuning, networkTools, defenderTools, dumps, guidance, recovery, scanner];
+    private ToolPage[] ExtraPages => [activation, updateHealth, batteryStartup, diagnosticHistory, systemActions, performanceSessions, gamingOverview, gamesPanel, gpuPanel, bottleneck, stutter, cpuPanel, memoryHealth, storagePanel, fullScan, duplicates, startupFolders, longPerformance, tuning, networkTools, defenderTools, dumps, guidance, recovery, scanner];
 
     public HankiForm()
     {
@@ -47,21 +59,24 @@ public sealed class HankiForm : Form
         ForeColor = HankiTheme.Text;
         StartPosition = FormStartPosition.CenterScreen;
         void Navigate(string name) { var page = tabs.TabPages.Cast<TabPage>().FirstOrDefault(p => p.Text == name); if (page is not null) tabs.SelectedTab = page; }
-        Page("Home").Controls.Add(new Dashboard(Navigate, () => { Navigate("Full system scan"); fullScan.Start(); }));
-        Page("Full system scan").Controls.Add(fullScan);
-        Page("Diagnostic history").Controls.Add(diagnosticHistory);
-        var shield = Page("Shield · experimental");
+        void StartFixMyPc() { Navigate("Fix My PC"); fullScan.Start(); }
+        // One workspace page per navigation destination, in sidebar order (HANKI-ARCH-200).
+        foreach (var item in Navigation.Items) Page(item.Page);
+        TabPage At(string page) => tabs.TabPages.Cast<TabPage>().Single(p => p.Text == page);
+        At("Home").Controls.Add(new HomePanel(Navigate, StartFixMyPc));
+        At("System overview").Controls.Add(new Dashboard(Navigate, StartFixMyPc));
+        At("Fix My PC").Controls.Add(fullScan);
+        var shield = At("Shield");
         shield.Controls.Add(defender);
-        var net = Page("Connect"); net.Controls.Add(connection);
-        var history = Page("Scan history"); var historyText = Report(); history.Controls.Add(historyText);
-        tabs.SelectedIndexChanged += (_, _) => {
-            if (tabs.SelectedTab == history) {
-                try {
-                    var entries = new HistoryStore().GetEntries();
-                    historyText.Text = entries.Count == 0 ? "No scans recorded yet. Run a file or folder scan in Shield to create a summary." : string.Join("\r\n\r\n", entries.Select(x =>
-                        $"{x.FinishedAt.ToLocalTime():g} | {x.Target}\r\n{x.FilesScanned} files, {x.DetectionCount} findings, {x.Skipped} skipped, {x.Errors} errors"));
-                } catch (IOException ex) { historyText.Text = ex.Message; }
-            }
+        var net = At("Connect"); net.Controls.Add(connection);
+        var historyText = Report();
+        historyText.VisibleChanged += (_, _) => {
+            if (!historyText.Visible) return;
+            try {
+                var entries = new HistoryStore().GetEntries();
+                historyText.Text = entries.Count == 0 ? "No scans recorded yet. Run a file or folder scan in Shield to create a summary." : string.Join("\r\n\r\n", entries.Select(x =>
+                    $"{x.FinishedAt.ToLocalTime():g} | {x.Target}\r\n{x.FilesScanned} files, {x.DetectionCount} findings, {x.Skipped} skipped, {x.Errors} errors"));
+            } catch (IOException ex) { historyText.Text = ex.Message; }
         };
         var maintenance = new HankiTabs { Dock = DockStyle.Fill };
         var filesPage = new TabPage("Files & storage"); filesPage.Controls.Add(maintain);
@@ -72,33 +87,55 @@ public sealed class HankiForm : Form
         maintenance.TabPages.AddRange([usagePage, startupPage]);
         AddTab(maintenance, "Duplicates", duplicates); AddTab(maintenance, "Startup folders", startupFolders);
         apps.MapUsageRequested += app => { usage.Map(app); maintenance.SelectedTab = usagePage; };
-        Page("Maintain").Controls.Add(maintenance);
-        Page("Performance").Controls.Add(performance);
-        var assistantPage = Page("Assistant"); assistantPage.Controls.Add(assistant);
+        At("Maintain").Controls.Add(maintenance);
+        var assistantPage = At("Assistant"); assistantPage.Controls.Add(assistant);
         AttachDetail(assistantPage, "Prepare / redact", "In-app AI (optional)", ai);
         void SelectInner(Control control) { if (control.Parent is TabPage page && page.Parent is TabControl inner) inner.SelectedTab = page; }
         assistant.AiRequested += text => { if (ai.LoadDraft(text)) SelectInner(ai); };
         void Prepare(string text) { if (assistant.LoadReport(text)) { tabs.SelectedTab = assistantPage; SelectInner(assistant); } }
         // Guided checks lead: people start from a symptom, then open the tool each step points to.
-        var diagnosePage = Page("Diagnose"); diagnosePage.Controls.Add(guidance);
+        var diagnosePage = At("Diagnose"); diagnosePage.Controls.Add(guidance);
         AttachDetail(diagnosePage, "Guided checks", "Crash timeline", timeline);
         timeline.PrepareRequested += Prepare;
         var diagnoseTabs = diagnosePage.Controls.OfType<TabControl>().Single();
-        AddTab(diagnoseTabs, "Recent Event Logs", diagnose); AddTab(diagnoseTabs, "Windows Activation", activation); AddTab(diagnoseTabs, "Windows Update", updateHealth); AddTab(diagnoseTabs, "Dump analysis", dumps);
+        AddTab(diagnoseTabs, "Recent Event Logs", diagnose); AddTab(diagnoseTabs, "Windows Activation", activation); AddTab(diagnoseTabs, "Windows Update", updateHealth);
+        // Battery wear, restarts and startup records are health checks, so they live in Hanki System.
+        AddTab(diagnoseTabs, "Battery & startup", batteryStartup); AddTab(diagnoseTabs, "Dump analysis", dumps);
         // Microsoft Defender is the real protection; Hanki's experimental scanner comes last.
         AttachDetail(shield, "Defender audit", "Defender controls / alerts", defenderTools);
-        AddTab(shield.Controls.OfType<TabControl>().Single(), "File scanner (experimental)", scanner);
+        var shieldTabs = shield.Controls.OfType<TabControl>().Single();
+        AddTab(shieldTabs, "File scanner (experimental)", scanner); AddTab(shieldTabs, "File scan history", historyText);
         AttachDetail(net, "Basic checks", "Wi-Fi / latency", networkDeep);
         AddTab(net.Controls.OfType<TabControl>().Single(), "Advanced / DNS repair", networkTools);
-        var performancePage = performance.Parent as TabPage;
-        if (performancePage is not null) {
-            AttachDetail(performancePage, "Snapshot / pagefile", "30-second sample", sampling);
-            var performanceTabs = performancePage.Controls.OfType<TabControl>().Single();
-            AddTab(performanceTabs, "Long monitoring / saved runs", longPerformance); AddTab(performanceTabs, "Power tuning", tuning); AddTab(performanceTabs, "Battery & startup", batteryStartup);
-        }
-        Page("Recovery").Controls.Add(recovery);
-        Page("Help & community").Controls.Add(new SupportPanel());
-        Page("Hanki Pro").Controls.Add(new LicensePanel());
+        At("Recovery").Controls.Add(recovery);
+
+        // Hanki Performance. Pages without their tools yet say what will be there; nothing runs by opening them.
+        At("Performance overview").Controls.Add(new PerformanceOverviewPanel(Navigate));
+        var gamingTabs = new HankiTabs { Dock = DockStyle.Fill };
+        AddTab(gamingTabs, "Overview", gamingOverview); AddTab(gamingTabs, "Games", gamesPanel);
+        At("Gaming").Controls.Add(gamingTabs);
+        At("GPU").Controls.Add(gpuPanel);
+        var cpuTabs = new HankiTabs { Dock = DockStyle.Fill };
+        AddTab(cpuTabs, "Processor", cpuPanel); AddTab(cpuTabs, "Power plans", tuning);
+        At("CPU").Controls.Add(cpuTabs);
+        var memoryTabs = new HankiTabs { Dock = DockStyle.Fill };
+        AddTab(memoryTabs, "Memory & pagefile", performance); AddTab(memoryTabs, "Memory health", memoryHealth);
+        At("Memory").Controls.Add(memoryTabs);
+        At("Storage").Controls.Add(storagePanel);
+        var labTabs = new HankiTabs { Dock = DockStyle.Fill };
+        AddTab(labTabs, "Monitor", longPerformance); AddTab(labTabs, "Comparisons", sampling);
+        AddTab(labTabs, "Bottleneck Analyzer", bottleneck);
+        AddTab(labTabs, "Stutter Diagnostics", stutter);
+        AddTab(labTabs, "Benchmarks", new PlannedPanel("Benchmarks", "Repeatable measurements so before/after comparisons are fair."));
+        AddTab(labTabs, "Advanced Tuning", new PlannedPanel("Advanced Tuning", "Vendor-supported GPU auto-tuning, kept separate from normal optimization: it is never started by a profile or by Fix My PC, always asks for explicit confirmation, and saves the starting configuration first."));
+        At("Performance Lab").Controls.Add(labTabs);
+
+        var systemHistory = new HankiTabs { Dock = DockStyle.Fill };
+        AddTab(systemHistory, "Timeline", systemActions); AddTab(systemHistory, "Saved scans", diagnosticHistory);
+        At("System actions").Controls.Add(systemHistory);
+        At("Performance sessions").Controls.Add(performanceSessions);
+        At("Help & community").Controls.Add(new SupportPanel());
+        At("Hanki Pro").Controls.Add(new LicensePanel());
         foreach (var extra in ExtraPages) extra.PrepareRequested += Prepare;
         diagnose.PrepareRequested += Prepare; defender.PrepareRequested += Prepare;
         networkDeep.PrepareRequested += Prepare; sampling.PrepareRequested += Prepare;
@@ -112,14 +149,17 @@ public sealed class HankiForm : Form
         };
         sidebar.Controls.Add(new BrandHeader { Margin = new Padding(0, 0, 0, 10) });
         var navigation = new List<(HankiButton Button, TabPage Page)>();
-        Label Group(string text) => new() { Text = text, AutoSize = true, Tag = "intro", Font = new Font("Segoe UI", 8.25f, FontStyle.Bold), Margin = new Padding(14, 18, 0, 6) };
-        foreach (var name in new[] { "Home", "Full system scan", "Diagnose", "Performance", "Maintain", "Connect", "Shield · experimental", "Assistant", "Diagnostic history", "Scan history", "Recovery", "Help & community", "Hanki Pro" }) {
-            if (name == "Diagnose") sidebar.Controls.Add(Group("TOOLS"));
-            if (name == "Diagnostic history") sidebar.Controls.Add(Group("RECORDS & SUPPORT"));
-            var page = tabs.TabPages.Cast<TabPage>().Single(p => p.Text == name);
-            var button = new HankiButton { Text = name == "Shield · experimental" ? "Shield" : name,
-                Width = 214, Height = 38, Margin = new Padding(0, 1, 0, 1), AccessibleName = "Open " + name,
-                IconKind = name, Appearance = HankiButtonStyle.Navigation, Font = new Font("Segoe UI", 10.25f) };
+        // Area groups are labelled in the area's accent, so System and Performance read as two parts of one app.
+        Label Group(ProductArea area) => new() { Text = Navigation.GroupLabel(area), AutoSize = true, Font = new Font("Segoe UI", 8.25f, FontStyle.Bold), Margin = new Padding(14, 10, 0, 3),
+            Tag = area switch { ProductArea.System => "accent", ProductArea.Performance => "accent-performance", _ => "intro" }, AccessibleRole = AccessibleRole.StaticText };
+        ProductArea? group = null;
+        foreach (var item in Navigation.Items) {
+            if (item.Area != ProductArea.Home && item.Area != group) sidebar.Controls.Add(Group(item.Area));
+            group = item.Area;
+            var page = At(item.Page);
+            var button = new HankiButton { Text = item.Label, Width = 214, Height = 32, Margin = new Padding(0, 1, 0, 1),
+                AccessibleName = "Open " + item.Page + item.Area switch { ProductArea.System => ", Hanki System", ProductArea.Performance => ", Hanki Performance", _ => "" },
+                IconKind = item.Icon, AreaAccent = HankiTheme.AreaAccent(item.Area), Appearance = HankiButtonStyle.Navigation, Font = new Font("Segoe UI", 10f) };
             button.Click += (_, _) => tabs.SelectedTab = page;
             navigation.Add((button, page)); sidebar.Controls.Add(button);
         }
@@ -179,10 +219,13 @@ public sealed class HankiForm : Form
         search.Click += (_, _) => FindTool();
         KeyPreview = true;
         KeyDown += (_, e) => { if (e.KeyCode == Keys.F1) { Navigate("Help & community"); e.SuppressKeyPress = true; } if (e.Control && e.KeyCode == Keys.K) { FindTool(); e.SuppressKeyPress = true; } };
-        var header = new Panel { Dock = DockStyle.Top, Height = 70, Padding = new Padding(0, 0, 22, 0) };
-        var searchHost = new FlowLayoutPanel { Dock = DockStyle.Right, AutoSize = true, WrapContents = false, Padding = new Padding(0, 18, 0, 0), Margin = Padding.Empty };
+        var header = new Panel { Dock = DockStyle.Top, Height = 80, Padding = new Padding(0, 0, 22, 0) };
+        var searchHost = new FlowLayoutPanel { Dock = DockStyle.Right, AutoSize = true, WrapContents = false, Padding = new Padding(0, 22, 0, 0), Margin = Padding.Empty };
         searchHost.Controls.Add(search);
-        title.Dock = DockStyle.Fill; header.Controls.Add(title); header.Controls.Add(searchHost);
+        // The area above the title: HANKI SYSTEM or HANKI PERFORMANCE, in that area's accent.
+        var area = new Label { Dock = DockStyle.Top, Height = 30, Padding = new Padding(24, 12, 0, 0), Font = new Font("Segoe UI", 8.25f, FontStyle.Bold), Tag = "accent", AccessibleName = "Current area" };
+        title.Dock = DockStyle.Fill; title.Padding = new Padding(22, 0, 0, 0);
+        header.Controls.Add(title); header.Controls.Add(area); header.Controls.Add(searchHost);
         var introduction = new Label { Dock = DockStyle.Top, AutoSize = false, Padding = new Padding(24, 0, 24, 16),
             Font = new Font("Segoe UI", 10f), Tag = "intro", AccessibleName = "About this module" };
         void FitIntroduction() {
@@ -200,23 +243,13 @@ public sealed class HankiForm : Form
             // Before the handle exists SelectedTab can be null although Home is shown.
             var current = tabs.SelectedTab ?? (tabs.TabCount > 0 ? tabs.TabPages[0] : null);
             foreach (var item in navigation) item.Button.Selected = current == item.Page;
-            title.Text = current?.Text switch { "Home" => "Welcome to Hanki Tools", "Shield · experimental" => "Shield", var text => text };
-            introduction.Text = current?.Text switch {
-                "Home" => "Your Windows toolbox. Inspect, maintain and troubleshoot your PC from one place.",
-                "Full system scan" => "One read-only pass across Windows, storage, devices, security and performance. Select a result to see what it means and what to do next.",
-                "Diagnostic history" => "Open or compare saved Full System Scan results and manage optional scheduled checks. History stays on this PC.",
-                "Diagnose" => "Explore crash events, inspect dumps and follow guided checks to narrow down possible causes and choose your next troubleshooting step.",
-                "Performance" => "Measure memory and system activity, compare monitoring sessions and review power settings to understand slowdowns before making changes.",
-                "Maintain" => "Find large or duplicate files, review installed apps and manage startup entries to reclaim storage and reduce unnecessary startup activity.",
-                "Connect" => "Check your connection, compare DNS and trace network routes to investigate slow or unreliable access and review repair options.",
-                "Shield · experimental" => "Review Microsoft Defender protection, run scans and inspect findings to see what needs attention. Hanki’s separate file scanner is experimental.",
-                "Assistant" => "Prepare and redact diagnostic reports, then use optional AI chat to help explain the evidence and explore next steps.",
-                "Recovery" => "Review recorded changes and undo supported actions when you need to return to a previous configuration.",
-                "Help & community" => "Find guides, join the community, get remote help from someone you trust, prepare a bug report and check your version.",
-                "Hanki Pro" => "Add scheduled checks, automatic repairs and customer reports with a licence key. Every free tool stays free.",
-                "Scan history" => "Review past file-scan summaries to see what was checked, when it ran and how many findings were reported.",
-                _ => ""
-            };
+            var destination = current is null ? null : Navigation.Find(current.Text);
+            var productArea = destination?.Area ?? ProductArea.Home;
+            title.Text = destination is null ? current?.Text ?? "" : Navigation.Title(destination);
+            introduction.Text = destination?.Introduction ?? "";
+            area.Text = Navigation.AreaName(productArea);
+            area.Tag = productArea == ProductArea.Performance ? "accent-performance" : productArea == ProductArea.System ? "accent" : "intro";
+            HankiTheme.Apply(area);
             FitIntroduction();
         }
         tabs.SelectedIndexChanged += (_, _) => RefreshNavigation(); RefreshNavigation();
@@ -233,7 +266,7 @@ public sealed class HankiForm : Form
             sampling.Cancel(); ai.Cancel(); timeline.Cancel(); usage.Stop(); defenderTools.StopMonitoring(); foreach (var page in ExtraPages) page.Cancel();
         }
         string[] ActiveTasks() => new[] {
-            (fullScan.IsBusy, "Full system scan / repair"), (scanner.IsBusy, "File scan"), (maintain.IsBusy, "Files"), (apps.IsBusy, "Apps"), (performance.IsBusy || sampling.IsBusy || longPerformance.IsBusy, "Performance"),
+            (fullScan.IsBusy, "Fix My PC"), (scanner.IsBusy, "File scan"), (maintain.IsBusy, "Files"), (apps.IsBusy, "Apps"), (performance.IsBusy || sampling.IsBusy || longPerformance.IsBusy, "Performance"),
             (diagnose.IsBusy || timeline.IsBusy || dumps.IsBusy || activation.IsBusy, "Diagnose"), (defender.IsBusy || defenderTools.IsBusy || defenderTools.MonitoringBusy, "Defender"),
             (connection.IsBusy || networkDeep.IsBusy || networkTools.IsBusy, "Connect"), (ai.IsBusy, "AI request"), (usage.IsBusy, "App observation"),
             (duplicates.IsBusy || startupFolders.IsBusy || tuning.IsBusy || guidance.IsBusy || recovery.IsBusy || diagnosticHistory.IsBusy, "Maintenance / recovery")

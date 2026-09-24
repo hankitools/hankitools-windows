@@ -12,6 +12,22 @@
     <Compile Include="../src/IgezziGuard/Technician/TechnicianSession.cs" Link="Technician/TechnicianSession.cs" />
     <Compile Include="../src/IgezziGuard/Technician/TechnicianReport.cs" Link="Technician/TechnicianReport.cs" />
     <Compile Include="../src/IgezziGuard/Repairs/RepairGuidance.cs" Link="Repairs/RepairGuidance.cs" />
+    <Compile Include="../src/IgezziGuard/Navigation.cs" Link="Navigation.cs" />
+    <Compile Include="../src/IgezziGuard/Performance/PerformanceSessions.cs" Link="Performance/PerformanceSessions.cs" />
+    <Compile Include="../src/IgezziGuard/History/SystemActions.cs" Link="History/SystemActions.cs" />
+    <Compile Include="../src/IgezziGuard/Performance/GraphicsModel.cs" Link="Performance/GraphicsModel.cs" />
+    <Compile Include="../src/IgezziGuard/Performance/GraphicsProbe.cs" Link="Performance/GraphicsProbe.cs" />
+    <Compile Include="../src/IgezziGuard/Performance/WindowsGamingProbe.cs" Link="Performance/WindowsGamingProbe.cs" />
+    <Compile Include="../src/IgezziGuard/Performance/NvidiaModel.cs" Link="Performance/NvidiaModel.cs" />
+    <Compile Include="../src/IgezziGuard/Performance/Nvidia.cs" Link="Performance/Nvidia.cs" />
+    <Compile Include="../src/IgezziGuard/Performance/GamingHealth.cs" Link="Performance/GamingHealth.cs" />
+    <Compile Include="../src/IgezziGuard/Performance/GamingProfiles.cs" Link="Performance/GamingProfiles.cs" />
+    <Compile Include="../src/IgezziGuard/Performance/GameLibrary.cs" Link="Performance/GameLibrary.cs" />
+    <Compile Include="../src/IgezziGuard/Performance/PerformanceSettings.cs" Link="Performance/PerformanceSettings.cs" />
+    <Compile Include="../src/IgezziGuard/Performance/GamingDiagnostic.cs" Link="Performance/GamingDiagnostic.cs" />
+    <Compile Include="../src/IgezziGuard/Performance/MonitorModel.cs" Link="Performance/MonitorModel.cs" />
+    <Compile Include="../src/IgezziGuard/Performance/SystemFacts.cs" Link="Performance/SystemFacts.cs" />
+    <Compile Include="../src/IgezziGuard/Performance/Guardrails.cs" Link="Performance/Guardrails.cs" />
     <Compile Include="../src/IgezziGuard/Entitlements/Entitlements.cs" Link="Entitlements/Entitlements.cs" />
     <Compile Include="../src/IgezziGuard/Entitlements/PolarLicensing.cs" Link="Entitlements/PolarLicensing.cs" />
     <Compile Include="../src/IgezziGuard/Identity/IdentitySession.cs" Link="Identity/IdentitySession.cs" />

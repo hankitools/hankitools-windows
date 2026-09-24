@@ -9,6 +9,9 @@ internal static class HankiTheme
     internal static readonly Color Text = Color.FromArgb(240, 243, 247);
     internal static readonly Color Muted = Color.FromArgb(160, 171, 186);
     internal static readonly Color Accent = Color.FromArgb(101, 181, 255);
+    // Hanki Performance uses the same design with its own accent, so the current area is always recognisable.
+    internal static readonly Color PerformanceAccent = Color.FromArgb(186, 150, 255);
+    internal static Color AreaAccent(ProductArea area) => area == ProductArea.Performance ? PerformanceAccent : Accent;
     internal static readonly Color PrimaryFill = Color.FromArgb(0, 105, 220);
     internal static readonly Color PrimaryHover = Color.FromArgb(18, 122, 238);
     internal static readonly Color Border = Color.FromArgb(44, 51, 62);
@@ -50,7 +53,7 @@ internal static class HankiTheme
         bool cardSurface = root.Tag as string == "card" || root.Parent?.Tag as string == "card";
         root.BackColor = highContrast ? SystemColors.Control : pine ? Pine : cardSurface ? Surface : Canvas;
         root.ForeColor = highContrast ? SystemColors.ControlText : root.Tag switch {
-            "intro" => Muted, "accent" => Accent,
+            "intro" => Muted, "accent" => Accent, "accent-performance" => PerformanceAccent,
             "status-good" => Success, "status-review" => Warning, "status-problem" => Critical, "status-unknown" => Muted,
             _ => Text };
         switch (root)
