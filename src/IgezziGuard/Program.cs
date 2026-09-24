@@ -15,8 +15,8 @@ internal static class Program
         AppDomain.CurrentDomain.UnhandledException += (_, args) =>
             ShowFatal(args.ExceptionObject as Exception ?? new InvalidOperationException("Unknown fatal error."));
 
-        if (args.Length == 2 && args[0] == "--ui-smoke-test") {
-            UiSmokeTest.Run(args[1]); return;
+        if (args.Length is 2 or 3 && args[0] == "--ui-smoke-test") {
+            UiSmokeTest.Run(args[1], args.Length == 3 ? args[2] : null); return;
         }
         try { SecurityPaths.EnsureCreated(); }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { MessageBox.Show("Hanki cannot open its local data folder.\n\n" + ex.Message, "Startup unavailable"); return; }
@@ -33,6 +33,8 @@ internal static class Program
 
     private static void ShowFatal(Exception exception)
     {
+        // Nobody can close a dialog during the automated UI check: record the error and fail it at once.
+        if (UiSmokeTest.Active) { UiSmokeTest.Note("FATAL " + exception); Environment.Exit(3); }
         bool logged = false;
         try
         {

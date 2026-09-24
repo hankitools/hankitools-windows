@@ -52,11 +52,16 @@ if ($CertificateThumbprint) {
     if ($signature.Status -ne 'Valid' -or $null -eq $signature.TimeStamperCertificate) { throw 'Valid timestamped signature required.' }
 }
 $smoke = Join-Path $publishDirectory 'ui-smoke.json'
-$process = Start-Process -FilePath $exe -ArgumentList @('--ui-smoke-test', ('"' + $smoke + '"')) -PassThru
-if (-not $process.WaitForExit(90000)) { $process.Kill(); throw 'UI smoke check exceeded 90 seconds.' }
+# Screenshots of the main pages go next to dist, outside the package, for reviewing layout changes.
+$screenshots = Join-Path $projectRoot 'dist\ui-screenshots'
+$process = Start-Process -FilePath $exe -ArgumentList @('--ui-smoke-test', ('"' + $smoke + '"'), ('"' + $screenshots + '"')) -PassThru
+$smokeProgress = "$smoke.progress.txt"
+function Show-SmokeProgress { if (Test-Path -LiteralPath $smokeProgress) { Write-Host 'UI smoke check progress (last steps):'; Get-Content -LiteralPath $smokeProgress -Tail 15 | Write-Host } }
+if (-not $process.WaitForExit(90000)) { $process.Kill(); Show-SmokeProgress; throw 'UI smoke check exceeded 90 seconds.' }
 $smokeExit = $process.ExitCode
 $process.Dispose()
-if ($smokeExit -ne 0 -or -not (Test-Path -LiteralPath $smoke)) { throw 'UI smoke check failed.' }
+if ($smokeExit -ne 0 -or -not (Test-Path -LiteralPath $smoke)) { Show-SmokeProgress; throw 'UI smoke check failed.' }
+Remove-Item -LiteralPath $smokeProgress -ErrorAction SilentlyContinue
 $smokeResult = Get-Content -LiteralPath $smoke -Raw | ConvertFrom-Json
 if ($smokeResult.Passed -ne $true -or $smokeResult.Version -ne $version) { throw 'UI smoke result did not pass for this version.' }
 $payloadPaths = @('HankiTools.exe','Data\signatures.txt','LICENSE','README-PORTABLE.md','PRIVACY.md','RELEASE-NOTES.md')
