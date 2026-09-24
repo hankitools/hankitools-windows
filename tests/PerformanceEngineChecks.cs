@@ -86,8 +86,8 @@ internal static class PerformanceEngineChecks
         Check(cpu.Single(r => r.FindingId == "core-parking").Explanation.StartsWith("No change recommended"), "cpu: core parking tweaks get 'no change recommended'");
 
         var pagefile = new PagefileFacts(true, [], [(@"C:\pagefile.sys", 5706, 1150)], 7);
-        MemoryFacts Memory(IReadOnlyList<MemoryModule> modules, ulong commit = 10, PagefileFacts? pf = null) =>
-            new(16UL << 30, 2, modules, commit << 30, 21UL << 30, 12UL << 30, 4UL << 30, pf ?? pagefile, [("chrome", 3UL << 30)]);
+        MemoryFacts Memory(IReadOnlyList<MemoryModule> modules, ulong commit = 10, PagefileFacts? pf = null, ulong peak = 12) =>
+            new(16UL << 30, 2, modules, commit << 30, 21UL << 30, peak << 30, 4UL << 30, pf ?? pagefile, [("chrome", 3UL << 30)]);
         var xmpOff = SystemAnalyzers.Memory(Memory([new("A1", 8UL << 30, 6000, 4800, "G.Skill", "F5-6000J3038F16G", 34), new("B1", 8UL << 30, 6000, 4800, "G.Skill", "F5-6000J3038F16G", 34)]), Now);
         Check(xmpOff.Any(r => r.FindingId == "memory-speed" && r.Severity == FindingSeverity.Warning && r.Recommendation!.Contains("XMP")), "memory: modules running below their reported rating point to XMP/EXPO in the BIOS");
         var hinted = SystemAnalyzers.Memory(Memory([new("A1", 16UL << 30, 4800, 4800, "Corsair", "CMK32GX5M2B6000C36", 34)]), Now);
@@ -97,6 +97,9 @@ internal static class PerformanceEngineChecks
         Check(!fine.Any(r => r.FindingId is "memory-speed" or "channels") && fine.Single(r => r.FindingId == "pagefile").Severity == FindingSeverity.Healthy && fine.First().Title == "16 GB DDR4",
             "memory: matched modules at their rated speed with a system-managed pagefile look fine");
         Check(SystemAnalyzers.Memory(Memory([], commit: 20), Now).Single(r => r.FindingId == "commit") is { Severity: FindingSeverity.Warning } high && high.Explanation.Contains("chrome"), "memory: nearly full commit is flagged with the biggest users");
+        Check(SystemAnalyzers.Memory(Memory([], peak: 28), Now).Single(r => r.FindingId == "commit") is { Severity: FindingSeverity.Informational, Title: "Memory ran short earlier" } shortage && shortage.Explanation.Contains("28 GB")
+            && SystemAnalyzers.Memory(Memory([]), Now).Single(r => r.FindingId == "commit") is { Severity: FindingSeverity.Healthy } fine2 && fine2.Explanation.Contains("12 GB") && !fine2.Explanation.Contains("%)"),
+            "memory: a peak above today's limit is explained in GB instead of as a percentage over 100");
         Check(SystemAnalyzers.Memory(Memory([], pf: new PagefileFacts(false, [], [], 7)), Now).Single(r => r.FindingId == "pagefile") is { Severity: FindingSeverity.Warning } off && off.Explanation.Contains("crash dumps"),
             "memory: a disabled pagefile is flagged, including the effect on crash dumps");
         Check(SystemAnalyzers.PartNumberSpeed("F5-6000J3038F16G") == 6000 && SystemAnalyzers.PartNumberSpeed("KF432C16BB/8") is null, "memory: part-number speeds are read only when clear");

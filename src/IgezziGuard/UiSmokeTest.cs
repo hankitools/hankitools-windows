@@ -75,6 +75,11 @@ internal static class UiSmokeTest
                     .Concat(Navigation.Moved.Values);
                 var absent = destinations.Where(d => form.Routes.All(r => r.Name != d)).ToArray();
                 if (absent.Length > 0) throw new IOException("Navigation destinations without a page: " + string.Join("; ", absent));
+                // rc.5: a button labelled with "&" was measured wider than drawn and grew on every layout pass.
+                using (var amp = new HankiButton { Text = "Memory & pagefile", AutoSize = true, Appearance = HankiButtonStyle.Tab }) {
+                    var once = amp.GetPreferredSize(Size.Empty); amp.Size = once;
+                    if (amp.GetPreferredSize(Size.Empty) != once) throw new IOException("A button labelled with & changes size on every layout.");
+                }
                 // Screenshots for reviewing layout changes; a capture problem is reported but doesn't fail the check.
                 if (screenshotFolder is not null) {
                     try {

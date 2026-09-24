@@ -35,6 +35,8 @@ public sealed class HankiButton : Button
         FlatStyle = FlatStyle.Flat; FlatAppearance.BorderSize = 0;
         Padding = new Padding(14, 5, 14, 5); MinimumSize = new Size(0, 38);
         Cursor = Cursors.Hand; UseVisualStyleBackColor = false;
+        // Text is drawn literally ("Memory & pagefile"), so it is measured literally too.
+        UseMnemonic = false;
         SetStyle(ControlStyles.UserPaint | ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer, true);
     }
     protected override void OnDpiChangedAfterParent(EventArgs e) { base.OnDpiChangedAfterParent(e); UpdateSize(); }
@@ -52,8 +54,6 @@ public sealed class HankiButton : Button
         if (Appearance == HankiButtonStyle.Icon) return MinimumSize;
         var size = base.GetPreferredSize(proposedSize);
         float scale = DeviceDpi / 96f;
-        // The base measurement treats "&" as a mnemonic marker; text is drawn literally.
-        size.Width += TextRenderer.MeasureText(Text, Font, Size.Empty, TextFormatFlags.NoPrefix).Width - TextRenderer.MeasureText(Text, Font).Width;
         if (IconKind is not null) size.Width += (int)(26 * scale);
         if (Hint is not null) size.Width += TextRenderer.MeasureText(Hint, Font).Width + (int)(12 * scale);
         return size;

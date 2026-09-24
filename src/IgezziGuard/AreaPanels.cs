@@ -57,7 +57,8 @@ internal sealed class HomePanel : UserControl
         Controls.Add(glance); Controls.Add(ToolTiles.Heading("Your PC at a glance"));
         Controls.Add(cards); Controls.Add(search);
         ToolTiles.TopDown(this);
-        VisibleChanged += async (_, _) => { if (Visible) { RefreshStatus(); await RefreshGlance(); } };
+        // Also lay out when shown: a resize while another page was open leaves the old arrangement.
+        VisibleChanged += async (_, _) => { if (Visible) { Fit(); FitTiles(); RefreshStatus(); await RefreshGlance(); } };
         RefreshStatus(); Fit(); FitTiles();
     }
 

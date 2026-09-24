@@ -101,8 +101,14 @@ public static partial class SystemAnalyzers
                 $"Programs have reserved {GB(m.CommitBytes)} of the {GB(m.CommitLimitBytes)} Windows can back with RAM and the pagefile. Near the limit, programs can fail to start or crash, and games stutter while Windows pages memory. Biggest users now: " +
                 string.Join(", ", m.TopProcesses.Take(4).Select(p => $"{p.Name} {GB(p.PrivateBytes)}")) + ".",
                 $"{commit:0}%", "Below 80%", GamingHealth.RemedyNone, now, "Close programs you aren't using, keep the pagefile system-managed, and consider more RAM if this is normal for you. Hanki doesn't close programs."));
+        else if (m.CommitLimitBytes > 0 && m.CommitPeakBytes > m.CommitLimitBytes)
+            // The peak is above today's limit only if the limit was higher then: a system-managed pagefile grew and shrank again.
+            r.Add(Result("perf-memory", "commit", FindingSeverity.Informational, "Memory ran short earlier",
+                $"{commit:0}% of the memory Windows can back is in use now ({GB(m.CommitBytes)} of {GB(m.CommitLimitBytes)}). Since the last restart, programs reserved up to {GB(m.CommitPeakBytes)}, more than today's limit, so Windows had grown the pagefile to make room. Growing it while you play can cause stutter.",
+                $"Peak {GB(m.CommitPeakBytes)}", $"Below {GB(m.CommitLimitBytes)}", GamingHealth.RemedyNone, now,
+                "If this happened while gaming, close programs you don't need before playing; if it's normal for you, more RAM helps. Hanki doesn't close programs."));
         else
-            r.Add(Result("perf-memory", "commit", FindingSeverity.Healthy, "Memory headroom", $"{commit:0}% of the memory Windows can back is in use (peak since start {peak:0}%).", $"{commit:0}%", "Below 80%", GamingHealth.RemedyNone, now));
+            r.Add(Result("perf-memory", "commit", FindingSeverity.Healthy, "Memory headroom", $"{commit:0}% of the memory Windows can back is in use ({GB(m.CommitBytes)} of {GB(m.CommitLimitBytes)}); the peak since the last restart was {GB(m.CommitPeakBytes)}.", $"{commit:0}%", "Below 80%", GamingHealth.RemedyNone, now));
 
         // Pagefile (HANKI-PERF-305). System-managed is the normal default; no size formula is used.
         var p = m.Pagefile;
