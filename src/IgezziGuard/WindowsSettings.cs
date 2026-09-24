@@ -91,7 +91,7 @@ internal sealed class WindowsSettings : ISettingBackend
 
 public sealed class RecoveryPanel : ToolPage
 {
-    private readonly ComboBox entries = new() { Width = 420, DropDownStyle = ComboBoxStyle.DropDownList };
+    private readonly ComboBox entries = new() { Width = 360, DropDownStyle = ComboBoxStyle.DropDownList };
     private List<SettingChange> records = [];
     public RecoveryPanel() : base("Recovery covers power plans, IPv4 DNS and startup-folder files. Current state must match a saved state before undo. Registry startup actions remain under Startup / undo. Recycled files are restored through Windows Recycle Bin; no claim of automatic file rollback.") {
         Bar.Controls.Add(entries);

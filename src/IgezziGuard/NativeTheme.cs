@@ -127,8 +127,10 @@ internal static class NativeTheme
         private void Paint(Graphics g)
         {
             float s = box.DeviceDpi / 96f;
+            // Only this control's rectangle: a printing device context covers the whole window being printed.
+            g.SetClip(new Rectangle(0, 0, box.Width, box.Height));
+            using (var back = new SolidBrush(box.Parent?.BackColor ?? HankiTheme.Canvas)) g.FillRectangle(back, 0, 0, box.Width, box.Height);
             g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
-            g.Clear(box.Parent?.BackColor ?? HankiTheme.Canvas);
             using (var path = HankiButton.Rounded(new RectangleF(0.5f, 0.5f, box.Width - 1.5f, box.Height - 1.5f), HankiTheme.ControlRadius * s)) {
                 using var fill = new SolidBrush(HankiTheme.Surface); g.FillPath(fill, path);
                 bool active = box.Focused || box.DroppedDown;
@@ -165,8 +167,10 @@ internal static class NativeTheme
         private void Paint(Graphics g)
         {
             int edgeX = Math.Max(1, (box.Width - box.ClientSize.Width) / 2), edgeY = Math.Max(1, (box.Height - box.ClientSize.Height) / 2);
+            // The frame only: within the window, outside the client area.
+            g.SetClip(new Rectangle(0, 0, box.Width, box.Height));
             g.ExcludeClip(new Rectangle(edgeX, edgeY, box.ClientSize.Width, box.ClientSize.Height));
-            g.Clear(box.BackColor);
+            using (var back = new SolidBrush(box.BackColor)) g.FillRectangle(back, 0, 0, box.Width, box.Height);
             using var pen = new Pen(box.Focused ? HankiTheme.Accent : HankiTheme.Border);
             g.DrawRectangle(pen, 0, 0, box.Width - 1, box.Height - 1);
         }

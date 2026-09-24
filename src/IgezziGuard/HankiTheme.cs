@@ -100,7 +100,8 @@ internal static class HankiTheme
                     // Lists sit on their own surface; the white native edge goes.
                     if (root is ListView { BorderStyle: not BorderStyle.None } list) list.BorderStyle = BorderStyle.None;
                     if (root is ListBox { BorderStyle: not BorderStyle.None } listBox) listBox.BorderStyle = BorderStyle.None;
-                    if (root is UpDownBase { BorderStyle: BorderStyle.Fixed3D } upDown) upDown.BorderStyle = BorderStyle.FixedSingle;
+                    // Number boxes: a flat field on the surface color; their native frame stays light in dark mode.
+                    if (root is UpDownBase { BorderStyle: not BorderStyle.None } upDown) upDown.BorderStyle = BorderStyle.None;
                 }
                 // Multiline edges and scrollbars cannot both be dark; use a filled, borderless box with inner margins.
                 if (!highContrast && root is TextBoxBase { Multiline: true } multiline && multiline.BorderStyle != BorderStyle.None) {
