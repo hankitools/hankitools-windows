@@ -65,16 +65,26 @@ internal static class WindowsGamingProbe
     }
 
     [DllImport("powrprof.dll")] private static extern uint PowerGetEffectiveOverlayScheme(out Guid overlay);
+    // Sets the power mode as Settings → System → Power does (for the current power source). Exported by powrprof.dll
+    // since Windows 10 1709, like the getter above, but not in the Windows SDK headers.
+    [DllImport("powrprof.dll")] private static extern uint PowerSetActiveOverlayScheme(Guid overlay);
     [DllImport("powrprof.dll")] private static extern uint PowerGetActiveScheme(IntPtr root, out IntPtr scheme);
     [DllImport("powrprof.dll")] private static extern uint PowerReadFriendlyName(IntPtr root, ref Guid scheme, IntPtr group, IntPtr setting, IntPtr buffer, ref uint size);
     [DllImport("powrprof.dll")] private static extern uint PowerReadACValueIndex(IntPtr root, ref Guid scheme, ref Guid group, ref Guid setting, out uint value);
     [DllImport("powrprof.dll")] private static extern uint PowerReadDCValueIndex(IntPtr root, ref Guid scheme, ref Guid group, ref Guid setting, out uint value);
     [DllImport("kernel32.dll")] private static extern IntPtr LocalFree(IntPtr memory);
 
-    private static string? PowerMode()
+    internal static string? PowerMode()
     {
         try { return PowerGetEffectiveOverlayScheme(out var overlay) == 0 ? WindowsGamingParsing.PowerModeName(overlay) : null; }
         catch (EntryPointNotFoundException) { return null; }
+    }
+    internal static void SetPowerMode(Guid overlay)
+    {
+        uint status;
+        try { status = PowerSetActiveOverlayScheme(overlay); }
+        catch (EntryPointNotFoundException) { throw new IOException("This version of Windows doesn't let apps change the power mode."); }
+        if (status != 0) throw new IOException($"Windows didn't accept the power mode (error {status}).");
     }
     private static Guid? ActivePlan()
     {

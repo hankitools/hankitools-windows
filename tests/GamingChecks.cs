@@ -6,7 +6,7 @@ internal static class GamingChecks
     private static void Check(bool ok, string text) => DiagnosticChecks.Check(ok, text);
     private static bool Throws(Action action) { try { action(); return false; } catch (IOException) { return true; } }
     private static readonly DateTimeOffset Now = new(2026, 9, 24, 12, 0, 0, TimeSpan.Zero);
-    internal static void Run() { Facts(); Health(); Profiles(); NvidiaGlobal(); WindowsGaming(); Tune(); Radeon(); Background(); Launch(); Library(); Live(); }
+    internal static void Run() { Facts(); Health(); Profiles(); NvidiaGlobal(); WindowsGaming(); Tune(); TuneSteps(); Radeon(); Background(); Launch(); Library(); Live(); }
 
     private static GpuAdapter Gpu(GpuVendor vendor, string name, ulong memory, int rank, long luid) =>
         new(name, vendor, 0, 0, luid, memory, 8 * GraphicsFacts.GiB, rank, "32.0.16.1692", new DateTime(2026, 9, 4), GraphicsFacts.LikelyIntegrated(vendor, memory));
@@ -229,8 +229,8 @@ internal static class GamingChecks
             "profiles: Balanced offers the Windows opportunities and leaves mouse acceleration alone");
         Check(GamingProfiles.Propose(GamingGoal.Competitive, graphics, findings, null).Single(c => c.Target == "mouse-acceleration") is { After: "0,0,0", Optional: true },
             "profiles: Competitive offers to turn mouse acceleration off");
-        Check(balanced.All(c => Guardrails.Allowed(c)) && PerformanceSettings.WindowsGamingTargets.SetEquals(["game-mode", "background-recording", "windowed-optimizations", "variable-refresh", "mouse-acceleration"]),
-            "settings: only the five Windows gaming settings can be changed");
+        Check(balanced.All(c => Guardrails.Allowed(c)) && PerformanceSettings.WindowsGamingTargets.SetEquals(["game-mode", "background-recording", "windowed-optimizations", "variable-refresh", "mouse-acceleration", "power-mode"]),
+            "settings: only the six Windows gaming settings can be changed");
     }
 
     private static DiagnosticResult Finding(string module, string id, FindingSeverity severity, string recommendation) =>
@@ -296,6 +296,59 @@ internal static class GamingChecks
         Check(amd.Changes.Single(c => c.Id == "tune-amd").Manual!.Contains("Anti-Lag on") && amd.Changes.Single(c => c.Id == "tune-amd").Manual!.Contains("162 FPS") && !amd.Changes.Any(c => c.Kind == NvidiaPresets.ChangeKind),
             "tune: Radeon owners get the matching AMD Software settings as a step");
         Check(Enum.GetValues<TuneScenario>().All(v => TunePlanner.Name(v).Length > 0 && !Navigation.UsesFaultLanguage(TunePlanner.Describe(v))), "tune: every choice has a name and a plain description");
+    }
+
+    // Steps Tune my PC used to leave to you that it now applies or reads itself.
+    private static void TuneSteps()
+    {
+        const string Wg = "Windows gaming setting";
+        var rtx = Gpu(GpuVendor.Nvidia, "NVIDIA GeForce RTX 4070", 12 * GraphicsFacts.GiB, 0, 1);
+        var desktop = Desktop(Display(165, 1, 165), rtx);
+        var tuned = Windows() with { WindowedOptimizations = true, Mouse = [0, 0, 0] };
+        TunePlan Plan(TuneScenario scenario, WindowsGamingSettings w, AdaptiveSync sync = AdaptiveSync.No, AdaptiveSyncStatus? status = null, IReadOnlyList<GameContext>? games = null) =>
+            TunePlanner.Plan(scenario, sync, new TuneInputs(desktop, w, Defaults(), [], null, status, games));
+        ProposedChange? Power(TunePlan plan) => plan.Changes.SingleOrDefault(c => c.Id == "tune-power-mode");
+
+        Check(new[] { "Best power efficiency", "Balanced", "Best performance" }.All(n => WindowsGamingParsing.PowerModeOverlay(n) is { } g && WindowsGamingParsing.PowerModeName(g) == n)
+            && WindowsGamingParsing.PowerModeOverlay("Turbo") is null, "power mode: Recovery stores the name Windows' power mode setting uses");
+        Check(Power(Plan(TuneScenario.GamingPerformance, tuned)) is { Kind: Wg, Target: "power-mode", Current: "Balanced", After: "Best performance", Optional: true }
+            && Power(Plan(TuneScenario.LowPower, tuned)) is { Kind: Wg, After: "Best power efficiency", Optional: false }
+            && Power(Plan(TuneScenario.GamingQuality, tuned with { PowerMode = "Best power efficiency" })) is { Kind: Wg, After: "Balanced", Optional: false }
+            && Power(Plan(TuneScenario.GamingQuality, tuned)) is null, "power mode: Hanki changes it on the Balanced plan, optional for Best performance");
+        var highPlan = tuned with { PowerPlan = Guid.Parse("8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c"), PowerPlanName = "High performance" };
+        Check(Power(Plan(TuneScenario.GamingPerformance, highPlan)) is { Kind: null, Manual: not null } && Power(Plan(TuneScenario.GamingPerformance, tuned with { PowerMode = null })) is null,
+            "power mode: with another power plan it stays a step, and an unreadable mode isn't changed");
+
+        Check(AdaptiveSyncStatus.FromNvidiaFlags(1) == new AdaptiveSyncStatus(true, true) && AdaptiveSyncStatus.FromNvidiaFlags(2) == new AdaptiveSyncStatus(false, true)
+            && AdaptiveSyncStatus.FromNvidiaFlags(0b11100) == new AdaptiveSyncStatus(false, false), "g-sync: NVIDIA's flags for enabled and possible");
+        Check(TunePlanner.Resolve(AdaptiveSync.NotSure, new(true, true)) == AdaptiveSync.Yes && TunePlanner.Resolve(AdaptiveSync.No, new(true, true)) == AdaptiveSync.No
+            && TunePlanner.Resolve(AdaptiveSync.NotSure, new(false, true)) == AdaptiveSync.NotSure && TunePlanner.Resolve(AdaptiveSync.NotSure, null) == AdaptiveSync.NotSure,
+            "g-sync: \"not sure\" becomes yes when the driver says it's on; your answer is kept");
+        var on = Plan(TuneScenario.GamingPerformance, tuned, AdaptiveSync.Yes, new(true, true));
+        var off = Plan(TuneScenario.GamingPerformance, tuned, AdaptiveSync.Yes, new(false, true));
+        var unknown = Plan(TuneScenario.GamingPerformance, tuned, AdaptiveSync.Yes);
+        Check(!on.Changes.Any(c => c.Id == "tune-adaptive-sync") && on.AlreadyGood.Any(g => g.Setting == "G-SYNC" && g.Current == "On")
+            && off.Changes.Single(c => c.Id == "tune-adaptive-sync") is { Current: "Off", Optional: false, Manual: not null }
+            && unknown.Changes.Single(c => c.Id == "tune-adaptive-sync") is { Current: "Not readable", Optional: true },
+            "g-sync: no step when it's on; a step when it's off, since NVIDIA doesn't let apps switch it on");
+
+        NvidiaProfileView Own(string exe, uint power) => new("Hanki: " + exe, exe, false, [new(NvidiaSettings.Get(NvidiaSettings.PowerManagementId), power, NvidiaSettingSource.ThisProfile, false)]);
+        GameContext[] games = [new("Counter-Strike 2", "C:/Games/cs2.exe", null, Global(), null), new("Apex Legends", "C:/Games/r5apex.exe", Own("r5apex.exe", NvidiaSettings.PowerPreferMaximum), Global(), null),
+            new("Fortnite", "C:/Games/FortniteClient.exe", Own("FortniteClient.exe", NvidiaSettings.PowerNormal), Global(), null)];
+        var clocks = Plan(TuneScenario.GamingPerformance, tuned, games: games);
+        var perGame = clocks.Items.Where(i => i.Change.Id.StartsWith("tune-clocks:", StringComparison.Ordinal)).ToArray();
+        Check(perGame.Length == 2 && perGame.All(i => i.Area == TuneArea.Games && i.Change is { Kind: "NVIDIA setting", Optional: true } && i.Change.After == NvidiaSettings.Hex(NvidiaSettings.PowerPreferMaximum) && Guardrails.Allowed(i.Change))
+            && perGame.Any(i => i.Change.Target == $"{Path.GetFileName("C:/Games/cs2.exe")}|{NvidiaSettings.Hex(NvidiaSettings.PowerManagementId)}" && i.Change.Setting == "Full GPU clocks: Counter-Strike 2")
+            && clocks.AlreadyGood.Any(g => g.Setting == "Full GPU clocks" && g.Current == "On for 1 game") && !clocks.Changes.Any(c => c.Id == "tune-per-game-clocks"),
+            "full clocks: offered for each of your games that doesn't have them, instead of a step");
+        Check(Plan(TuneScenario.GamingPerformance, tuned, games: []).Changes.Single(c => c.Id == "tune-per-game-clocks").Current == "No games listed"
+            && !Plan(TuneScenario.GamingQuality, tuned, games: games).Items.Any(i => i.Change.Id.StartsWith("tune-clocks:", StringComparison.Ordinal))
+            && Plan(TuneScenario.GamingPerformance, tuned, games: Enumerable.Range(0, 20).Select(i => new GameContext($"Game {i}", $"C:/Games/g{i}.exe", null, Global(), null)).ToArray())
+                .Items.Count(i => i.Change.Id.StartsWith("tune-clocks:", StringComparison.Ordinal)) == TunePlanner.GameLimit,
+            "full clocks: a step without games, only for Gaming + Performance, and at most 12 games at once");
+        var byGoal = GamingProfiles.Propose(GamingGoal.Competitive, desktop, [], games[0]);
+        Check(byGoal.Single(c => c.Id == $"nvidia-{NvidiaSettings.PowerManagementId:X8}") is { Kind: "NVIDIA setting", Optional: false } && GamingProfiles.Propose(GamingGoal.Competitive, desktop, [], games[1]).All(c => c.Id != $"nvidia-{NvidiaSettings.PowerManagementId:X8}"),
+            "profiles: Optimize this game still sets full clocks the same way");
     }
 
     private static void Radeon()

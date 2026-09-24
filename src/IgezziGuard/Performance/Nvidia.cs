@@ -59,6 +59,26 @@ internal static class Nvidia
         SetSettingId = 0x577DD202, DeleteSettingId = 0xE4A26362, RestoreDefaultId = 0x53F0381E, FindApplicationId = 0xEEE566B2, ProfileInfoId = 0x61CD6FD6,
         CreateProfileId = 0xCC176068, CreateApplicationId = 0x4347A9DE, DeleteProfileId = 0x17093206;
     internal const int Ok = 0, SettingNotFound = -160, ProfileNotFound = -163, ExecutableNotFound = -166;
+    // Display functions: NvAPI_DISP_GetDisplayIdByDisplayName and NvAPI_Disp_GetVRRInfo (NV_GET_VRR_INFO_V1, 24 bytes).
+    private const uint DisplayIdByNameId = 0xAE457190, VrrInfoId = 0xDF8FDA57;
+    private const int VrrInfoSize = 24;
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)] private delegate int DisplayIdByNameFn([MarshalAs(UnmanagedType.LPStr)] string name, out uint displayId);
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)] private delegate int VrrInfoFn(uint displayId, IntPtr info);
+
+    /// <summary>
+    /// G-SYNC for a Windows display name ("\\.\DISPLAY1"), or null when the driver doesn't say. NVIDIA's public
+    /// interface reports this switch but has no function to change it.
+    /// </summary>
+    internal static AdaptiveSyncStatus? AdaptiveSync(string displayName)
+    {
+        if (!Available) return null;
+        try {
+            if (Function<DisplayIdByNameFn>(DisplayIdByNameId)(displayName, out var id) != Ok) return null;
+            var info = Buffer(VrrInfoSize, 1);
+            try { return Function<VrrInfoFn>(VrrInfoId)(id, info) == Ok ? AdaptiveSyncStatus.FromNvidiaFlags((uint)Marshal.ReadInt32(info, 4)) : null; }
+            finally { Marshal.FreeHGlobal(info); }
+        } catch (NvidiaException) { return null; }
+    }
 
     private static readonly Lazy<bool> available = new(() => {
         try { return Function<NoArgs>(InitializeId)() == Ok; }

@@ -1,3 +1,9 @@
+# Hanki Tools 0.18.0-rc.3 — fewer Tune my PC steps
+
+An unsigned preview for testing. The new power mode, G-SYNC and per-game changes haven't been tested on real hardware yet; every change is reviewed first and saved in Recovery, so it can be undone.
+
+- **Fewer steps in Tune my PC.** Hanki now changes the Windows power mode itself (on the Balanced power plan), and offers full GPU clocks for each game in your list instead of asking you to optimize them one by one. On NVIDIA, it reads whether G-SYNC is on: then it answers the G-SYNC question for you and drops that step. NVIDIA doesn't let apps switch G-SYNC on, so when it's off, that step stays. In-game settings stay a step, since each game keeps its own.
+
 # Hanki Tools 0.18.0-rc.2 — Tune my PC candidate
 
 An unsigned preview for testing. It adds Tune my PC, the simpler layout, NVIDIA and AMD Radeon settings, more gaming checks and Launch and measure. Their settings changes haven't been tested on real NVIDIA or AMD hardware yet; every change is reviewed first and saved in Recovery, so it can be undone.

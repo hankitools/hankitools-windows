@@ -2,7 +2,7 @@
 
 Tune my PC asks what you want today, reads the current settings, and shows a plan: the
 changes Hanki can make (each reviewed, saved to Recovery, restorable) and the steps only
-you can take (BIOS, in-game options, driver switches Hanki can't read). This page is the
+you can take (BIOS, in-game options, driver switches no app is allowed to change). This page is the
 contract for `Performance/TunePlanner.cs`: every rule has a reason, and each reason
 comes from the sources at the end. "No change" is a valid answer.
 
@@ -50,7 +50,10 @@ when you're not sure.
 
 **G-SYNC / FreeSync stays on in every gaming choice.** It removes tearing without V-Sync's
 lag [2]. The only common reason to turn it off is backlight strobing (ULMB), which needs
-a fixed refresh rate; Hanki doesn't change that.
+a fixed refresh rate; Hanki doesn't change that. On NVIDIA, Hanki reads whether G-SYNC is on
+for the main display (NVAPI `NvAPI_Disp_GetVRRInfo`): when it is, "Not sure" is answered
+as Yes and there is no step. NVIDIA's public interface has no function to switch G-SYNC on,
+so when it's off that stays a step.
 
 **Low Latency Mode.** Limits the queue of frames to one when the graphics card is the
 bottleneck. Reflex does this better and overrides it, so games with Reflex should use
@@ -58,7 +61,9 @@ Reflex [3]. NVIDIA's "Ultra" mode isn't in its public SDK, so Hanki sets "On".
 
 **NVIDIA power management.** "Prefer maximum performance" set globally keeps the card at
 3D clocks at the desktop too, adding roughly 15–25 W; set it per game instead [5][6].
-The presets offer it as optional, and Tune my PC points to per-game settings.
+The presets offer it as optional. Gaming + Performance offers it for each of your games
+(Gaming → Games, up to 12 at a time) as optional per-game changes, the same change
+Optimize this game makes.
 
 **HDR.** Worth it on bright displays with local dimming, or OLED; on basic DisplayHDR 400
 panels it often looks worse than SDR [7]. Calibrate once with Microsoft's Windows HDR
@@ -85,7 +90,9 @@ doesn't recommend it generally. DLSS Frame Generation on RTX 40/50 cards require
 
 **Windows power mode.** "Best performance" lets the processor reach higher clocks sooner;
 the gain is small when the graphics card is the limit, larger in processor-heavy work;
-laptops run warmer and louder [14]. Offered as optional.
+laptops run warmer and louder [14]. Offered as optional. Hanki changes it the way
+Settings → System → Power does, on the Balanced power plan (the only plan it applies to);
+with another plan it stays a step.
 
 **Memory speed (XMP/EXPO).** Memory running below its rated speed costs roughly 4–10% FPS
 in processor-limited games; enabling the profile is a BIOS step [15].
@@ -94,6 +101,10 @@ in processor-limited games; enabling the profile is a BIOS step [15].
 target just under the refresh rate rather than Enhanced Sync, Chill for low power [16].
 Hanki applies these through AMD's driver interface when it can read Radeon settings, and lists them as
 steps otherwise. Radeon support isn't yet tested on AMD hardware.
+
+**In-game settings stay a step.** Each game keeps its own settings in its own files and
+formats, often rewrites them on exit, and some anti-cheat systems check them. Reflex,
+in-game V-Sync and quality presets are therefore listed for you to set.
 
 ## What Tune my PC doesn't do
 
