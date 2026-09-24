@@ -5,7 +5,7 @@ internal static class GamingChecks
 {
     private static void Check(bool ok, string text) => DiagnosticChecks.Check(ok, text);
     private static readonly DateTimeOffset Now = new(2026, 9, 24, 12, 0, 0, TimeSpan.Zero);
-    internal static void Run() { Facts(); Health(); Profiles(); NvidiaGlobal(); Library(); Live(); }
+    internal static void Run() { Facts(); Health(); Profiles(); NvidiaGlobal(); WindowsGaming(); Library(); Live(); }
 
     private static GpuAdapter Gpu(GpuVendor vendor, string name, ulong memory, int rank, long luid) =>
         new(name, vendor, 0, 0, luid, memory, 8 * GraphicsFacts.GiB, rank, "32.0.16.1692", new DateTime(2026, 9, 4), GraphicsFacts.LikelyIntegrated(vendor, memory));
@@ -88,7 +88,7 @@ internal static class GamingChecks
         var balanced = GamingProfiles.Propose(GamingGoal.Balanced, graphics, findings, null);
         Check(balanced.Any(c => c.Kind == "Display mode" && c.After == "2560x1440@165" && c.Target == @"\\.\DISPLAY1") && balanced.Any(c => c.Kind == "Processor power" && c.After == "100" && c.Target!.EndsWith("|ac")),
             "profiles: Balanced fixes the refresh rate and the processor cap, with Recovery-ready entries");
-        Check(balanced.All(c => c.Kind is null or "Display mode" or "GPU preference" or "Processor power" or "NVIDIA setting"), "profiles: only supported change kinds are proposed");
+        Check(balanced.All(c => c.Kind is null or "Display mode" or "GPU preference" or "Processor power" or "NVIDIA setting" or "Windows gaming setting"), "profiles: only supported change kinds are proposed");
 
         var game = new GameContext("World of Warcraft", @"C:\Games\WoW\Wow.exe", null, Global(), null);
         var fixedGraphics = Desktop(Display(165, 1, 165));
@@ -197,6 +197,39 @@ internal static class GamingChecks
         bool refused = false;
         foreach (var target in new[] { "0x12345678", "1057EB71", "Wow.exe|0x1057EB71", "0x1057EB7" }) { try { PerformanceSettings.ParseNvidiaGlobalTarget(target); } catch (IOException) { refused = true; continue; } refused = false; break; }
         Check(refused && PerformanceSettings.ParseNvidiaGlobalTarget("0x1057EB71") == NvidiaSettings.PowerManagementId, "settings: global NVIDIA targets must be a known setting id");
+    }
+
+    private static void WindowsGaming()
+    {
+        Check(WindowsGamingParsing.WithFlag("SwapEffectUpgradeEnable=0;AutoHDREnable=1;Foo=bar;", "SwapEffectUpgradeEnable", true) == "AutoHDREnable=1;Foo=bar;SwapEffectUpgradeEnable=1;"
+            && WindowsGamingParsing.WithFlag(null, "VRROptimizeEnable", true) == "VRROptimizeEnable=1;" && WindowsGamingParsing.WithFlag("VRROptimizeEnable=1;", "vrroptimizeenable", null) == "",
+            "windows gaming: one DirectX flag changes and every other pair is kept");
+        bool Rejects(string text) { try { WindowsGamingParsing.ParseMouse(text); return false; } catch (FormatException) { return true; } }
+        Check(WindowsGamingParsing.ParseMouse("6,10,1").SequenceEqual([6, 10, 1]) && WindowsGamingParsing.MouseText([0, 0, 0]) == "0,0,0" && Rejects("6,10") && Rejects("6,10,3") && Rejects("-1,0,0") && Rejects("6,10,x"),
+            "windows gaming: mouse parameters are validated before use");
+        Check(new bool?[] { true, false, null }.All(v => WindowsGamingParsing.ParseFlagState(WindowsGamingParsing.FlagState(v)) == v), "windows gaming: on/off/default states round-trip");
+
+        var graphics = Desktop(Display(165, 1, 165));
+        var windows = Windows() with { BackgroundRecording = true, WindowedOptimizations = false, Mouse = [6, 10, 1] };
+        var findings = GamingHealth.Evaluate(graphics, windows, Global(), Now);
+        var recording = findings.Single(f => f.FindingId == "background-recording");
+        var windowed = findings.Single(f => f.FindingId == "windowed-optimizations");
+        var mouse = findings.Single(f => f.FindingId == "mouse-acceleration");
+        Check(recording.Severity == FindingSeverity.Warning && recording.Metadata["target"] == "background-recording" && GamingHealth.CanApply(recording)
+            && windowed.Severity == FindingSeverity.Warning && windowed.Metadata["after"] == "on" && mouse.Severity == FindingSeverity.Informational && mouse.Metadata["mouse"] == "6,10,1",
+            "gaming scan: background recording and windowed-game optimizations are opportunities; mouse acceleration is an observation");
+        Check(!findings.Any(GamingHealth.BelongsInFixMyPc) && findings.All(f => !Navigation.UsesFaultLanguage(f.Title) && !Navigation.UsesFaultLanguage(f.Explanation)),
+            "gaming scan: these preferences stay out of Fix My PC and aren't described as faults");
+        Check(GamingHealth.Evaluate(graphics, windows with { AppCapture = false }, Global(), Now).Single(f => f.FindingId == "background-recording").Severity == FindingSeverity.Healthy,
+            "gaming scan: background recording is off when Game Bar captures are off");
+        var balanced = GamingProfiles.Propose(GamingGoal.Balanced, graphics, findings, null);
+        Check(balanced.Single(c => c.Target == "background-recording") is { Kind: "Windows gaming setting", After: "off", Optional: true }
+            && balanced.Single(c => c.Target == "windowed-optimizations") is { After: "on", Optional: false } && !balanced.Any(c => c.Target == "mouse-acceleration"),
+            "profiles: Balanced offers the Windows opportunities and leaves mouse acceleration alone");
+        Check(GamingProfiles.Propose(GamingGoal.Competitive, graphics, findings, null).Single(c => c.Target == "mouse-acceleration") is { After: "0,0,0", Optional: true },
+            "profiles: Competitive offers to turn mouse acceleration off");
+        Check(balanced.All(c => Guardrails.Allowed(c)) && PerformanceSettings.WindowsGamingTargets.SetEquals(["background-recording", "windowed-optimizations", "variable-refresh", "mouse-acceleration"]),
+            "settings: only the four Windows gaming settings can be changed");
     }
 
     private static void Library()

@@ -35,7 +35,9 @@ internal sealed class GamingState
         foreach (var d in Graphics.Displays)
             text.AppendLine($"Display: {d.Name} on {Graphics.AdapterFor(d)?.Name ?? "unknown GPU"}, {GraphicsFacts.Describe(d.Current)} (up to {GraphicsFacts.MaxRefreshAtCurrentResolution(d):0} Hz at this resolution), {d.Connection}{(d.HdrEnabled == true ? ", HDR on" : "")}");
         text.AppendLine($"PC: {(Graphics.Portable == true ? "laptop or tablet" : Graphics.Portable == false ? "desktop" : "unknown type")}, {(Graphics.OnAcPower ? "plugged in" : "on battery")}");
-        if (Windows is { } w) text.AppendLine($"Windows: Game Mode {(w.GameMode == false ? "off" : "on")}, power plan {w.PowerPlanName ?? "unknown"}{(w.PowerMode is { } m ? $", power mode {m}" : "")}, processor maximum {w.ProcessorMaximumAc?.ToString() ?? "?"}% plugged in");
+        if (Windows is { } w) text.AppendLine($"Windows: Game Mode {(w.GameMode == false ? "off" : "on")}, power plan {w.PowerPlanName ?? "unknown"}{(w.PowerMode is { } m ? $", power mode {m}" : "")}, processor maximum {w.ProcessorMaximumAc?.ToString() ?? "?"}% plugged in" +
+            $", background recording {(w.RecordsInBackground ? "on" : "off")}, windowed-game optimizations {WindowsGamingParsing.FlagState(w.WindowedOptimizations)}, variable refresh rate {WindowsGamingParsing.FlagState(w.VariableRefresh)}" +
+            (w.MouseAcceleration is { } accel ? $", mouse acceleration {(accel ? "on" : "off")}" : ""));
         if (NvidiaGlobal is { } nv) text.AppendLine("NVIDIA global: " + string.Join(", ", nv.Values.Select(v => $"{v.Setting.Name} {v.Text}")));
         if (NvidiaNote is not null) text.AppendLine("NVIDIA: " + NvidiaNote);
         if (Graphics.AdlxPresent) text.AppendLine("AMD: the Radeon driver interface (ADLX) is installed; Hanki doesn't read Radeon settings yet.");

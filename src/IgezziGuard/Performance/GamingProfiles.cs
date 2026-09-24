@@ -52,6 +52,10 @@ public static class GamingProfiles
                     changes.Add(new(f.FindingId, ChangeSource.Windows, $"GPU for {Path.GetFileName(m["application"])}", current, recommended, f.Explanation, false,
                         "GPU preference", m["application"], "GpuPreference=2;"));
                     break;
+                case GamingHealth.RemedyWindowsSetting when m.GetValueOrDefault("target") is { } target && PerformanceSettings.WindowsGamingTargets.Contains(target):
+                    changes.Add(new(f.FindingId, ChangeSource.Windows, f.Title, current, recommended, f.Explanation, m.GetValueOrDefault("optional") == "true",
+                        PerformanceSettings.WindowsGamingKind, target, m["after"]));
+                    break;
                 case GamingHealth.RemedyProcessor when m.GetValueOrDefault("plan") is { Length: > 0 } plan:
                     changes.Add(new(f.FindingId, ChangeSource.Windows, "Maximum processor state (plugged in)", current, recommended, f.Explanation, false, "Processor power", plan + "|ac", "100"));
                     break;
@@ -61,6 +65,11 @@ public static class GamingProfiles
                     break;
             }
         }
+        // Competitive: consistent aim in games that use the Windows pointer (an observation elsewhere, so only offered here).
+        if (goal == GamingGoal.Competitive && findings.FirstOrDefault(f => f.FindingId == "mouse-acceleration" && f.Metadata.GetValueOrDefault("current") == "On") is { } mouse)
+            changes.Add(new("mouse-acceleration", ChangeSource.Windows, "Mouse acceleration (Enhance pointer precision)", "On", "Off",
+                "The same hand movement then moves the pointer the same distance at any speed, which many players prefer for aiming. Games that read the mouse directly aren't affected.", true,
+                PerformanceSettings.WindowsGamingKind, "mouse-acceleration", "0,0,0"));
         if (game is null) return changes;
 
         // The game's GPU on PCs with integrated and dedicated graphics.

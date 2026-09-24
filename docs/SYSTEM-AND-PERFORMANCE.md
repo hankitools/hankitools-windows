@@ -86,7 +86,7 @@ Performance Lab → Monitor saves runs as sessions today. Optimization tests
 Recovery (`ChangeJournal`, `recovery.json`) stays the one rollback mechanism for both
 areas. Journal kinds listed in `Navigation.PerformanceChangeKinds` ("Power plan",
 "Display mode", "GPU preference", "NVIDIA setting", "NVIDIA global setting",
-"Processor power") belong to Performance sessions; everything else appears in System
+"Processor power", "Windows gaming setting") belong to Performance sessions; everything else appears in System
 actions (`src/IgezziGuard/History/SystemActions.cs`, together with scans and the repair
 audit).
 
@@ -141,6 +141,7 @@ Hanki controls and theme.
 | GPU-108 | `Performance/WindowsGamingProbe.cs` | Done: Game Mode, GPU scheduling, per-app GPU choices, power mode and processor limits (read); GPU choice and processor maximum can be applied. |
 | GPU-109, GAME-212, PERF-312 | Lab → Monitor, `PerformanceComparison` | Done: baselines, comparable before/after, keep or restore through Performance sessions. |
 | GPU-110 | Lab → Advanced Tuning | Deliberately separate and not started (placeholder only). |
+| GAME-215, 216, 217 | `Performance/GamingHealth.cs`, `WindowsGamingProbe.cs` | Done: Game Bar background recording, optimizations for windowed games, variable refresh rate and mouse acceleration in the gaming scan. Background recording and windowed-game optimizations are reviewed, Recovery-backed changes ("Windows gaming setting"); mouse acceleration is an observation the Competitive goal offers to turn off. |
 | GPU-113 | Gaming → NVIDIA, `Performance/NvidiaPresets.cs` | Done: NVIDIA global settings (16 from the public NVAPI SDK, each checked against the driver's own name) with built-in presets, a settings editor and your own saved presets (`nvidia-presets.json`). Changes are reviewed, recorded in Recovery as "NVIDIA global setting" and restorable. |
 | GPU-111, GAME-213 | Gaming page | Done: overview with goals and review, games tab. |
 | GPU-112, GAME-214 | `Performance/GamingDiagnostic.cs` | Done: Fix My PC shows only high-impact gaming findings, pointing to Gaming; never applies them. |
