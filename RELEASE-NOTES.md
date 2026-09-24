@@ -1,4 +1,6 @@
-# Next version (not released yet)
+# Hanki Tools 0.18.0-rc.5 — Home search, deleting files and uninstalling apps
+
+An unsigned preview for testing. Deleting files, uninstalling apps and removing leftover app entries are new and haven't been tried on real PCs yet: every removal is confirmed first, and the Recycle Bin (the default) and .reg backups let you undo most of them.
 
 - **Home search.** "What do you need help with?" finds guided fixes and tools as you type, with everyday words (laggy, bsod, wifi, fps, undo). Enter opens the top result.
 - **Your PC at a glance and recent activity on Home.** Windows version, time since restart, system drive space, memory in use, graphics card and driver, and protection as Windows Security reports it; each tile opens its page. Below: your latest scan, Performance check and the changes Hanki made, each with a link to review or undo.
