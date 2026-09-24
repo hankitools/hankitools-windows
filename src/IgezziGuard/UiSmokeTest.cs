@@ -7,7 +7,25 @@ internal static class UiSmokeTest
     /// <summary>Pages saved as screenshots for review (file name, route), when a screenshot folder is given.</summary>
     internal static readonly IReadOnlyList<(string File, string Route)> Screens = [
         ("home", "Home"), ("fix-my-pc", "System overview"), ("tune-my-pc", "Performance overview"), ("gaming", "Gaming  /  Overview"),
-        ("nvidia", "Gaming  /  NVIDIA"), ("diagnose", "Diagnose"), ("history", "History"), ("help", "Help")];
+        ("nvidia", "Gaming  /  NVIDIA"), ("diagnose", "Diagnose"), ("history", "History"), ("help", "Help"), ("tune-plan", "Performance overview")];
+
+    /// <summary>An example Tune my PC plan from fixed data (an untuned desktop with an RTX 4070), for the plan screenshot.</summary>
+    internal static TunePlan ExamplePlan()
+    {
+        var gpu = new GpuAdapter("NVIDIA GeForce RTX 4070", GpuVendor.Nvidia, 0x10DE, 0x2786, 1, 12UL << 30, 16UL << 30, 0, "32.0.15.6094", DateTime.Today.AddMonths(-2), false);
+        var display = new DisplayInfo("Monitor", @"\\.\DISPLAY1", 1, new DisplayMode(2560, 1440, 60), [new(2560, 1440, 60), new(2560, 1440, 144), new(2560, 1440, 165)], true, false, true, "DisplayPort");
+        var windows = new WindowsGamingSettings(false, false, [], false, null, "Balanced", Guid.Parse("381b4222-f694-41f0-9685-ff5bb260df2e"), "Balanced", 80, 100, 5,
+            BackgroundRecording: true, Mouse: [6, 10, 1]);
+        var nvidia = NvidiaSettings.Catalog.Select(s => new NvidiaGlobalSetting(s, "default", s.Id switch {
+            NvidiaSettings.PowerManagementId => NvidiaSettings.PowerNormal, NvidiaSettings.VerticalSyncId => NvidiaSettings.VsyncApplication, NvidiaSettings.AnisotropicLevelId => 1u, _ => 0u }, "default")).ToArray();
+        var now = DateTimeOffset.Now;
+        DiagnosticResult Finding(string module, string id, string title, string current, string recommended, string recommendation, string? source = null) =>
+            new(module, id, DiagnosticCategory.Performance, CollectionOutcome.Completed, FindingSeverity.Warning, title, "Example finding for the UI check.", now, now, recommendation: recommendation,
+                metadata: new Dictionary<string, string> { ["current"] = current, ["recommended"] = recommended, ["remedy"] = GamingHealth.RemedyHardware, ["source"] = source ?? "" });
+        return TunePlanner.Plan(TuneScenario.GamingPerformance, AdaptiveSync.Yes, new TuneInputs(new GraphicsInventory([gpu], [display], false, true, true, false, []), windows, nvidia, [
+            Finding("perf-memory", "memory-speed", "Memory runs below its rated speed", "4800 MT/s", "6000 MT/s", "Enable XMP or EXPO in the BIOS."),
+            Finding("gaming", "busy:chrome", "chrome is busy in the background", "23% processor", "Close it", "Close or pause chrome before playing if you don't need it.", "Background")]));
+    }
 
     private static string? progressPath;
     internal static bool Active => progressPath is not null;
@@ -19,6 +37,9 @@ internal static class UiSmokeTest
         if (progressPath is null) return;
         try { File.AppendAllText(progressPath, $"{DateTimeOffset.Now:HH:mm:ss.fff} {text}\n"); } catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
     }
+
+    private static T? Find<T>(Control root) where T : Control =>
+        root as T ?? root.Controls.Cast<Control>().Select(Find<T>).FirstOrDefault(c => c is not null);
 
     // Opt-in structural UI check. No action buttons, diagnostics, repairs or network calls are invoked.
     internal static void Run(string reportPath, string? screenshotFolder = null)
@@ -63,6 +84,7 @@ internal static class UiSmokeTest
                             if (form.Routes.FirstOrDefault(r => r.Name == route) is not { } open) { screenshotError = "No route " + route; continue; }
                             Note("screenshot " + route);
                             open.Open(); form.PerformLayout(); Application.DoEvents();
+                            if (file == "tune-plan") { Find<TunePanel>(form)?.Preview(ExamplePlan()); form.PerformLayout(); Application.DoEvents(); }
                             using var bitmap = new Bitmap(form.Width, form.Height);
                             form.DrawToBitmap(bitmap, new Rectangle(Point.Empty, form.Size));
                             var path = Path.Combine(screenshotFolder, file + ".png");

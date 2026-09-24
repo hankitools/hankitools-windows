@@ -72,7 +72,7 @@ internal static class PerformanceStatus
     internal static DiagnosticScan? Latest() { try { return History.Read().OrderByDescending(s => s.Ended).FirstOrDefault(); } catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { return null; } }
     internal static string Describe(DiagnosticScan? latest)
     {
-        if (latest is null) return "Not checked yet. Start with a gaming check or a monitoring run.";
+        if (latest is null) return "Not checked yet. Tune my PC starts with one question.";
         int count = latest.Results.Count(r => r.Severity is FindingSeverity.Warning or FindingSeverity.Critical);
         return count == 0 ? $"Last check {latest.Ended.ToLocalTime():g}: no optimization opportunities found."
             : $"{count} optimization {(count == 1 ? "opportunity" : "opportunities")} from your last check ({latest.Ended.ToLocalTime():g}).";
@@ -98,6 +98,7 @@ internal sealed class PerformanceOverviewPanel : UserControl
         Controls.Add(refused); Controls.Add(refusedGap); Controls.Add(refusedToggle);
         ToolTiles.Add(this, "DETAILED TOOLS", ToolTiles.For(ProductArea.Performance, navigate), HankiTheme.PerformanceAccent);
         Controls.Add(tune);
+        ToolTiles.TopDown(this);
     }
 }
 

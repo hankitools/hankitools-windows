@@ -419,7 +419,7 @@ internal sealed class Dashboard : UserControl
         // Docked top in reverse: the tiles are added first, the hero last so it sits highest.
         ToolTiles.Add(this, "DETAILED TOOLS", ToolTiles.For(ProductArea.System, navigate), HankiTheme.Accent);
         Controls.Add(hero);
-        hero.TabIndex = 0;
+        ToolTiles.TopDown(this);
         VisibleChanged += (_, _) => { if (Visible) RefreshLastScan(); };
         RefreshLastScan();
     }

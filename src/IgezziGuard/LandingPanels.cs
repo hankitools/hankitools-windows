@@ -22,6 +22,17 @@ internal static class ToolTiles
         Navigation.Tools(area).Select(i => (i.Icon, Navigation.Title(i), i.Introduction, (Action)(() => navigate(i.Page))));
     internal static Label Heading(string text) => new() { Text = text, Dock = DockStyle.Top, AutoSize = false, Height = 50, Tag = "intro",
         Font = new Font("Segoe UI", 9.5f, FontStyle.Bold), TextAlign = ContentAlignment.BottomLeft, Padding = new Padding(2, 0, 0, 10) };
+
+    /// <summary>
+    /// For a scrolling page of Dock=Top controls (added bottom first): tab order follows what you see, top to bottom,
+    /// and the page opens at the top. Otherwise the first focus lands on the last control and scrolls the page down.
+    /// </summary>
+    internal static void TopDown(ScrollableControl page)
+    {
+        int index = 0;
+        foreach (var control in page.Controls.Cast<Control>().Reverse()) control.TabIndex = index++;
+        page.VisibleChanged += (_, _) => { if (page.Visible) page.AutoScrollPosition = Point.Empty; };
+    }
 }
 
 /// <summary>History: system actions and performance sessions, kept apart, and Recovery to undo a change.</summary>
@@ -33,6 +44,7 @@ internal sealed class HistoryLanding : UserControl
         var recovery = Navigation.Find("Recovery")!;
         ToolTiles.Add(this, "UNDO A CHANGE", [(recovery.Icon, "Recovery", recovery.Introduction, () => navigate("Recovery"))], HankiTheme.Accent);
         ToolTiles.Add(this, "WHAT HANKI HAS DONE", ToolTiles.For(ProductArea.History, navigate), HankiTheme.Accent);
+        ToolTiles.TopDown(this);
     }
 }
 
@@ -42,7 +54,8 @@ internal sealed class HelpLanding : UserControl
     public HelpLanding(Action<string> navigate, Action remoteHelp)
     {
         Dock = DockStyle.Fill; AutoScroll = true; Padding = new Padding(0, 4, 8, 16);
-        ToolTiles.Add(this, "MORE HELP", [("Help", "Get help from someone you trust", "Opens Windows' Quick Assist so a person you trust can see your screen. Hanki shows a scam warning first.", remoteHelp)], HankiTheme.Accent);
+        ToolTiles.Add(this, "MORE HELP", [("Help", "Remote help", "Opens Windows' Quick Assist so someone you trust can see your screen. Hanki shows a scam warning first.", remoteHelp)], HankiTheme.Accent);
         ToolTiles.Add(this, "HELP AND SUPPORT", ToolTiles.For(ProductArea.Support, navigate), HankiTheme.Accent);
+        ToolTiles.TopDown(this);
     }
 }

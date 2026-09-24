@@ -49,6 +49,17 @@ internal sealed class TunePanel : UserControl
         Controls.Add(result); Controls.Add(gap); Controls.Add(hero);
     }
 
+    /// <summary>For the UI check's screenshots only: shows a plan built from fixed example data. Nothing is read or changed.</summary>
+    internal void Preview(TunePlan example)
+    {
+        foreach (var tile in scenarios.Controls.OfType<ChoiceTile>()) tile.Selected = Equals(tile.Value, example.Scenario);
+        foreach (var tile in syncChoices.Controls.OfType<ChoiceTile>()) tile.Selected = Equals(tile.Value, example.Sync);
+        syncRow.Visible = TunePlanner.IsGaming(example.Scenario);
+        status.Text = "Example plan (UI check). Nothing was read or changed.";
+        ShowPlan(example);
+        (Parent as ScrollableControl)?.ScrollControlIntoView(result);
+    }
+
     private TuneScenario? Scenario => scenarios.Controls.OfType<ChoiceTile>().FirstOrDefault(t => t.Selected)?.Value as TuneScenario?;
     private AdaptiveSync Sync => syncChoices.Controls.OfType<ChoiceTile>().FirstOrDefault(t => t.Selected)?.Value as AdaptiveSync? ?? AdaptiveSync.NotSure;
 
