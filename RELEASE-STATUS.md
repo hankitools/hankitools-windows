@@ -30,7 +30,7 @@ RC3 adds four archive checks: a held source reader, exact bytes, no overwrite an
 - Native Defender controls, registry startup, Recycle Bin, power/DNS apply/undo, WMI GPU/disk counters and installed debugger behavior. Use the recorded acceptance checklist on disposable fixtures/test settings.
 - Live DNS/transfer services and a reviewed OpenAI API request. Automated AI tests use mocks, not your API key or billing.
 - Timestamped publisher signature, accurate public publisher/support/security/privacy contact, final download destination and final downloaded ZIP checksum verification.
-- Runtime maintenance: .NET 8 support ends 10 November 2026; plan and validate the .NET 10 migration before that date. The release script blocks this branch after the deadline and resolves a current .NET 8 patch before packaging.
+- Runtime maintenance: Hanki targets .NET 10, supported until 10 November 2028 (migrated from .NET 8, whose support ends 10 November 2026). The release script resolves a current .NET 10 patch before packaging and blocks this branch after the .NET 10 deadline.
 
 ## Release artifacts supplied
 

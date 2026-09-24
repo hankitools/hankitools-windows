@@ -10,17 +10,17 @@ $projectRoot = $PSScriptRoot
 . (Join-Path $PSScriptRoot 'build\Packaging.ps1')
 $projectFile = Join-Path $projectRoot 'src\IgezziGuard\IgezziGuard.csproj'
 $checks = Join-Path $projectRoot 'tests\HankiTools.Checks.csproj'
-if (-not (Get-Command dotnet -ErrorAction SilentlyContinue)) { throw 'Install the current .NET 8 SDK from https://dotnet.microsoft.com/download/dotnet/8.0 and retry.' }
+if (-not (Get-Command dotnet -ErrorAction SilentlyContinue)) { throw 'Install the current .NET 10 SDK from https://dotnet.microsoft.com/download/dotnet/10.0 and retry.' }
 $sdk = (& dotnet --version).Trim()
-if ($LASTEXITCODE -ne 0 -or [int]($sdk.Split('.')[0]) -lt 8) { throw 'A .NET SDK version 8 or later is required.' }
+if ($LASTEXITCODE -ne 0 -or [int]($sdk.Split('.')[0]) -lt 10) { throw "A .NET SDK version 10 or later is required (found $sdk). Install it from https://dotnet.microsoft.com/download/dotnet/10.0." }
 if ($CertificateThumbprint -and -not $TimestampServer) { throw 'Signing requires -TimestampServer from your signing provider.' }
 if ($TimestampServer -and $TimestampServer.Scheme -notin @('http','https')) { throw 'TimestampServer must be an HTTP(S) RFC3161 endpoint.' }
 
-# Self-contained packages include their runtime: resolve the current supported .NET 8 patch.
+# Self-contained packages include their runtime: resolve the current supported .NET 10 patch.
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-$metadata = Invoke-RestMethod 'https://dotnetcli.blob.core.windows.net/dotnet/release-metadata/8.0/releases.json' -TimeoutSec 30
+$metadata = Invoke-RestMethod 'https://dotnetcli.blob.core.windows.net/dotnet/release-metadata/10.0/releases.json' -TimeoutSec 30
 $runtime = [string]$metadata.'latest-runtime'
-if ($runtime -notmatch '^8\.0\.\d+$') { throw 'Could not resolve a stable .NET 8 runtime patch.' }
+if ($runtime -notmatch '^10\.0\.\d+$') { throw 'Could not resolve a stable .NET 10 runtime patch.' }
 [xml]$project = Get-Content -LiteralPath $projectFile -Raw
 $version = [string]$project.Project.PropertyGroup.Version
 $stamp = Get-Date -Format 'yyyyMMdd-HHmmss-fff'

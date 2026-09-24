@@ -32,7 +32,7 @@ Privacy policy: this program will not transfer any information to other networke
 
 ## Build and try
 
-On Windows, install the current .NET 8 SDK, close any running Hanki instance, extract the source ZIP and run `BUILD-WINDOWS.cmd`. Internet is required for Microsoft runtime metadata and package restore. The script runs the logic checks, publishes a self-contained Windows x64 candidate and runs a structural UI smoke check. Launch `HankiTools.exe` from the new timestamped `dist` folder. End users of the portable package do not need the SDK.
+On Windows, install the current .NET 10 SDK, close any running Hanki instance, extract the source ZIP and run `BUILD-WINDOWS.cmd`. Internet is required for Microsoft runtime metadata and package restore. The script runs the logic checks, publishes a self-contained Windows x64 candidate and runs a structural UI smoke check. Launch `HankiTools.exe` from the new timestamped `dist` folder. End users of the portable package do not need the SDK.
 
 For a signing-enabled candidate, run `BUILD-WINDOWS.ps1 -CertificateThumbprint YOUR_CERTIFICATE_THUMBPRINT -TimestampServer YOUR_PROVIDER_RFC3161_URL` from a Windows SDK shell with SignTool available. Private signing material stays in your certificate store; it is not included in source or arguments.
 
@@ -75,7 +75,7 @@ The experimental file scanner has a bundled EICAR test signature and simple heur
 - [Windows acceptance checklist](RELEASE-CHECKLIST.md)
 - [Security reporting and release operations](SECURITY.md)
 
-The .NET 8 target reaches end of support on 10 November 2026. Build against the current servicing patch; migrate to a supported LTS before that date. The release script enforces this branch's deadline. A .NET 10 migration has not been validated here. Official reference: https://dotnet.microsoft.com/en-us/platform/support/policy/dotnet-core
+Hanki targets .NET 10, a long-term support release supported until 10 November 2028. Build against the current servicing patch, and move to the next LTS before that date; the release script enforces this deadline. Official reference: https://dotnet.microsoft.com/en-us/platform/support/policy/dotnet-core
 
 The project namespace/data directory retains the original IgezziGuard name for compatibility. Previous UX/version notes describe history, not current release validation. MIT license; see LICENSE.
 

@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
-    <TargetFramework>net8.0-windows</TargetFramework>
+    <TargetFramework>net10.0-windows</TargetFramework>
     <UseWindowsForms>true</UseWindowsForms>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
@@ -14,6 +14,9 @@
     <Description>Windows diagnostics, maintenance and performance toolkit</Description>
     <Deterministic>true</Deterministic>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <!-- WFO1000 guards properties the Windows Forms designer would serialize. Hanki builds every control in code and has no
+         designer files, so nothing is serialized; annotating each control property would add noise without protection. -->
+    <NoWarn>$(NoWarn);WFO1000</NoWarn>
     <ApplicationIcon>Brand/hanki.ico</ApplicationIcon>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <InvariantGlobalization>false</InvariantGlobalization>
