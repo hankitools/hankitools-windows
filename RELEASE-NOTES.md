@@ -4,7 +4,6 @@ An unsigned preview for testing. It fixes issues found while reviewing 0.18.0-rc
 
 - **Evenly sized tabs.** Views whose name contains "&", such as Shield → Scans & alerts and Memory → Memory & pagefile, no longer grow wider each time the window lays out.
 - **Clearer memory headroom.** Memory health gives the peak since the last restart in GB instead of a percentage that could read above 100%. When programs reserved more memory than Windows can back today, it says so: Windows had grown the pagefile to make room, which can cause stutter while you play.
-- **Home keeps its layout.** Fix my PC and Tune my PC sit side by side again after the window was resized while another page was open.
 
 # Hanki Tools 0.18.0-rc.5 — Home search, deleting files and uninstalling apps
 
