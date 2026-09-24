@@ -1,4 +1,6 @@
-# Next version (not released yet)
+# Hanki Tools 0.18.0-rc.2 — Tune my PC candidate
+
+An unsigned preview for testing. It adds Tune my PC, the simpler layout, NVIDIA and AMD Radeon settings, more gaming checks and Launch and measure. Their settings changes haven't been tested on real NVIDIA or AMD hardware yet; every change is reviewed first and saved in Recovery, so it can be undone.
 
 - **Tune my PC** is the first thing on the Performance page. Choose Gaming + Performance, Gaming + Quality, Creative work or Low power, and say whether your display has G-SYNC or FreeSync. Hanki then reads your display, Windows, mouse, graphics driver, processor, memory and storage settings and shows a plan: what it can change (before → after) and the steps only you can take (BIOS memory profile, in-game settings). Nothing changes until you review and apply; every change is saved in Recovery first. The recommendations and their sources are in docs/TUNING.md.
 - **Simpler layout:** five areas in the sidebar (Home, Fix my PC, Tune my PC, History, Help) instead of about 20 items. Each area opens on its main action with its other tools as large tiles, and pages show a back link to their area. Text is larger throughout, and page introductions are one short sentence.
