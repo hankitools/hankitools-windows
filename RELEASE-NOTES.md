@@ -1,4 +1,6 @@
-# Next version (not released yet)
+# Hanki Tools 0.18.0-rc.4 — cleaner, more modern layout
+
+An unsigned preview for testing. It changes how pages look and are laid out; the checks, settings and Recovery behave as in 0.18.0-rc.3.
 
 - **Cleaner pages.** Views sit on one row of pill-shaped tabs, with "More views" for the rest. Actions stay on one or two lines, with "More" for the rest. The row of report links under every tool is gone: Review / share, Prepare for Assistant and the previous report are in a ⋯ menu, next to "Technical details".
 - **Modern controls.** Drop-downs are rounded fields with a dark list, text boxes have a quiet frame, lists lose their white border, the report search is a rounded field, and a thin line moves while a task runs. Cards and tiles have softer edges.
