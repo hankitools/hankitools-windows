@@ -11,7 +11,8 @@ namespace IgezziGuard;
 ///   NVIDIA setting:  target "game.exe|0x1057EB71",   value "0x00000001", "predefined:0x…" (NVIDIA's own value) or "default"
 ///   NVIDIA global setting: target "0x1057EB71",      value as for NVIDIA setting, in the global profile (all games)
 ///   Windows gaming setting: target "game-mode", "background-recording", "windowed-optimizations" or "variable-refresh", value
-///                    "on", "off" or "default" (never changed); target "mouse-acceleration", value "6,10,1"
+///                    "on", "off" or "default" (never changed); target "mouse-acceleration", value "6,10,1"; target "power-mode",
+///                    value "Best power efficiency", "Balanced" or "Best performance"
 ///   AMD setting:     target "{gpu}|AntiLag",          value "on", "off:144", "on:30-60" or "mode:1" (see AmdSettings)
 /// </summary>
 internal static class PerformanceSettings
@@ -121,7 +122,7 @@ internal static class PerformanceSettings
     }
 
     // ---- Windows gaming settings: Game Bar background recording, DirectX options and mouse acceleration -------------
-    internal static readonly IReadOnlySet<string> WindowsGamingTargets = new HashSet<string>(StringComparer.Ordinal) { "game-mode", "background-recording", "windowed-optimizations", "variable-refresh", "mouse-acceleration" };
+    internal static readonly IReadOnlySet<string> WindowsGamingTargets = new HashSet<string>(StringComparer.Ordinal) { "game-mode", "background-recording", "windowed-optimizations", "variable-refresh", "mouse-acceleration", "power-mode" };
     private static string DirectXFlag(string target) => target == "windowed-optimizations" ? "SwapEffectUpgradeEnable" : "VRROptimizeEnable";
     private static string WindowsGaming(string target)
     {
@@ -135,6 +136,8 @@ internal static class PerformanceSettings
                     return WindowsGamingParsing.FlagState(dvr?.GetValue("HistoricalCaptureEnabled") is int h ? h != 0 : null);
             case "mouse-acceleration":
                 return WindowsGamingProbe.Mouse() is { } mouse ? WindowsGamingParsing.MouseText(mouse) : throw new IOException("Windows didn't report the mouse settings.");
+            case "power-mode":
+                return WindowsGamingProbe.PowerMode() ?? throw new IOException("Windows didn't report the power mode.");
             default:
                 using (var key = Registry.CurrentUser.OpenSubKey(WindowsGamingProbe.GpuPreferencesKey))
                     return WindowsGamingParsing.FlagState(WindowsGamingParsing.Flag(key?.GetValue(WindowsGamingProbe.DirectXGlobalValue) as string, DirectXFlag(target)));
@@ -153,6 +156,7 @@ internal static class PerformanceSettings
                     break;
                 }
                 case "mouse-acceleration": WindowsGamingProbe.SetMouse(WindowsGamingParsing.ParseMouse(value)); break;
+                case "power-mode": WindowsGamingProbe.SetPowerMode(WindowsGamingParsing.PowerModeOverlay(value) ?? throw new IOException("Invalid power mode.")); break;
                 default: {
                     var on = WindowsGamingParsing.ParseFlagState(value);
                     using var key = Registry.CurrentUser.CreateSubKey(WindowsGamingProbe.GpuPreferencesKey, writable: true);

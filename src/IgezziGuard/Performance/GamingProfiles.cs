@@ -80,17 +80,7 @@ public static class GamingProfiles
 
         // NVIDIA per-game settings, only where the driver's ids were verified (the view lists only trusted settings).
         if (game.NvidiaGlobal is null || !graphics.Adapters.Any(a => a.Vendor == GpuVendor.Nvidia)) return changes;
-        string exe = Path.GetFileName(game.ExecutablePath);
-        NvidiaValue? Effective(uint id) => game.Nvidia?.Values.FirstOrDefault(v => v.Setting.Id == id && v.Source == NvidiaSettingSource.ThisProfile)
-            ?? game.NvidiaGlobal.Values.FirstOrDefault(v => v.Setting.Id == id);
-        void Nvidia(uint id, uint? value, string why, bool optional) {
-            if (!game.NvidiaGlobal.Values.Any(v => v.Setting.Id == id)) return; // Setting not verified on this driver.
-            var current = Effective(id); var setting = NvidiaSettings.Get(id);
-            // "default" only removes a value the user set for this game; NVIDIA's own per-game values are left alone.
-            if (current?.Value == value || value is null && (current?.Source != NvidiaSettingSource.ThisProfile || current.Predefined)) return;
-            changes.Add(new($"nvidia-{id:X8}", ChangeSource.Nvidia, setting.Name + " (this game)", current?.Text ?? "Driver default",
-                value is { } v ? setting.Describe(v) : "Global setting", why, optional, "NVIDIA setting", $"{exe}|{NvidiaSettings.Hex(id)}", value is { } w ? NvidiaSettings.Hex(w) : "default"));
-        }
+        void Nvidia(uint id, uint? value, string why, bool optional) { if (NvidiaGameChange(game, id, value, why, optional) is { } change) changes.Add(change); }
         double refresh = graphics.Displays.Where(d => d.Primary).Select(d => d.Current.RefreshHz).DefaultIfEmpty(graphics.Displays.Select(d => d.Current.RefreshHz).DefaultIfEmpty(60).Max()).First();
         uint displayCap = (uint)Math.Round(refresh);
         switch (goal) {
@@ -103,7 +93,7 @@ public static class GamingProfiles
                 Nvidia(NvidiaSettings.PreRenderedFramesId, 1, "Low Latency Mode (1 queued frame) lowers input lag when the graphics card is the limit. Games with NVIDIA Reflex use their own setting instead.", false);
                 if (displayCap > 63)
                     Nvidia(NvidiaSettings.FrameRateLimitId, displayCap - 3, $"With G-SYNC or FreeSync, capping a few frames below the {displayCap} Hz refresh rate keeps the game inside the adaptive-sync range and avoids latency spikes. Hanki can't tell whether adaptive sync is on, so this is optional.", true);
-                if (Effective(NvidiaSettings.VerticalSyncId)?.Value == NvidiaSettings.VsyncOn)
+                if (NvidiaEffective(game, NvidiaSettings.VerticalSyncId)?.Value == NvidiaSettings.VsyncOn)
                     Nvidia(NvidiaSettings.VerticalSyncId, NvidiaSettings.VsyncApplication, "Vertical sync forced on adds input lag; letting the game decide is usual for competitive play.", false);
                 break;
             case GamingGoal.VisualQuality:
@@ -121,6 +111,26 @@ public static class GamingProfiles
     /// Frame-rate limiter and sync conflicts for one game (HANKI-GAME-208/218). Only configuration Hanki read directly is
     /// used: NVIDIA's limits and RivaTuner's global limit (rtssLimit, 0 = off). In-game limits aren't visible, which the text says.
     /// </summary>
+    /// <summary>The value a game gets for an NVIDIA setting: its own profile's, otherwise the global one.</summary>
+    public static NvidiaValue? NvidiaEffective(GameContext game, uint id) =>
+        game.Nvidia?.Values.FirstOrDefault(v => v.Setting.Id == id && v.Source == NvidiaSettingSource.ThisProfile)
+        ?? game.NvidiaGlobal?.Values.FirstOrDefault(v => v.Setting.Id == id);
+
+    /// <summary>
+    /// A reviewed change to one NVIDIA setting for one game (null = back to the global setting), or null when it's
+    /// already set or the driver didn't verify the setting. "default" only removes a value the user set for this game;
+    /// NVIDIA's own per-game values are left alone.
+    /// </summary>
+    public static ProposedChange? NvidiaGameChange(GameContext game, uint id, uint? value, string why, bool optional)
+    {
+        if (game.NvidiaGlobal is null || !game.NvidiaGlobal.Values.Any(v => v.Setting.Id == id)) return null; // Not verified on this driver.
+        var current = NvidiaEffective(game, id); var setting = NvidiaSettings.Get(id);
+        if (current?.Value == value || value is null && (current?.Source != NvidiaSettingSource.ThisProfile || current.Predefined)) return null;
+        return new($"nvidia-{id:X8}", ChangeSource.Nvidia, setting.Name + " (this game)", current?.Text ?? "Driver default",
+            value is { } v ? setting.Describe(v) : "Global setting", why, optional, "NVIDIA setting", $"{Path.GetFileName(game.ExecutablePath)}|{NvidiaSettings.Hex(id)}",
+            value is { } w ? NvidiaSettings.Hex(w) : "default");
+    }
+
     public static IReadOnlyList<string> Conflicts(GameContext game, double refreshHz, double? rtssLimit = null)
     {
         var notes = new List<string>();

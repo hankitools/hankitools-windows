@@ -154,4 +154,13 @@ public static class WindowsGamingParsing
         "ded574b5-45a0-4f42-8737-46345c09c238" => "Best performance",
         _ => null
     };
+    /// <summary>The power mode overlay for a name <see cref="PowerModeName"/> returns (Recovery stores the name).</summary>
+    public static Guid? PowerModeOverlay(string name) => name switch {
+        "Best power efficiency" => new Guid("961cc777-2547-4f9d-8174-7d86181b8a7a"),
+        "Balanced" => Guid.Empty,
+        "Best performance" => new Guid("ded574b5-45a0-4f42-8737-46345c09c238"),
+        _ => null
+    };
+    /// <summary>Windows' Balanced power plan: the only plan the power mode setting applies to.</summary>
+    public static readonly Guid BalancedPlan = new("381b4222-f694-41f0-9685-ff5bb260df2e");
 }

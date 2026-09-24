@@ -14,8 +14,10 @@ internal sealed class TunePanel : UserControl
     private readonly Label status = new() { AutoSize = true, Tag = "intro", Margin = new Padding(0, 10, 0, 0), Font = new Font("Segoe UI", 10.5f) };
     private readonly RoundedPanel result = new() { Dock = DockStyle.Top, AutoSize = true, Padding = new Padding(26, 20, 26, 22), Visible = false };
     private readonly FlowLayoutPanel resultStack = new() { Dock = DockStyle.Fill, AutoSize = true, FlowDirection = FlowDirection.TopDown, WrapContents = false, Tag = "card" };
+    private readonly Label syncHint;
+    private const string SyncHintText = "It's on the monitor's box, in its specifications or on-screen menu: G-SYNC, G-SYNC Compatible, FreeSync or Adaptive-Sync.";
     private TunePlan? plan;
-    private bool busy;
+    private bool busy, detected;
 
     public TunePanel()
     {
@@ -33,7 +35,7 @@ internal sealed class TunePanel : UserControl
         foreach (var (label, value) in new[] { ("Yes", AdaptiveSync.Yes), ("No", AdaptiveSync.No), ("Not sure", AdaptiveSync.NotSure) })
             syncChoices.Controls.Add(new ChoiceTile(label, label == "Not sure" ? "Hanki leaves V-Sync and frame caps alone" : label == "Yes" ? "V-Sync and caps set for adaptive sync" : "Settings for a fixed refresh rate",
                 HankiTheme.PerformanceAccent, compact: true) { Value = value, Selected = value == AdaptiveSync.NotSure, Margin = new Padding(0, 0, 10, 0) });
-        var syncHint = new Label { Text = "It's on the monitor's box, in its specifications or on-screen menu: G-SYNC, G-SYNC Compatible, FreeSync or Adaptive-Sync.", AutoSize = true, Tag = "intro",
+        syncHint = new Label { Text = SyncHintText, AutoSize = true, Tag = "intro",
             Font = new Font("Segoe UI", 10f), Margin = new Padding(0, 8, 0, 0) };
         var syncStack = new FlowLayoutPanel { AutoSize = true, FlowDirection = FlowDirection.TopDown, WrapContents = false, Margin = Padding.Empty, Tag = "card" };
         syncStack.Controls.AddRange([syncQuestion, syncChoices, syncHint]);
@@ -49,6 +51,7 @@ internal sealed class TunePanel : UserControl
         result.Controls.Add(resultStack);
         result.SizeChanged += (_, _) => Wrap(resultStack);
         scan.Click += async (_, _) => await Scan();
+        VisibleChanged += async (_, _) => { if (Visible && !detected) { detected = true; await DetectSync(); } };
         var gap = new Panel { Dock = DockStyle.Top, Height = 14, Tag = "gap" };
         Controls.Add(result); Controls.Add(gap); Controls.Add(hero);
     }
@@ -81,6 +84,21 @@ internal sealed class TunePanel : UserControl
     private TuneScenario? Scenario => scenarios.Controls.OfType<ChoiceTile>().FirstOrDefault(t => t.Selected)?.Value as TuneScenario?;
     private AdaptiveSync Sync => syncChoices.Controls.OfType<ChoiceTile>().FirstOrDefault(t => t.Selected)?.Value as AdaptiveSync? ?? AdaptiveSync.NotSure;
 
+    /// <summary>
+    /// Answers the G-SYNC question from NVIDIA's driver when it can: "Yes" when G-SYNC is on for the main display.
+    /// Your own choice is never overridden. Read-only.
+    /// </summary>
+    private async Task DetectSync()
+    {
+        if (Screen.PrimaryScreen?.DeviceName is not { } display) return;
+        var status = await Task.Run(() => Nvidia.AdaptiveSync(display));
+        if (status is null || IsDisposed) return;
+        bool untouched = Sync == AdaptiveSync.NotSure;
+        if (status.On && untouched) foreach (var tile in syncChoices.Controls.OfType<ChoiceTile>()) tile.Selected = Equals(tile.Value, AdaptiveSync.Yes);
+        syncHint.Text = status.On ? "NVIDIA's driver reports G-SYNC switched on for this display." :
+            status.Supported ? "Your display supports G-SYNC, but it's off in the NVIDIA driver. Choose Yes if you'll switch it on; the plan shows how." : SyncHintText;
+    }
+
     private async Task Scan()
     {
         if (busy) return;
@@ -89,7 +107,7 @@ internal sealed class TunePanel : UserControl
         status.Text = "Reading display, Windows, graphics driver, processor, memory and storage settings. Nothing is changed…";
         try {
             var inputs = await Collect();
-            plan = TunePlanner.Plan(scenario, TunePlanner.IsGaming(scenario) ? Sync : AdaptiveSync.NotSure, inputs);
+            plan = TunePlanner.Plan(scenario, TunePlanner.IsGaming(scenario) ? TunePlanner.Resolve(Sync, inputs.Sync) : AdaptiveSync.NotSure, inputs);
             status.Text = $"Scanned {DateTime.Now:t}. Nothing was changed.";
             ShowPlan(plan);
         } catch (Exception ex) when (ex is IOException or InvalidOperationException or UnauthorizedAccessException or System.ComponentModel.Win32Exception) {
@@ -113,7 +131,19 @@ internal sealed class TunePanel : UserControl
         var all = gaming.Findings.Concat(findings).GroupBy(f => (f.ModuleId, f.FindingId)).Select(g => g.First()).ToArray();
         try { PerformanceStatus.History.Add(new DiagnosticScan(Guid.NewGuid(), now, DateTimeOffset.UtcNow, 4, 4, false, all)); } catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
         var background = gaming.Findings.Where(f => f.Metadata.GetValueOrDefault("source") == "Background");
-        return new TuneInputs(gaming.Graphics, gaming.Windows!, nvidia, findings.Concat(background).ToArray(), gaming.Amd);
+        // G-SYNC on the main display and your games' NVIDIA profiles, for the adaptive-sync and per-game rules.
+        AdaptiveSyncStatus? sync = null; IReadOnlyList<GameContext>? contexts = null;
+        if (nvidia is not null) {
+            if (gaming.Graphics.Displays.FirstOrDefault(d => d.Primary) is { } primary) sync = await Task.Run(() => Nvidia.AdaptiveSync(primary.Name));
+            var listed = games.Where(g => !g.Hidden).Take(TunePlanner.GameLimit).ToArray();
+            if (listed.Length > 0) {
+                try {
+                    var profiles = await Task.Run(() => Nvidia.ReadProfiles(listed.Select(g => Path.GetFileName(g.Executable))));
+                    contexts = listed.Select(g => new GameContext(g.Name, g.Executable, profiles.Applications.GetValueOrDefault(Path.GetFileName(g.Executable)), profiles.Global, null)).ToArray();
+                } catch (NvidiaException) { }
+            }
+        }
+        return new TuneInputs(gaming.Graphics, gaming.Windows!, nvidia, findings.Concat(background).ToArray(), gaming.Amd, sync, contexts);
     }
 
     private static string AreaName(TuneArea area) => area switch {

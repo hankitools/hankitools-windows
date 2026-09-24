@@ -4,6 +4,12 @@ namespace IgezziGuard;
 public enum TuneScenario { GamingPerformance, GamingQuality, Creative, LowPower }
 /// <summary>Whether the display has G-SYNC or FreeSync. Windows doesn't report it reliably, so Tune my PC asks.</summary>
 public enum AdaptiveSync { NotSure, Yes, No }
+/// <summary>G-SYNC as NVIDIA's driver reports it for a display: switched on, and whether the display supports it.</summary>
+public sealed record AdaptiveSyncStatus(bool On, bool Supported)
+{
+    /// <summary>NVAPI's NV_GET_VRR_INFO flags: bit 0 enabled, bit 1 possible.</summary>
+    public static AdaptiveSyncStatus FromNvidiaFlags(uint flags) => new((flags & 1) != 0, (flags & 3) != 0);
+}
 public enum TuneArea { Display, Windows, Mouse, GraphicsDriver, Games, Background, Processor, Memory, Storage }
 
 /// <summary>
@@ -11,7 +17,10 @@ public enum TuneArea { Display, Windows, Mouse, GraphicsDriver, Games, Backgroun
 /// analyzers' results and the background check's (overlays, recorders, limiters, busy programs).
 /// </summary>
 /// <param name="Amd">Radeon settings from AMD's driver interface, when it could be read.</param>
-public sealed record TuneInputs(GraphicsInventory Graphics, WindowsGamingSettings Windows, IReadOnlyList<NvidiaGlobalSetting>? Nvidia, IReadOnlyList<DiagnosticResult> Findings, AmdGpuSettings? Amd = null);
+/// <param name="Sync">G-SYNC on the main display as NVIDIA's driver reports it, when it could be read.</param>
+/// <param name="Games">Your games (Gaming → Games) with their NVIDIA profiles, for per-game changes.</param>
+public sealed record TuneInputs(GraphicsInventory Graphics, WindowsGamingSettings Windows, IReadOnlyList<NvidiaGlobalSetting>? Nvidia, IReadOnlyList<DiagnosticResult> Findings,
+    AmdGpuSettings? Amd = null, AdaptiveSyncStatus? Sync = null, IReadOnlyList<GameContext>? Games = null);
 /// <summary>One line of the plan: a change Hanki makes (Kind set) or a step for you (Manual set).</summary>
 public sealed record TuneItem(TuneArea Area, ProposedChange Change);
 /// <summary>A setting the scan checked that already suits the choice, listed so you can see what was looked at.</summary>
@@ -26,8 +35,8 @@ public sealed record TunePlan(TuneScenario Scenario, AdaptiveSync Sync, IReadOnl
 /// <summary>
 /// Tune my PC (HANKI-PERF-320): turns what you want today into a plan across display, Windows, mouse, graphics
 /// driver, processor, memory and storage. The recommendations and their sources are in docs/TUNING.md. Only
-/// documented settings are changed, each through the review dialog and Recovery; hardware and BIOS steps, in-game
-/// settings and settings Hanki can't read are listed as steps for you. Nothing is changed by building a plan.
+/// settings Hanki can read back are changed, each through the review dialog and Recovery; hardware and BIOS steps,
+/// in-game settings and switches Hanki can't change are listed as steps for you. Nothing is changed by building a plan.
 /// </summary>
 public static partial class TunePlanner
 {
@@ -42,6 +51,10 @@ public static partial class TunePlanner
         _ => "Cooler, quieter and longer on battery: frame caps and energy saving."
     };
     public static bool IsGaming(TuneScenario scenario) => scenario is TuneScenario.GamingPerformance or TuneScenario.GamingQuality;
+    /// <summary>"Not sure" becomes Yes when NVIDIA's driver says G-SYNC is on; an answer you gave is kept.</summary>
+    public static AdaptiveSync Resolve(AdaptiveSync answer, AdaptiveSyncStatus? detected) => answer == AdaptiveSync.NotSure && detected is { On: true } ? AdaptiveSync.Yes : answer;
+    /// <summary>At most this many games get per-game changes in one plan; the rest through Gaming → Games.</summary>
+    public const int GameLimit = 12;
     [GeneratedRegex(@"RTX\s*(40|50)\d{2}", RegexOptions.IgnoreCase)] private static partial Regex FrameGenerationGpu();
 
     public static TunePlan Plan(TuneScenario scenario, AdaptiveSync sync, TuneInputs x)
@@ -102,10 +115,16 @@ public static partial class TunePlanner
                     Hanki(TuneArea.Windows, ChangeSource.Windows, "tune-vrr", "Variable refresh rate (Windows)", w.VariableRefresh == false ? "Off" : "Windows default", "On",
                         "Lets DirectX 11 games that don't support G-SYNC or FreeSync themselves use your display's adaptive sync.", false, Wg, "variable-refresh", "on");
                 else Good(TuneArea.Windows, "Variable refresh rate (Windows)", "On");
-                Step(TuneArea.GraphicsDriver, nvidia ? ChangeSource.Nvidia : amd ? ChangeSource.Amd : ChangeSource.Display, "tune-adaptive-sync", "G-SYNC / FreeSync switched on", "Not readable", "On",
-                    "Adaptive sync only works when it's on in the driver and, on many monitors, in the monitor's own menu. Hanki can't read those switches.",
-                    nvidia ? "NVIDIA Control Panel → Set up G-SYNC: tick Enable G-SYNC, G-SYNC Compatible, for full screen mode." :
-                    amd ? "AMD Software → Gaming → Display: turn on AMD FreeSync." : "Turn on adaptive sync in your graphics driver and in the monitor's menu.", optional: true);
+                if (x.Sync is { On: true }) Good(TuneArea.GraphicsDriver, "G-SYNC", "On");
+                else if (x.Sync is { Supported: true })
+                    Step(TuneArea.GraphicsDriver, ChangeSource.Nvidia, "tune-adaptive-sync", "G-SYNC", "Off", "On",
+                        "Your display supports G-SYNC, but it's switched off in the NVIDIA driver. NVIDIA doesn't let other apps switch it on, so this one is yours.",
+                        "NVIDIA Control Panel → Set up G-SYNC: tick Enable G-SYNC, G-SYNC Compatible, for full screen mode, then apply.");
+                else
+                    Step(TuneArea.GraphicsDriver, nvidia ? ChangeSource.Nvidia : amd ? ChangeSource.Amd : ChangeSource.Display, "tune-adaptive-sync", "G-SYNC / FreeSync switched on", "Not readable", "On",
+                        "Adaptive sync only works when it's on in the driver and, on many monitors, in the monitor's own menu. Hanki couldn't read those switches here.",
+                        nvidia ? "NVIDIA Control Panel → Set up G-SYNC: tick Enable G-SYNC, G-SYNC Compatible, for full screen mode." :
+                        amd ? "AMD Software → Gaming → Display: turn on AMD FreeSync." : "Turn on adaptive sync in your graphics driver and in the monitor's menu.", optional: true);
             } else if (sync == AdaptiveSync.NotSure)
                 Step(TuneArea.Display, ChangeSource.Display, "tune-sync-unknown", "G-SYNC or FreeSync", "Unknown", "Check your monitor",
                     "With adaptive sync the best settings differ (V-Sync on in the driver and a frame cap just below the refresh rate), so Hanki leaves vertical sync and frame caps alone until it knows.",
@@ -145,18 +164,20 @@ public static partial class TunePlanner
 
         // ---- Power and processor ---------------------------------------------------------------------------------
         if (onAc || !laptop) {
+            // Windows' power mode applies to the Balanced plan; Hanki changes it there and reads it back. With another
+            // plan it stays a step, since Windows may not use the power mode at all.
+            void PowerMode(string target, string why, bool optional = false) {
+                if (w.PowerMode is not null && w.PowerPlan == WindowsGamingParsing.BalancedPlan)
+                    Hanki(TuneArea.Processor, ChangeSource.Windows, "tune-power-mode", "Power mode", w.PowerMode, target, why, optional, Wg, "power-mode", target);
+                else Step(TuneArea.Processor, ChangeSource.Windows, "tune-power-mode", "Power mode", w.PowerMode ?? "Unknown", target, why, "Settings → System → Power & battery → Power mode.", Power, optional);
+            }
             if (lowPower) {
-                if (w.PowerMode != "Best power efficiency")
-                    Step(TuneArea.Processor, ChangeSource.Windows, "tune-power-mode", "Power mode", w.PowerMode ?? "Unknown", "Best power efficiency",
-                        "Lowers processor and graphics power use: cooler, quieter and less energy.", "Settings → System → Power & battery → Power mode.", Power);
+                if (w.PowerMode != "Best power efficiency") PowerMode("Best power efficiency", "Lowers processor and graphics power use: cooler, quieter and less energy.");
                 else Good(TuneArea.Processor, "Power mode", w.PowerMode);
             } else if (w.PowerMode == "Best power efficiency")
-                Step(TuneArea.Processor, ChangeSource.Windows, "tune-power-mode", "Power mode", w.PowerMode, "Balanced or Best performance",
-                    "“Best power efficiency” lowers processor and graphics performance to save energy.", "Settings → System → Power & battery → Power mode.", Power);
+                PowerMode(scenario is TuneScenario.GamingPerformance or TuneScenario.Creative ? "Best performance" : "Balanced", "“Best power efficiency” lowers processor and graphics performance to save energy.");
             else if (w.PowerMode == "Balanced" && scenario is TuneScenario.GamingPerformance or TuneScenario.Creative)
-                Step(TuneArea.Processor, ChangeSource.Windows, "tune-power-mode", "Power mode", "Balanced", "Best performance",
-                    "Lets the processor reach its highest clocks sooner. The gain is small in games limited by the graphics card and larger in processor-heavy games and creative apps; laptops run warmer and louder.",
-                    "Settings → System → Power & battery → Power mode.", Power, optional: true);
+                PowerMode("Best performance", "Lets the processor reach its highest clocks sooner. The gain is small in games limited by the graphics card and larger in processor-heavy games and creative apps; laptops run warmer and louder.", optional: true);
             else if (w.PowerMode is not null) Good(TuneArea.Processor, "Power mode", w.PowerMode);
             if (!lowPower && w.ProcessorMaximumAc is { } max && max < 100 && w.PowerPlan is { } plan)
                 Hanki(TuneArea.Processor, ChangeSource.Windows, "tune-processor-maximum", "Maximum processor state (plugged in)", $"{max}%", "100%",
@@ -207,10 +228,21 @@ public static partial class TunePlanner
             }
             if (Effective(NvidiaSettings.PowerManagementId) == NvidiaSettings.PowerPreferMinimum && !lowPower)
                 Nv(NvidiaSettings.PowerManagementId, null, "“Prefer maximum power savings” keeps the card at low clocks in every game.");
-            if (scenario == TuneScenario.GamingPerformance)
-                Step(TuneArea.GraphicsDriver, ChangeSource.Nvidia, "tune-per-game-clocks", "Full GPU clocks in your games", "Set per game", "Optimize each game",
-                    "Keeping the graphics card at full clocks helps some games. Set per game it doesn't keep the card clocked up at the desktop, where it can add 15–25 W.",
-                    "Gaming → Games: choose a game, pick Competitive or Maximum FPS, then Optimize this game.", optional: true);
+            if (scenario == TuneScenario.GamingPerformance) {
+                const string clocksWhy = "Keeps the graphics card at full clocks while this game runs, for steadier frame times. Set per game, the card still clocks down at the desktop, where full clocks can add 15–25 W.";
+                var games = (x.Games ?? []).Take(GameLimit).ToArray();
+                int alreadyFull = 0;
+                foreach (var game in games) {
+                    if (GamingProfiles.NvidiaGameChange(game, NvidiaSettings.PowerManagementId, NvidiaSettings.PowerPreferMaximum, clocksWhy, optional: true) is { } change)
+                        items.Add(new(TuneArea.Games, change with { Id = "tune-clocks:" + Path.GetFileName(game.ExecutablePath).ToLowerInvariant(), Setting = "Full GPU clocks: " + game.Name }));
+                    else if (GamingProfiles.NvidiaEffective(game, NvidiaSettings.PowerManagementId)?.Value == NvidiaSettings.PowerPreferMaximum) alreadyFull++;
+                }
+                if (alreadyFull > 0) Good(TuneArea.Games, "Full GPU clocks", alreadyFull == 1 ? "On for 1 game" : $"On for {alreadyFull} games");
+                if (games.Length == 0)
+                    Step(TuneArea.GraphicsDriver, ChangeSource.Nvidia, "tune-per-game-clocks", "Full GPU clocks in your games", "No games listed", "Set per game",
+                        "Keeping the graphics card at full clocks helps some games. Set per game it doesn't keep the card clocked up at the desktop, where it can add 15–25 W.",
+                        "Gaming → Games: find your games or add one, then run Tune my PC again. Hanki then offers full clocks for each of them.", optional: true);
+            }
         } else if (nvidia && gaming)
             Step(TuneArea.GraphicsDriver, ChangeSource.Nvidia, "tune-nvidia-missing", "NVIDIA driver settings", "Not available", "Readable",
                 "Hanki couldn't open the NVIDIA driver interface, so driver settings aren't part of this plan.", "Install or repair the NVIDIA driver from nvidia.com, then run Tune my PC again.");
