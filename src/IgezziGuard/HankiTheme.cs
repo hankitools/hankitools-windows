@@ -15,8 +15,12 @@ internal static class HankiTheme
     internal static readonly Color PrimaryFill = Color.FromArgb(0, 105, 220);
     internal static readonly Color PrimaryHover = Color.FromArgb(18, 122, 238);
     internal static readonly Color Border = Color.FromArgb(44, 51, 62);
+    /// <summary>The soft edge of cards and tiles: visible enough to separate surfaces, quieter than control borders.</summary>
+    internal static readonly Color Hairline = Color.FromArgb(34, 39, 48);
+    /// <summary>Corner radius of cards and tiles, and of buttons and fields (logical pixels).</summary>
+    internal const float CardRadius = 12, ControlRadius = 8;
 
-    internal static readonly Color Pine = Color.FromArgb(11, 13, 17);
+    internal static readonly Color Pine = Color.FromArgb(12, 14, 18);
 
     // Status colors describe collected evidence, never an overall PC-health score.
     internal static readonly Color Success = Color.FromArgb(74, 196, 120);
@@ -83,7 +87,8 @@ internal static class HankiTheme
             case NumericUpDown:
             case ComboBox:
             case DateTimePicker:
-                root.BackColor = highContrast ? SystemColors.Window : Surface;
+                // A search field paints its own rounded frame on the canvas color; the box inside matches it.
+                root.BackColor = highContrast ? SystemColors.Window : root.Parent is SearchField ? Canvas : Surface;
                 root.ForeColor = highContrast ? SystemColors.WindowText : Text;
                 // A plain single border ignores the dark theme; the themed client edge follows it.
                 if (root is TextBox { BorderStyle: BorderStyle.FixedSingle } text) text.BorderStyle = BorderStyle.Fixed3D;

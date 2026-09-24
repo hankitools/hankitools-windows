@@ -7,7 +7,7 @@ internal static class UiSmokeTest
     /// <summary>Pages saved as screenshots for review (file name, route), when a screenshot folder is given.</summary>
     internal static readonly IReadOnlyList<(string File, string Route)> Screens = [
         ("home", "Home"), ("fix-my-pc", "System overview"), ("tune-my-pc", "Performance overview"), ("gaming", "Gaming  /  Overview"),
-        ("nvidia", "Gaming  /  NVIDIA"), ("amd", "Gaming  /  AMD Radeon"), ("diagnose", "Diagnose"), ("history", "History"), ("help", "Help"), ("tune-plan", "Performance overview")];
+        ("games", "Gaming  /  Games"), ("nvidia", "Gaming  /  NVIDIA"), ("amd", "Gaming  /  AMD Radeon"), ("diagnose", "Diagnose"), ("maintain", "Maintain"), ("connect", "Connect"), ("recovery", "Recovery"), ("history", "History"), ("help", "Help"), ("tune-plan", "Performance overview")];
 
     /// <summary>An example Tune my PC plan from fixed data (an untuned desktop with an RTX 4070), for the plan screenshot.</summary>
     internal static TunePlan ExamplePlan()

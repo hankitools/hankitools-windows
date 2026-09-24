@@ -2,18 +2,21 @@ namespace IgezziGuard;
 
 public class ToolPage : UserControl
 {
-    protected readonly FlowLayoutPanel Bar = new() { Dock = DockStyle.Top, AutoSize = true, WrapContents = true, Padding = new Padding(0, 0, 0, 14) };
+    /// <summary>The page's actions on one row: the first is primary; what doesn't fit moves into "More".</summary>
+    protected readonly FlowLayoutPanel Bar = new() { Dock = DockStyle.Fill, AutoSize = true, WrapContents = false, Margin = Padding.Empty };
     protected readonly TextBox Output = new() { Dock = DockStyle.Fill, Multiline = true, ReadOnly = true, BorderStyle = BorderStyle.None, ScrollBars = ScrollBars.Both, HideSelection = false };
     private readonly HankiButton stop = new() { Text = "Cancel", AutoSize = true, Enabled = false, Visible = false, Appearance = HankiButtonStyle.Quiet, Margin = new Padding(0, 0, 0, 0) };
-    private readonly HankiButton export = new() { Text = "Review / share report", Appearance = HankiButtonStyle.Quiet, AutoSize = true };
-    private readonly HankiButton assistant = new() { Text = "Prepare for Assistant", Appearance = HankiButtonStyle.Quiet, AutoSize = true };
-    private readonly HankiButton previous = new() { Text = "Previous report", Appearance = HankiButtonStyle.Quiet, AutoSize = true, Enabled = false };
-    private readonly Label state = new() { Text = "Ready when you are", AutoSize = true, Tag = "intro", Margin = new Padding(0, 7, 12, 0), Font = new Font("Segoe UI Semibold", 9.75f) };
-    private readonly TextBox find = new() { Width = 200, PlaceholderText = "Find in report  (Ctrl+F)", AccessibleName = "Find in report", Margin = new Padding(8, 3, 0, 0) };
-    private readonly Label matches = new() { AutoSize = true, Tag = "intro", Margin = new Padding(8, 7, 0, 0) };
+    private readonly Label state = new() { Text = "Ready when you are", AutoSize = true, Tag = "intro", Margin = new Padding(0, 8, 12, 0), Font = new Font("Segoe UI Semibold", 10f) };
+    private readonly SearchField find = new("Find in report  (Ctrl+F)", 240) { Margin = new Padding(8, 0, 0, 0) };
+    private readonly Label matches = new() { AutoSize = true, Tag = "intro", Margin = new Padding(8, 8, 0, 0) };
     private readonly SummaryView summary = new() { Visible = false };
-    private readonly HankiButton details = new() { Text = "View technical details", Appearance = HankiButtonStyle.Quiet, AutoSize = true, Visible = false };
+    private readonly HankiButton details = new() { Text = "View technical details", Appearance = HankiButtonStyle.Quiet, AutoSize = true, Visible = false, Margin = new Padding(0, 0, 4, 0) };
+    private readonly HankiButton options = new() { Text = "⋯", AutoSize = true, AccessibleName = "Report options", Margin = Padding.Empty, Font = new Font("Segoe UI Semibold", 12f) };
+    private readonly ProgressLine progress = new() { Dock = DockStyle.Top };
+    private readonly ToolTip tips = new();
     private RoundedPanel report = null!;
+    // Report actions live in the ⋯ menu; they're off while a task runs.
+    private bool reportActions = true, wrapLines = true;
     private string? previousReport;
     private string previousState = "";
     private CancellationTokenSource? pending;
@@ -26,40 +29,40 @@ public class ToolPage : UserControl
     public ToolPage(string disclosure)
     {
         Dock = DockStyle.Fill; Padding = new Padding(0, 4, 0, 0); Output.Text = disclosure;
-        var footer = new FlowLayoutPanel { Dock = DockStyle.Bottom, AutoSize = true, Padding = new Padding(0, 10, 0, 0) };
-        footer.Controls.AddRange([details, export, assistant, previous]);
-        // Report card: status and cancel on the left, search tools on the right, report below.
+        // Top row: actions on the left; the summary/details switch and report options on the right.
+        var side = new FlowLayoutPanel { AutoSize = true, WrapContents = false, Margin = Padding.Empty, Anchor = AnchorStyles.Top | AnchorStyles.Right };
+        side.Controls.AddRange([details, options]);
+        var top = new TableLayoutPanel { Dock = DockStyle.Top, AutoSize = true, ColumnCount = 2, RowCount = 1, Padding = new Padding(0, 0, 0, 14), Margin = Padding.Empty };
+        top.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100)); top.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+        top.Controls.Add(Bar, 0, 0); top.Controls.Add(side, 1, 0);
+        Overflow.Attach(Bar, b => !b.Primary, label: "More", style: HankiButtonStyle.Secondary);
+        tips.SetToolTip(options, "Share, send to the Assistant, previous report");
+        Disposed += (_, _) => tips.Dispose();
+        // Report card: status and cancel on the left, search on the right, a progress line, then the report.
         var statusBar = new FlowLayoutPanel { AutoSize = true, WrapContents = false, Tag = "card", Margin = Padding.Empty, Anchor = AnchorStyles.Left | AnchorStyles.Top };
         statusBar.Controls.AddRange([state, stop]);
-        var next = new HankiButton { Text = "Next", AutoSize = true, Appearance = HankiButtonStyle.Quiet, Margin = new Padding(4, 0, 0, 0) };
-        var wrap = new CheckBox { Text = "Wrap lines", Checked = true, AutoSize = true, Margin = new Padding(12, 7, 0, 0) };
         var searchBar = new FlowLayoutPanel { AutoSize = true, WrapContents = false, Tag = "card", Margin = Padding.Empty, Anchor = AnchorStyles.Right | AnchorStyles.Top };
-        searchBar.Controls.AddRange([matches, find, next, wrap]);
-        var header = new TableLayoutPanel { Dock = DockStyle.Top, AutoSize = true, ColumnCount = 2, RowCount = 1, Tag = "card", Padding = new Padding(0, 0, 0, 10) };
+        searchBar.Controls.AddRange([matches, find]);
+        var header = new TableLayoutPanel { Dock = DockStyle.Top, AutoSize = true, ColumnCount = 2, RowCount = 1, Tag = "card", Padding = new Padding(0, 0, 0, 12) };
         header.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100)); header.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
         header.Controls.Add(statusBar, 0, 0); header.Controls.Add(searchBar, 1, 0);
-        var divider = new Panel { Dock = DockStyle.Top, Height = 1, Tag = "divider" };
-        divider.Paint += (_, e) => { if (!SystemInformation.HighContrast) e.Graphics.Clear(HankiTheme.Border); };
         var spacer = new Panel { Dock = DockStyle.Top, Height = 12, Tag = "card" };
-        report = new RoundedPanel { Dock = DockStyle.Fill, Padding = new Padding(18, 12, 12, 12) };
-        report.Controls.Add(Output); report.Controls.Add(spacer); report.Controls.Add(divider); report.Controls.Add(header);
+        report = new RoundedPanel { Dock = DockStyle.Fill, Padding = new Padding(20, 14, 12, 12) };
+        report.Controls.Add(Output); report.Controls.Add(spacer); report.Controls.Add(progress); report.Controls.Add(header);
         // The body holds either the plain-language summary or the technical report; subclasses insert above it at index 1.
         var body = new Panel { Dock = DockStyle.Fill };
         body.Controls.Add(report); body.Controls.Add(summary);
-        Controls.Add(body); Controls.Add(Bar); Controls.Add(footer);
+        Controls.Add(body); Controls.Add(top);
         details.Click += (_, _) => SetSummaryVisible(!summary.Visible);
+        options.Click += (_, _) => ShowOptions();
         // TextBox selects everything when focus arrives (for example when action buttons are disabled); a read-only report should not look selected.
         Output.Select(0, 0);
         Output.GotFocus += (_, _) => BeginInvoke(() => { if (Output.TextLength > 0 && Output.SelectionLength == Output.TextLength) Output.Select(0, 0); });
         stop.Click += (_, _) => { Cancel(); state.Text = "Cancelling…"; stop.Enabled = false; };
-        assistant.Click += (_, _) => PrepareRequested?.Invoke(Output.Text);
-        export.Click += (_, _) => ReviewReport();
-        wrap.CheckedChanged += (_, _) => Output.WordWrap = wrap.Checked;
-        next.Click += (_, _) => FindNext();
-        find.TextChanged += (_, _) => { Output.Select(0, 0); FindNext(); };
-        find.KeyDown += (_, e) => {
+        find.Box.TextChanged += (_, _) => { Output.Select(0, 0); FindNext(); };
+        find.Box.KeyDown += (_, e) => {
             if (e.KeyCode == Keys.Enter) { FindNext(); e.SuppressKeyPress = true; }
-            else if (e.KeyCode == Keys.Escape) { find.Clear(); Output.Focus(); e.SuppressKeyPress = true; }
+            else if (e.KeyCode == Keys.Escape) { find.Box.Clear(); Output.Focus(); e.SuppressKeyPress = true; }
         };
         Output.TextChanged += (_, _) => {
             matches.Text = "";
@@ -68,32 +71,49 @@ public class ToolPage : UserControl
             // A direct message (outside a run) replaces the previous result, so its summary no longer applies.
             hasSummary = details.Visible = false; SetSummaryVisible(false);
         };
-        previous.Click += (_, _) => {
-            if (IsBusy || previousReport is null) return;
-            SetSummaryVisible(false);
-            string currentState = state.Text;
-            (previousReport, Output.Text) = (Output.Text, previousReport);
-            (previousState, state.Text) = (currentState, previousState);
-            previous.Text = previous.Text == "Previous report" ? "Latest report" : "Previous report";
-        };
+    }
+
+    /// <summary>Share, Assistant, previous report and line wrapping, in one menu instead of a row of links.</summary>
+    private void ShowOptions()
+    {
+        var menu = HankiMenu.Create(checks: true);
+        menu.Items.Add(HankiMenu.Item("Review / share report…", ReviewReport, reportActions));
+        menu.Items.Add(HankiMenu.Item("Prepare for Assistant", () => PrepareRequested?.Invoke(Output.Text), reportActions));
+        menu.Items.Add(HankiMenu.Item(showingPrevious ? "Back to the latest report" : "Show the previous report", SwapPrevious, reportActions && previousReport is not null));
+        menu.Items.Add(new ToolStripSeparator());
+        var wrap = HankiMenu.Item("Wrap long lines", () => { wrapLines = !wrapLines; Output.WordWrap = wrapLines; });
+        wrap.Checked = wrapLines; menu.Items.Add(wrap);
+        menu.Closed += (_, _) => BeginInvoke(menu.Dispose);
+        menu.Show(options, new Point(options.Width - menu.GetPreferredSize(Size.Empty).Width, options.Height + 4));
+    }
+    private bool showingPrevious;
+    private void SwapPrevious()
+    {
+        if (IsBusy || previousReport is null) return;
+        SetSummaryVisible(false);
+        string currentState = state.Text;
+        (previousReport, Output.Text) = (Output.Text, previousReport);
+        (previousState, state.Text) = (currentState, previousState);
+        showingPrevious = !showingPrevious;
     }
 
     protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
     {
-        if (keyData == (Keys.Control | Keys.F)) { SetSummaryVisible(false); find.Focus(); find.SelectAll(); return true; }
+        if (keyData == (Keys.Control | Keys.F)) { SetSummaryVisible(false); find.Box.Focus(); find.Box.SelectAll(); return true; }
         if (keyData == Keys.F3) { FindNext(); return true; }
         return base.ProcessCmdKey(ref msg, keyData);
     }
 
     private void FindNext()
     {
-        if (string.IsNullOrEmpty(find.Text)) { matches.Text = ""; Output.SelectionLength = 0; return; }
+        string text = find.Box.Text;
+        if (string.IsNullOrEmpty(text)) { matches.Text = ""; Output.SelectionLength = 0; return; }
         int start = Output.SelectionStart + Output.SelectionLength;
-        int index = Output.Text.IndexOf(find.Text, start, StringComparison.OrdinalIgnoreCase);
+        int index = Output.Text.IndexOf(text, start, StringComparison.OrdinalIgnoreCase);
         bool wrapped = index < 0 && start > 0;
-        if (wrapped) index = Output.Text.IndexOf(find.Text, StringComparison.OrdinalIgnoreCase);
+        if (wrapped) index = Output.Text.IndexOf(text, StringComparison.OrdinalIgnoreCase);
         if (index < 0) { matches.Text = "No matches"; return; }
-        Output.Select(index, find.Text.Length); Output.ScrollToCaret();
+        Output.Select(index, text.Length); Output.ScrollToCaret();
         matches.Text = wrapped ? "Back to first match" : "Match found";
     }
 
@@ -144,6 +164,7 @@ public class ToolPage : UserControl
         visible &= hasSummary;
         summary.Visible = visible; report.Visible = !visible;
         details.Text = visible ? "View technical details" : "Back to summary";
+        details.Invalidate();
     }
     /// <summary>Runs structured work: the report fills the technical view and the summary is shown first.</summary>
     protected async Task Run(Func<CancellationToken, Task<Diagnosis>> work)
@@ -157,13 +178,13 @@ public class ToolPage : UserControl
     {
         if (IsBusy) return;
         hasSummary = details.Visible = false; SetSummaryVisible(false);
-        previousReport = Output.Text; previousState = state.Text; previous.Text = "Previous report";
+        previousReport = Output.Text; previousState = state.Text; showingPrevious = false;
         using var cts = new CancellationTokenSource(); pending = cts;
         var elapsed = System.Diagnostics.Stopwatch.StartNew();
         using var timer = new System.Windows.Forms.Timer { Interval = 1000 };
         timer.Tick += (_, _) => state.Text = (cts.IsCancellationRequested ? "Cancelling" : "Working") + $" · {elapsed.Elapsed:mm\\:ss}";
         timer.Start();
-        Bar.Enabled = export.Enabled = assistant.Enabled = previous.Enabled = false;
+        Bar.Enabled = reportActions = false; progress.Busy = true;
         stop.Visible = stop.Enabled = true; state.Text = "Working…"; Output.Text = "Collecting results. Your previous report remains available after this operation.";
         string outcome = "Report ready";
         try {
@@ -182,7 +203,7 @@ public class ToolPage : UserControl
         finally {
             timer.Stop(); pending = null;
             if (!IsDisposed) {
-                Bar.Enabled = export.Enabled = assistant.Enabled = previous.Enabled = true;
+                Bar.Enabled = reportActions = true; progress.Busy = false;
                 stop.Enabled = stop.Visible = false;
                 state.Text = outcome + $" · {elapsed.Elapsed:mm\\:ss} · " + DateTime.Now.ToString("t");
             }

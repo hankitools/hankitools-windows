@@ -56,6 +56,29 @@ jobs:
             Stop-Transcript
           }
 
+      # TEMPORARY review aid while the UI round is in progress: each UI screenshot as base64 JPEG in the job log, so
+      # it can be reviewed where artifacts can't be downloaded. Removed before the PR is marked ready; the PNGs are
+      # in the diagnostics artifact.
+      - name: Print UI screenshots
+        if: always()
+        shell: pwsh
+        run: |
+          Add-Type -AssemblyName System.Drawing
+          Get-ChildItem dist -Recurse -Filter ui-smoke.json | ForEach-Object { (Get-Content $_.FullName -Raw | ConvertFrom-Json) | Select-Object Passed, Screenshots, ScreenshotError | ConvertTo-Json -Compress }
+          $codec = [System.Drawing.Imaging.ImageCodecInfo]::GetImageEncoders() | Where-Object MimeType -eq 'image/jpeg'
+          $options = New-Object System.Drawing.Imaging.EncoderParameters 1
+          $options.Param[0] = New-Object System.Drawing.Imaging.EncoderParameter ([System.Drawing.Imaging.Encoder]::Quality), 80L
+          foreach ($file in Get-ChildItem dist/ui-screenshots/*.png -ErrorAction SilentlyContinue) {
+            $image = [System.Drawing.Image]::FromFile($file.FullName)
+            $stream = New-Object System.IO.MemoryStream
+            $image.Save($stream, $codec, $options)
+            $b64 = [Convert]::ToBase64String($stream.ToArray())
+            "SHOT-BEGIN $($file.BaseName)"
+            for ($i = 0; $i -lt $b64.Length; $i += 4000) { 'SHOT ' + $b64.Substring($i, [Math]::Min(4000, $b64.Length - $i)) }
+            "SHOT-END $($file.BaseName)"
+            $image.Dispose()
+          }
+
       - name: Upload unsigned test candidate and checksum
         uses: actions/upload-artifact@v4
         with:

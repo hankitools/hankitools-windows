@@ -96,7 +96,7 @@ internal sealed class PerformanceOverviewPanel : UserControl
         refusedToggle.Click += (_, _) => { refused.Visible = !refused.Visible; refusedToggle.Text = refused.Visible ? "Hide the tweaks Hanki won't make" : $"Tweaks Hanki won't make ({Guardrails.NotRecommended.Count})"; };
         var refusedGap = new Panel { Dock = DockStyle.Top, Height = 8, Tag = "gap" };
         Controls.Add(refused); Controls.Add(refusedGap); Controls.Add(refusedToggle);
-        ToolTiles.Add(this, "DETAILED TOOLS", ToolTiles.For(ProductArea.Performance, navigate), HankiTheme.PerformanceAccent);
+        ToolTiles.Add(this, "More tools", ToolTiles.For(ProductArea.Performance, navigate), HankiTheme.PerformanceAccent);
         Controls.Add(tune);
         ToolTiles.TopDown(this);
     }

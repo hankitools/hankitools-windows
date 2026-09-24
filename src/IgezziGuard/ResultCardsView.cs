@@ -70,9 +70,9 @@ internal sealed class StatusCardPanel : Panel
         if (SystemInformation.HighContrast) { base.OnPaintBackground(e); ControlPaint.DrawBorder(e.Graphics, ClientRectangle, SystemColors.ControlText, ButtonBorderStyle.Solid); return; }
         float s = DeviceDpi / 96f; var g = e.Graphics;
         g.Clear(Parent?.BackColor ?? HankiTheme.Canvas); g.SmoothingMode = SmoothingMode.AntiAlias;
-        using var path = HankiButton.Rounded(new RectangleF(0.5f, 0.5f, Width - 1.5f, Height - 1.5f), 10 * s);
+        using var path = HankiButton.Rounded(new RectangleF(0.5f, 0.5f, Width - 1.5f, Height - 1.5f), HankiTheme.CardRadius * s);
         using (var fill = new SolidBrush(HankiTheme.Surface)) g.FillPath(fill, path);
-        using (var border = new Pen(HankiTheme.Border)) g.DrawPath(border, path);
+        using (var border = new Pen(HankiTheme.Hairline)) g.DrawPath(border, path);
         if (status == CardStatus.Info) return;
         var state = g.Save(); g.SetClip(path);
         using (var edge = new SolidBrush(HankiTheme.StatusColor(status))) g.FillRectangle(edge, 0, 0, 4 * s, Height);
@@ -97,9 +97,9 @@ internal sealed class StatusBanner : Control
         float s = DeviceDpi / 96f; var g = e.Graphics; bool hc = SystemInformation.HighContrast;
         g.Clear(Parent?.BackColor ?? HankiTheme.Canvas); g.SmoothingMode = SmoothingMode.AntiAlias;
         var color = hc ? SystemColors.ControlText : HankiTheme.StatusColor(status);
-        using (var path = HankiButton.Rounded(new RectangleF(0.5f, 0.5f, Width - 1.5f, Height - 1.5f), 10 * s)) {
-            using var fill = new SolidBrush(hc ? SystemColors.Control : Color.FromArgb(30, color)); g.FillPath(fill, path);
-            using var border = new Pen(hc ? SystemColors.ControlText : Color.FromArgb(110, color)); g.DrawPath(border, path);
+        using (var path = HankiButton.Rounded(new RectangleF(0.5f, 0.5f, Width - 1.5f, Height - 1.5f), HankiTheme.CardRadius * s)) {
+            using var fill = new SolidBrush(hc ? SystemColors.Control : Color.FromArgb(26, color)); g.FillPath(fill, path);
+            using var border = new Pen(hc ? SystemColors.ControlText : Color.FromArgb(70, color)); g.DrawPath(border, path);
         }
         float d = 12 * s;
         using (var dot = new SolidBrush(color)) g.FillEllipse(dot, 18 * s, (Height - d) / 2, d, d);
