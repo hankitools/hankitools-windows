@@ -71,6 +71,20 @@ internal static class PerformanceEngineChecks
             "interference: busy moments are matched to background programs by time, as correlation only");
         Check(BottleneckEngine.Category("MsMpEng") == "Microsoft Defender scan" && BottleneckEngine.Category("OneDrive") == "cloud sync" && BottleneckEngine.Category("game") is null, "interference: known background workloads are named");
 
+        // HANKI-PERF-315: downloads during a run.
+        MonitorSample Net(int i, double mbps, params ProcessActivity[] top) => Sample(i, top: top) with { NetworkReceiveMBps = mbps };
+        var downloading = BottleneckEngine.Interference(Run(Seconds(30, i => Net(i, i < 20 ? 25 : 0.2, new ProcessActivity(7, "steam", 2, 26, 400)))));
+        Check(downloading[0].Contains("downloading for 20 of 30 seconds") && downloading[0].Contains("25 MB/s on average") && downloading[0].Contains("steam (game launcher"),
+            "downloads: a download during the run is reported with the program most likely receiving it");
+        Check(BottleneckEngine.Downloads(Run(Seconds(30, i => Net(i, 0.3)))) is null && BottleneckEngine.Downloads(Run(Seconds(30, i => Sample(i)))) is null,
+            "downloads: online-game traffic, and runs saved before Hanki measured the network, report no download");
+        Check(BottleneckEngine.Downloads(Run(Seconds(30, i => Net(i, 30, new ProcessActivity(5, "svchost", 1, 30, 50))))) is { } service && service.Contains("Windows Update or Delivery Optimization"),
+            "downloads: a download by a Windows service host is explained as Windows Update or Delivery Optimization");
+        Check(BottleneckEngine.Analyze(Run(Seconds(30, i => Net(i, i < 10 ? 12 : 0.1)))).Observed.Any(o => o.StartsWith("Downloads: 10 of 30 seconds")),
+            "downloads: the bottleneck analysis lists downloads among its observations");
+        Check(BottleneckEngine.Stutter(Run(Seconds(12, i => Net(i, 20, new ProcessActivity(3, "OneDrive", 1, 20, 100))), spiky)).Any(l => l.StartsWith("Possible background download") && l.Contains("OneDrive (cloud sync)")),
+            "stutter: spikes during a download point to the download and the program behind it");
+
         var measurement = BottleneckEngine.Measurement(Run(Seconds(60, i => Sample(i, gpu: 80, busiest: 90)), steady));
         Check(measurement.Metrics[PerformanceMetrics.FpsAverage] > 119 && measurement.Metrics[PerformanceMetrics.BusiestCore] == 90 && measurement.Metrics.ContainsKey(PerformanceMetrics.GpuTemperature),
             "comparison: a run becomes a session measurement with frame rate, busiest thread and GPU temperature");
@@ -125,7 +139,7 @@ internal static class PerformanceEngineChecks
         var windows = new WindowsGamingSettings(false, null, [], null, null, "Balanced", null, null, 100, 100, 5);
         var significant = GamingDiagnostic.Significant(GamingHealth.Evaluate(graphics, windows, null, Now));
         Check(significant.Count == 1 && significant[0].FindingId == "refresh-1", "fix my pc: only high-impact gaming problems appear (the refresh rate, not Game Mode)");
-        Check(FindingAnalysis.Recommend(significant[0]) is { RepairActionId: null } advice && advice.ManualAction.Contains("Performance → Gaming"), "fix my pc: gaming findings point to Performance → Gaming and are never repaired automatically");
+        Check(FindingAnalysis.Recommend(significant[0]) is { RepairActionId: null } advice && advice.ManualAction.Contains("Tune my PC → Gaming"), "fix my pc: gaming findings point to Tune my PC → Gaming and are never repaired automatically");
         var healthy = GamingDiagnostic.Significant(GamingHealth.Evaluate(graphics with { Displays = [display with { Current = new(2560, 1440, 165) }] }, windows with { GameMode = true }, null, Now));
         Check(healthy.Count == 1 && healthy[0].Severity == FindingSeverity.Healthy && healthy[0].FindingId == "summary", "fix my pc: a PC without gaming problems gets one quiet 'no significant problems' result");
     }

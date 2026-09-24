@@ -198,6 +198,10 @@ internal static class WindowsDiagnosticCatalog
         // Plain-language modules shared with their own pages (Diagnose → Windows Update, Diagnose → Battery & startup).
         modules.Insert(2, new WindowsUpdateDiagnostic(probe));
         modules.Add(new BatteryStartupDiagnostic(probe));
+        // Read-only checks from Windows' own records (HANKI-FIX-120, 121, 122).
+        modules.Add(new AppCrashDiagnostic(probe));
+        modules.Add(new NetworkLinkDiagnostic(probe));
+        modules.Add(new TimeSyncDiagnostic(probe));
         modules.Add(new ActivationDiagnostic(probe));
         // Significant gaming configuration problems only; details and changes live in Performance → Gaming.
         modules.Add(new GamingDiagnostic());

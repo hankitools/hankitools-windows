@@ -77,6 +77,7 @@ public sealed class LabMonitorPanel : ToolPage
         cards.Add(new("Memory", $"At least {s.Min(x => x.AvailableMb) / 1024:0.0} GB free · committed up to {s.Max(x => x.CommitPercent):0}% · hard faults up to {s.Max(x => x.HardFaultsPerSecond):0}/s",
             s.Max(x => x.CommitPercent) >= 90 || s.Min(x => x.AvailableMb) < 700 ? CardStatus.Review : CardStatus.Info));
         cards.Add(new("Disk", $"Busiest disk {s.Average(x => x.DiskActivePercent):0}% busy on average, fully busy in {s.Count(x => x.DiskActivePercent >= 90)} of {s.Count} seconds", CardStatus.Info));
+        if (BottleneckEngine.Downloads(run) is { } download) cards.Add(new("Downloads", download, CardStatus.Review));
         var bottleneck = BottleneckEngine.Analyze(run);
         cards.Add(new("What limits it: " + bottleneck.Diagnosis, $"Confidence: {bottleneck.Confidence}. {string.Join(" ", bottleneck.Reasoning)}", bottleneck.Limiter is Limiter.None or Limiter.Insufficient ? CardStatus.Good : CardStatus.Review));
         foreach (var note in run.Notes) cards.Add(new("Note", note, CardStatus.Unknown));
@@ -181,7 +182,7 @@ public sealed class StutterPanel : ToolPage
         Button("Analyze latest measurement", () => {
             if (state.Latest is null) { Output.Text = "Measure a game first in the Monitor tab (choose the game in the list)."; return; }
             Output.Text = "STUTTER\r\n" + string.Join("\r\n", BottleneckEngine.Stutter(state.Latest).Select(l => "• " + l)) +
-                "\r\n\r\nBACKGROUND ACTIVITY WHILE THE PC WAS BUSY\r\n" + string.Join("\r\n", BottleneckEngine.Interference(state.Latest).Select(l => "• " + l));
+                "\r\n\r\nDOWNLOADS AND BACKGROUND ACTIVITY\r\n" + string.Join("\r\n", BottleneckEngine.Interference(state.Latest).Select(l => "• " + l));
         });
     }
 }

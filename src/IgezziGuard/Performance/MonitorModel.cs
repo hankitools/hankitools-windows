@@ -4,9 +4,11 @@ namespace IgezziGuard;
 public sealed record ProcessActivity(int Pid, string Name, double CpuPercent, double IoMBps, double PrivateMb);
 
 /// <summary>One second of measurements. Null means Windows didn't report that value on this PC.</summary>
+/// <param name="NetworkReceiveMBps">Data arriving over all network adapters; null in runs saved before Hanki measured it.</param>
 public sealed record MonitorSample(DateTimeOffset At, double CpuTotal, IReadOnlyList<double> Cores, double? CpuPerformancePercent, double? CpuEffectiveMhz,
     double AvailableMb, double CommitPercent, double HardFaultsPerSecond, double DiskActivePercent, double? DiskLatencyMs, double DiskReadMBps, double DiskWriteMBps,
-    double? GpuBusy, double? GpuVramUsedMb, double? GpuTemperature, double? GpuClockMhz, double? TargetGpuBusy, IReadOnlyList<ProcessActivity> TopProcesses)
+    double? GpuBusy, double? GpuVramUsedMb, double? GpuTemperature, double? GpuClockMhz, double? TargetGpuBusy, IReadOnlyList<ProcessActivity> TopProcesses,
+    double? NetworkReceiveMBps = null)
 {
     public double BusiestCore => Cores.Count == 0 ? CpuTotal : Cores.Max();
 }
@@ -67,6 +69,12 @@ public static class BottleneckEngine
             $"Free memory: at least {availableMin / 1024:0.0} GB; memory committed up to {commitMax:0}%{(faults > 50 ? $"; hard page faults up to {faults:0}/s" : "")}",
             $"Disk: 90–100% busy in {diskBusyShare:P0} of seconds"
         };
+        var network = s.Where(x => x.NetworkReceiveMBps is not null).ToArray();
+        if (network.Length > 0) {
+            int downloading = network.Count(x => x.NetworkReceiveMBps >= DownloadMBps);
+            observed.Add(downloading == 0 ? "Downloads: none (network traffic stayed low)"
+                : $"Downloads: {downloading} of {network.Length} seconds above {DownloadMBps:0} MB/s, up to {network.Max(x => x.NetworkReceiveMBps!.Value):0.#} MB/s");
+        }
         if (vram is { } used && run.GpuVramTotalMb is { } total) observed.Add($"Video memory: up to {used / 1024:0.0} of {total / 1024:0.0} GB");
         if (temp is { } t) observed.Add($"GPU temperature: up to {t:0} °C");
         if (run.Frames is { } f) observed.Add($"Frame rate: {f.AverageFps:0} FPS on average, 1% low {f.Low1Fps:0} FPS");
@@ -158,6 +166,8 @@ public static class BottleneckEngine
         if (Share(x => x.HardFaultsPerSecond >= 300) >= 0.5) notes.Add("Possible memory pressure: Windows was reading memory back from disk at most spikes.");
         if (Share(x => x.DiskActivePercent >= 90) >= 0.5) notes.Add("Possible disk bottleneck: the disk was fully busy at most spikes.");
         if (Share(x => x.GpuTemperature >= 83) >= 0.6) notes.Add("Possible thermal throttling: the GPU was at 83 °C or more at most spikes; check cooling.");
+        if (Share(x => x.NetworkReceiveMBps >= DownloadMBps) >= 0.6)
+            notes.Add($"Possible background download: something was downloading at most spikes{(Downloader(run) is { } who ? $", most likely {who}" : "")}. Pause downloads and updates while you play.");
         if (notes.Count == 1) notes.Add("No single measurement lines up with the spikes, so Hanki doesn't name a cause.");
         return notes;
     }
@@ -171,6 +181,7 @@ public static class BottleneckEngine
         "searchindexer" or "searchprotocolhost" or "searchfilterhost" => "search indexing",
         "steam" or "steamwebhelper" or "epicgameslauncher" or "battle.net" or "agent" or "eadesktop" or "upc" => "game launcher (downloads or updates)",
         "compattelrunner" or "devicecensus" => "Windows telemetry",
+        "chrome" or "msedge" or "firefox" or "opera" or "brave" => "web browser",
         _ => null
     };
     /// <summary>Seconds where another process was busy while the machine was under pressure, as correlation only.</summary>
@@ -181,10 +192,39 @@ public static class BottleneckEngine
         foreach (var sample in busy) {
             var other = sample.TopProcesses.Where(t => t.Pid != run.TargetPid && (t.CpuPercent >= 10 || t.IoMBps >= 20)).OrderByDescending(t => t.CpuPercent + t.IoMBps / 5).FirstOrDefault();
             if (other is null) continue;
-            lines.Add($"{sample.At.ToLocalTime():T}: {other.Name}{(Category(other.Name) is { } c ? $" ({c})" : "")} used {other.CpuPercent:0}% CPU and {other.IoMBps:0} MB/s disk while the {(sample.DiskActivePercent >= 90 ? $"disk was {sample.DiskActivePercent:0}% busy" : $"CPU was {sample.CpuTotal:0}% busy")}.");
+            lines.Add($"{sample.At.ToLocalTime():T}: {other.Name}{(Category(other.Name) is { } c ? $" ({c})" : "")} used {other.CpuPercent:0}% CPU and {other.IoMBps:0} MB/s of disk and network data while the {(sample.DiskActivePercent >= 90 ? $"disk was {sample.DiskActivePercent:0}% busy" : $"CPU was {sample.CpuTotal:0}% busy")}.");
         }
-        if (lines.Count == 0) return ["No background program stood out while the PC was busy."];
-        return lines.Take(12).Prepend("These happened at the same time, which doesn't prove they caused slowdowns. Hanki never closes programs; you can pause them yourself.").ToArray();
+        var result = lines.Count == 0 ? new List<string> { "No background program stood out while the PC was busy." }
+            : lines.Take(12).Prepend("These happened at the same time, which doesn't prove they caused slowdowns. Hanki never closes programs; you can pause them yourself.").ToList();
+        if (Downloads(run) is { } download) result.Insert(0, download);
+        return result;
+    }
+
+    /// <summary>
+    /// 2 MB/s (16 Mbit/s) arriving over the network: far more than online games use, so it means a download or stream.
+    /// </summary>
+    internal const double DownloadMBps = 2;
+    /// <summary>Downloads during the run (HANKI-PERF-315), with the program most likely receiving them. Null when nothing downloaded.</summary>
+    public static string? Downloads(MonitorRun run)
+    {
+        var measured = run.Samples.Where(x => x.NetworkReceiveMBps is not null).ToArray();
+        var busy = measured.Where(x => x.NetworkReceiveMBps >= DownloadMBps).ToArray();
+        if (measured.Length < 5 || busy.Length < Math.Max(3, measured.Length / 10)) return null;
+        double average = busy.Average(x => x.NetworkReceiveMBps!.Value), peak = busy.Max(x => x.NetworkReceiveMBps!.Value);
+        string who = Downloader(run) is { } name ? $" The program moving the most data then was {name}." : "";
+        return $"Something was downloading for {busy.Length} of {measured.Length} seconds, at {average:0.#} MB/s on average (peak {peak:0.#} MB/s).{who} " +
+            "Downloads compete with online games for your connection and can keep the disk busy; pause them while you play. Hanki doesn't pause anything.";
+    }
+    /// <summary>The background program with the most disk and network data while downloads were arriving, named for a person.</summary>
+    internal static string? Downloader(MonitorRun run)
+    {
+        var busy = run.Samples.Where(x => x.NetworkReceiveMBps >= DownloadMBps).ToArray();
+        var top = busy.SelectMany(x => x.TopProcesses).Where(p => p.Pid != run.TargetPid && p.IoMBps >= 1)
+            .GroupBy(p => p.Name, StringComparer.OrdinalIgnoreCase).OrderByDescending(g => g.Sum(p => p.IoMBps)).FirstOrDefault();
+        if (top is null) return null;
+        // svchost hosts many services; the ones that download are usually Windows Update and Delivery Optimization.
+        return top.Key.Equals("svchost", StringComparison.OrdinalIgnoreCase) ? "a Windows service (usually Windows Update or Delivery Optimization)"
+            : Category(top.Key) is { } c ? $"{top.Key} ({c})" : top.Key;
     }
 
     /// <summary>A run as a Performance session measurement (HANKI-PERF-312, HANKI-GAME-212, HANKI-GPU-109).</summary>

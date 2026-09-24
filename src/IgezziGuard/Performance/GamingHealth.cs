@@ -49,6 +49,45 @@ public static class GamingHealth
                     integrated.Name, dedicated.Name, "High", RemedyHardware, "Display", $"Plug the monitor cable into the {dedicated.Name}'s outputs on the back of the PC.");
         }
 
+        // How each graphics card is connected (HANKI-GPU-113): lanes and Resizable BAR. Laptops wire their GPU at a fixed width.
+        foreach (var card in graphics.Adapters.Where(a => !a.LikelyIntegrated && a.Bus is not null)) {
+            var bus = card.Bus!;
+            string key = card.DeviceId.ToString("x4");
+            if (bus is { LinkWidth: { } width, MaxLinkWidth: { } max, LinkGeneration: { } generation }) {
+                string link = GpuBus.Link(generation, width), full = GpuBus.Link(bus.MaxLinkGeneration ?? generation, max);
+                if (graphics.Portable != true && width < max && width <= 4 && max >= 8)
+                    Add($"gpu-lanes-{key}", FindingSeverity.Warning, $"{card.Name} runs on only {width} PCIe lanes",
+                        $"The graphics card is connected with x{width} of its x{max} lanes ({link}). That usually means it sits in a secondary slot, on a riser cable, or shares lanes with an M.2 drive, and it can cost games noticeable performance.",
+                        link, full, "High", RemedyHardware, "Hardware",
+                        "Move the card to the top full-length slot, closest to the processor, and check the motherboard manual for M.2 slots that share its lanes.");
+                else if (graphics.Portable != true && width < max)
+                    Add($"gpu-lanes-{key}", FindingSeverity.Informational, $"{card.Name} runs on {width} of its {max} PCIe lanes",
+                        $"The graphics card is connected with x{width} of its x{max} lanes ({link}). On PCIe 4.0 and newer that costs games little; on older boards it can cost more. An M.2 drive or a second card often shares the lanes.",
+                        link, full, "Low", RemedyHardware, "Hardware", "If you want every lane, check the motherboard manual for the slot and M.2 layout.");
+                else
+                    Add($"gpu-lanes-{key}", FindingSeverity.Healthy, $"{card.Name} connection",
+                        (width < max ? $"The graphics card is connected at {link}, as this laptop is built." : $"The graphics card uses all its lanes ({link}).") +
+                        (bus.MaxLinkGeneration > generation ? $" It supports PCIe {bus.MaxLinkGeneration}.0; the motherboard or power saving sets the speed, which matters little for games." : ""),
+                        link, link, "None", RemedyNone, "Hardware");
+            }
+            if (GpuBus.ResizableBarOn(bus) is { } barOn && GpuBus.SupportsResizableBar(card)) {
+                string window = GpuBus.Size(bus.LargestWindowBytes!.Value);
+                if (barOn)
+                    Add($"resizable-bar-{key}", FindingSeverity.Healthy, "Resizable BAR is on",
+                        $"The processor can reach the {card.Name}'s video memory through a {window} window, so games that use Resizable BAR can.", "On", "On", "None", RemedyNone, "Hardware");
+                else if (GpuBus.NeedsResizableBar(card))
+                    Add($"resizable-bar-{key}", FindingSeverity.Warning, "Resizable BAR is off",
+                        $"Intel Arc graphics cards need Resizable BAR: without it, many games run much slower. The processor reaches video memory through a {window} window only.",
+                        "Off", "On", "High", RemedyHardware, "Hardware",
+                        "In the BIOS, turn on Above 4G Decoding and Re-Size BAR Support (Windows must start in UEFI mode, with CSM off).");
+                else
+                    Add($"resizable-bar-{key}", FindingSeverity.Informational, "Resizable BAR is off",
+                        $"With Resizable BAR on, some games run a few percent faster on the {card.Name}; many don't change, and the driver only uses it where it helps. The processor reaches video memory through a {window} window now.",
+                        "Off", "On (optional)", "Low", RemedyHardware, "Hardware",
+                        "Optional: in the BIOS, turn on Above 4G Decoding and Re-Size BAR Support (Windows must start in UEFI mode, with CSM off).");
+            }
+        }
+
         // Per-app GPU choices only matter when there is more than one GPU to choose from.
         if (graphics.Adapters.Count > 1)
             foreach (var app in windows.GpuPreferences.Where(p => p.Preference == GpuPreference.PowerSaving)) {

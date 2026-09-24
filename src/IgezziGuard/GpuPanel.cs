@@ -21,6 +21,7 @@ public sealed class GpuPanel : ToolPage
         foreach (var a in graphics.Adapters.OrderBy(a => a.PreferenceRank))
             cards.Add(new(a.Name, $"{GraphicsFacts.VendorName(a.Vendor)} · {(a.LikelyIntegrated ? "integrated graphics" : "dedicated graphics")} · {GraphicsFacts.Memory(a.DedicatedMemory)} video memory\r\n" +
                 $"Driver {GraphicsFacts.DriverVersion(a.Vendor, a.DriverVersion)}{(a.DriverDate is { } d ? $", released {d:d}" : "")}" +
+                (a.Bus is { } bus && !a.LikelyIntegrated && GpuBus.Describe(bus) is { Length: > 0 } link ? "\r\nConnection: " + link : "") +
                 (graphics.Adapters.Count > 1 && a.PreferenceRank == 0 ? "\r\nWindows gives demanding apps this GPU first." : ""), CardStatus.Info));
         foreach (var d in graphics.Displays) {
             double best = GraphicsFacts.MaxRefreshAtCurrentResolution(d);
@@ -39,7 +40,7 @@ public sealed class GpuPanel : ToolPage
 
         var report = new StringBuilder("Graphics hardware • " + DateTimeOffset.Now.ToString("g") + "\r\nRead-only; nothing was changed.\r\n\r\n");
         foreach (var a in graphics.Adapters)
-            report.AppendLine($"{a.Name}\r\n  Vendor {GraphicsFacts.VendorName(a.Vendor)} (PCI {a.VendorId:X4}:{a.DeviceId:X4}), {(a.LikelyIntegrated ? "integrated" : "dedicated")}\r\n  Dedicated memory {GraphicsFacts.Memory(a.DedicatedMemory)}, shared {GraphicsFacts.Memory(a.SharedMemory)}\r\n  Driver {GraphicsFacts.DriverVersion(a.Vendor, a.DriverVersion)} {a.DriverDate:d}\r\n  Windows high-performance order: {a.PreferenceRank + 1}");
+            report.AppendLine($"{a.Name}\r\n  Vendor {GraphicsFacts.VendorName(a.Vendor)} (PCI {a.VendorId:X4}:{a.DeviceId:X4}), {(a.LikelyIntegrated ? "integrated" : "dedicated")}\r\n  Dedicated memory {GraphicsFacts.Memory(a.DedicatedMemory)}, shared {GraphicsFacts.Memory(a.SharedMemory)}\r\n  Driver {GraphicsFacts.DriverVersion(a.Vendor, a.DriverVersion)} {a.DriverDate:d}{(a.Bus is { } linkFacts ? "\r\n  Connection: " + GpuBus.Describe(linkFacts) : "")}\r\n  Windows high-performance order: {a.PreferenceRank + 1}");
         foreach (var d in graphics.Displays)
             report.AppendLine($"{d.Name} ({d.Device})\r\n  {GraphicsFacts.Describe(d.Current)} ({d.Current.RefreshHz:0.###} Hz), {d.Connection}, {(d.Primary ? "main display" : "extra display")}\r\n  Refresh rates at this resolution: " +
                 string.Join(", ", d.Supported.Where(m => m.Width == d.Current.Width && m.Height == d.Current.Height).Select(m => $"{m.RefreshHz:0}").Distinct()) + " Hz");

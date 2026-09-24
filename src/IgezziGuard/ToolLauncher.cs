@@ -7,10 +7,10 @@ internal sealed class ToolLauncher : Form
         public override string ToString() => Name;
         internal string SearchText => Name + " " + string.Join(" ", new[] {
             Name.Contains("Diagnose", StringComparison.OrdinalIgnoreCase) ? "crash blue screen bsod freeze logs troubleshoot battery restart" : "",
-            Name.Contains("Fix My PC", StringComparison.OrdinalIgnoreCase) ? "full system scan repair sfc dism health check" : "",
+            Name.Contains("Fix My PC", StringComparison.OrdinalIgnoreCase) ? "full system scan repair sfc dism health check app crashes crashing clock time sync ethernet cable link speed" : "",
             Name.Contains("Performance", StringComparison.OrdinalIgnoreCase) ? "slow speed optimize monitor benchmark bottleneck stutter compare baseline" : "",
             Name.Contains("Gaming", StringComparison.OrdinalIgnoreCase) ? "game fps refresh rate hz game mode" : "",
-            Name == "GPU" ? "graphics card nvidia amd intel driver vram display" : "",
+            Name == "GPU" ? "graphics card nvidia amd intel driver vram display pcie lanes slot resizable bar rebar smart access memory" : "",
             Name.StartsWith("CPU", StringComparison.Ordinal) ? "processor power plan high performance balanced" : "",
             Name == "Memory" ? "ram pagefile virtual memory commit" : "",
             Name == "Storage" ? "ssd nvme hdd drive trim" : "",

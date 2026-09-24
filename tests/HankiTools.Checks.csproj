@@ -16,6 +16,7 @@
     <Compile Include="../src/IgezziGuard/Performance/PerformanceSessions.cs" Link="Performance/PerformanceSessions.cs" />
     <Compile Include="../src/IgezziGuard/History/SystemActions.cs" Link="History/SystemActions.cs" />
     <Compile Include="../src/IgezziGuard/Performance/GraphicsModel.cs" Link="Performance/GraphicsModel.cs" />
+    <Compile Include="../src/IgezziGuard/Performance/GpuBus.cs" Link="Performance/GpuBus.cs" />
     <Compile Include="../src/IgezziGuard/Performance/GraphicsProbe.cs" Link="Performance/GraphicsProbe.cs" />
     <Compile Include="../src/IgezziGuard/Performance/WindowsGamingProbe.cs" Link="Performance/WindowsGamingProbe.cs" />
     <Compile Include="../src/IgezziGuard/Performance/NvidiaModel.cs" Link="Performance/NvidiaModel.cs" />
@@ -67,6 +68,9 @@
     <Compile Include="../src/IgezziGuard/RemovalLog.cs" Link="RemovalLog.cs" />
     <Compile Include="../src/IgezziGuard/UpdateHealth.cs" Link="UpdateHealth.cs" />
     <Compile Include="../src/IgezziGuard/BatteryStartup.cs" Link="BatteryStartup.cs" />
+    <Compile Include="../src/IgezziGuard/AppCrashes.cs" Link="AppCrashes.cs" />
+    <Compile Include="../src/IgezziGuard/NetworkLink.cs" Link="NetworkLink.cs" />
+    <Compile Include="../src/IgezziGuard/TimeSync.cs" Link="TimeSync.cs" />
     <Compile Include="../src/IgezziGuard/DuplicateFinder.cs" Link="DuplicateFinder.cs" />
     <Compile Include="../src/IgezziGuard/DumpInspector.cs" Link="DumpInspector.cs" />
     <Compile Include="../src/IgezziGuard/DefenderReview.cs" Link="DefenderReview.cs" />

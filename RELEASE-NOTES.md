@@ -1,3 +1,13 @@
+# Hanki Tools 0.18.0-rc.7 — new checks: app crashes, link speed, clock, PCIe lanes, Resizable BAR, downloads
+
+An unsigned preview for testing. Every new check only reads what Windows already records; nothing is changed or sent.
+
+- **App crashes (Fix my PC).** Apps that crashed or stopped responding three or more times in the last 14 days, from the same records Reliability Monitor uses, with the part they crashed in. Crashes in the graphics driver point to a driver update; single crashes are listed as information.
+- **Network connection speed (Fix my PC).** A wired connection stuck at 100 Mbps or in half duplex usually means a damaged cable or a bad port, and is flagged. Wi-Fi shows its link rate.
+- **Clock sync (Fix my PC).** When Windows last set its clock and from which server, failed syncs (often blocked time requests), and automatic time turned off.
+- **Graphics card connection (Tune my PC → Gaming and GPU).** A desktop graphics card running on x4 or fewer of its lanes (secondary slot, riser, shared M.2 lanes) is flagged in Fix my PC too; x8 is explained as a small cost. Resizable BAR shows as on or off for cards that use it, and is a Fix my PC item for Intel Arc, which needs it.
+- **Downloads during Performance Lab runs.** The monitor now measures data arriving over the network. The Monitor summary, Bottleneck Analyzer and Stutter Diagnostics say when something was downloading during a run, and which program was most likely receiving it (Steam, Windows Update, a browser, cloud sync).
+
 # Hanki Tools 0.18.0-rc.6 — layout and memory fixes
 
 An unsigned preview for testing. It fixes issues found while reviewing 0.18.0-rc.5; everything else behaves as in rc.5.

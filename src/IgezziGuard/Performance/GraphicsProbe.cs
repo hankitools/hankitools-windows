@@ -59,7 +59,8 @@ internal static class GraphicsProbe
                 ulong dedicated = f.Desc.DedicatedVideoMemory.ToUInt64();
                 drivers.TryGetValue((f.Desc.VendorId, f.Desc.DeviceId), out var driver);
                 return new GpuAdapter(f.Desc.Description.Trim(), vendor, f.Desc.VendorId, f.Desc.DeviceId, ((long)f.Desc.LuidHigh << 32) | f.Desc.LuidLow,
-                    Math.Max(dedicated, driver.Memory), f.Desc.SharedSystemMemory.ToUInt64(), f.Rank, driver.Version, driver.Date, GraphicsFacts.LikelyIntegrated(vendor, Math.Max(dedicated, driver.Memory)));
+                    Math.Max(dedicated, driver.Memory), f.Desc.SharedSystemMemory.ToUInt64(), f.Rank, driver.Version, driver.Date, GraphicsFacts.LikelyIntegrated(vendor, Math.Max(dedicated, driver.Memory)),
+                    GpuBusProbe.Read(f.Desc.VendorId, f.Desc.DeviceId));
             }).ToArray();
     }
     private static AdapterDesc1 Describe(IntPtr adapter)

@@ -6,7 +6,7 @@ internal static class GamingChecks
     private static void Check(bool ok, string text) => DiagnosticChecks.Check(ok, text);
     private static bool Throws(Action action) { try { action(); return false; } catch (IOException) { return true; } }
     private static readonly DateTimeOffset Now = new(2026, 9, 24, 12, 0, 0, TimeSpan.Zero);
-    internal static void Run() { Facts(); Health(); Profiles(); NvidiaGlobal(); WindowsGaming(); Tune(); TuneSteps(); Radeon(); Background(); Launch(); Library(); Live(); }
+    internal static void Run() { Facts(); Health(); Profiles(); NvidiaGlobal(); WindowsGaming(); Tune(); TuneSteps(); Radeon(); Background(); Launch(); Library(); GpuConnection(); Live(); }
 
     private static GpuAdapter Gpu(GpuVendor vendor, string name, ulong memory, int rank, long luid) =>
         new(name, vendor, 0, 0, luid, memory, 8 * GraphicsFacts.GiB, rank, "32.0.16.1692", new DateTime(2026, 9, 4), GraphicsFacts.LikelyIntegrated(vendor, memory));
@@ -45,6 +45,38 @@ internal static class GamingChecks
         Check(NvidiaSettings.Get(NvidiaSettings.PowerManagementId).Describe(5) == "Normal" && NvidiaSettings.Get(NvidiaSettings.FrameRateLimitId).Describe(0) == "Off"
             && NvidiaSettings.Get(NvidiaSettings.FrameRateLimitId).Describe(162) == "162 FPS" && NvidiaSettings.Get(NvidiaSettings.VerticalSyncId).Describe(0x12345678).StartsWith("Value 0x"),
             "nvidia: values have plain names, and unknown values are shown raw instead of guessed");
+    }
+
+    // HANKI-GPU-113: how the graphics card is connected.
+    private static void GpuConnection()
+    {
+        GpuAdapter Card(string name, GpuBusInfo bus, GpuVendor vendor = GpuVendor.Nvidia) => Gpu(vendor, name, 12 * GraphicsFacts.GiB, 0, 1) with { Bus = bus };
+        IReadOnlyList<DiagnosticResult> Scan(GpuAdapter card, bool laptop = false) =>
+            GamingHealth.Evaluate(Desktop(Display(165, 1, 165), card) with { Portable = laptop }, Windows(), Global(), Now);
+        DiagnosticResult Lanes(IReadOnlyList<DiagnosticResult> r) => r.Single(x => x.FindingId.StartsWith("gpu-lanes-", StringComparison.Ordinal));
+        DiagnosticResult? Bar(IReadOnlyList<DiagnosticResult> r) => r.SingleOrDefault(x => x.FindingId.StartsWith("resizable-bar-", StringComparison.Ordinal));
+        const ulong Classic = 256UL << 20, Full = 16UL << 30;
+
+        var slot = Scan(Card("NVIDIA GeForce RTX 4070", new(4, 16, 4, 4, Classic)));
+        Check(Lanes(slot) is { Severity: FindingSeverity.Warning } x4 && GamingHealth.BelongsInFixMyPc(x4) && x4.Metadata["current"] == "PCIe 4.0 x4" && x4.Recommendation!.Contains("top full-length slot"),
+            "gpu link: a desktop card on x4 of x16 lanes is flagged, and Fix my PC shows it");
+        Check(Bar(slot) is { Severity: FindingSeverity.Informational } off && !GamingHealth.BelongsInFixMyPc(off) && off.Recommendation!.Contains("Above 4G Decoding"),
+            "resizable bar: off on a supported NVIDIA card is an optional BIOS step, not a Fix my PC item");
+        var shared = Lanes(Scan(Card("NVIDIA GeForce RTX 4070", new(8, 16, 4, 4, Full))));
+        Check(shared.Severity == FindingSeverity.Informational && shared.Explanation.Contains("costs games little"), "gpu link: x8 of x16 is explained as a small cost, not a problem");
+        var yours = Scan(Card("NVIDIA GeForce RTX 5070", new(16, 16, 4, 5, Full)));
+        Check(Lanes(yours) is { Severity: FindingSeverity.Healthy } fine && fine.Explanation.Contains("all its lanes") && fine.Explanation.Contains("supports PCIe 5"),
+            "gpu link: a full-width card on a slower PCIe generation looks OK and says why the speed matters little");
+        Check(Bar(yours) is { Severity: FindingSeverity.Healthy } on && on.Explanation.Contains("16 GB window"), "resizable bar: a window as large as video memory means it's on");
+        Check(Lanes(Scan(Card("NVIDIA GeForce RTX 4070 Laptop GPU", new(8, 16, 4, 4, Full)), laptop: true)) is { Severity: FindingSeverity.Healthy } built && built.Explanation.Contains("as this laptop is built"),
+            "gpu link: a laptop's fixed lane count is not flagged or called full width");
+        Check(Bar(Scan(Card("Intel(R) Arc(TM) A770 Graphics", new(16, 16, 4, 4, Classic), GpuVendor.Intel))) is { Severity: FindingSeverity.Warning } arc && GamingHealth.BelongsInFixMyPc(arc),
+            "resizable bar: Intel Arc without it is a Fix my PC item, since Arc needs it");
+        Check(Bar(Scan(Card("NVIDIA GeForce GTX 1060", new(16, 16, 3, 3, Classic)))) is null && !GpuBus.SupportsResizableBar(Card("AMD Radeon RX 580", new(16, 16, 3, 3, Classic), GpuVendor.Amd))
+            && GpuBus.SupportsResizableBar(Card("AMD Radeon RX 7800 XT", new(16, 16, 4, 4, Full), GpuVendor.Amd)),
+            "resizable bar: cards whose drivers don't use it get no finding");
+        Check(!Scan(Card("NVIDIA GeForce RTX 5070", new(null, null, null, null, null))).Any(x => x.FindingId.StartsWith("gpu-lanes-", StringComparison.Ordinal) || x.FindingId.StartsWith("resizable-bar-", StringComparison.Ordinal)),
+            "gpu link: nothing is claimed when Windows doesn't report the link");
     }
 
     private static void Health()

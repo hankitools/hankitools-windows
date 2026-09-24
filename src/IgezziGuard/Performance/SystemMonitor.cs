@@ -25,11 +25,13 @@ internal sealed class SystemMonitor : IDisposable
             ("commit", @"\Memory\% Committed Bytes In Use"), ("faults", @"\Memory\Pages Input/sec"), ("idle", @"\PhysicalDisk(*)\% Idle Time"),
             ("latency", @"\PhysicalDisk(*)\Avg. Disk sec/Transfer"), ("read", @"\PhysicalDisk(_Total)\Disk Read Bytes/sec"), ("write", @"\PhysicalDisk(_Total)\Disk Write Bytes/sec"),
             ("gpu", @"\GPU Engine(*)\Utilization Percentage"), ("vram", @"\GPU Adapter Memory(*)\Dedicated Usage"),
-            ("pcpu", @"\Process V2(*)\% Processor Time"), ("pio", @"\Process V2(*)\IO Data Bytes/sec"), ("pmem", @"\Process V2(*)\Private Bytes") }) {
+            ("pcpu", @"\Process V2(*)\% Processor Time"), ("pio", @"\Process V2(*)\IO Data Bytes/sec"), ("pmem", @"\Process V2(*)\Private Bytes"),
+            ("net", @"\Network Interface(*)\Bytes Received/sec") }) {
             // "Process V2" names each instance "name:pid", so two processes with the same name stay apart.
             if (PdhAddEnglishCounterW(query, path, IntPtr.Zero, out var counter) == 0) counters[name] = counter;
             else if (name.StartsWith('p')) { if (!notes.Contains("Per-program activity isn't reported on this version of Windows.")) notes.Add("Per-program activity isn't reported on this version of Windows."); }
             else if (name is "gpu" or "vram") { if (!notes.Contains("GPU load isn't reported on this PC.")) notes.Add("GPU load isn't reported on this PC."); }
+            else if (name == "net") notes.Add("Network downloads aren't reported on this PC.");
             else notes.Add($"The {name} counter isn't available.");
         }
         PdhCollectQueryData(query); // Rate counters need a first reading.
@@ -61,9 +63,11 @@ internal sealed class SystemMonitor : IDisposable
         }
         double? vram = counters.ContainsKey("vram") ? Instances("vram").Select(i => i.Value).DefaultIfEmpty(-1).Max() is var v && v >= 0 ? v / (1024 * 1024) : null : null;
         var (temperature, clock) = GpuSensors();
+        // Every network adapter together: what arrived this second, for spotting downloads during a run.
+        double? received = counters.ContainsKey("net") ? Instances("net").Sum(i => Math.Max(0, i.Value)) / (1024 * 1024) : null;
         return new MonitorSample(DateTimeOffset.UtcNow, Math.Clamp(total, 0, 100), cores, performance, performance is { } p && frequency is { } f ? f * p / 100 : null,
             Single("available") ?? 0, Single("commit") ?? 0, Single("faults") ?? 0, diskActive, latencies.Length > 0 ? latencies.Max() : null,
-            (Single("read") ?? 0) / (1024 * 1024), (Single("write") ?? 0) / (1024 * 1024), gpuBusy, vram, temperature, clock, targetGpu, Processes());
+            (Single("read") ?? 0) / (1024 * 1024), (Single("write") ?? 0) / (1024 * 1024), gpuBusy, vram, temperature, clock, targetGpu, Processes(), received);
     }
 
     private IReadOnlyList<ProcessActivity> Processes()
@@ -72,11 +76,14 @@ internal sealed class SystemMonitor : IDisposable
         static Dictionary<string, double> ByName(IEnumerable<(string Name, double Value)> items) =>
             items.GroupBy(i => i.Name, StringComparer.OrdinalIgnoreCase).ToDictionary(g => g.Key, g => g.First().Value, StringComparer.OrdinalIgnoreCase);
         var io = ByName(Instances("pio")); var memory = ByName(Instances("pmem"));
-        return Instances("pcpu").Select(i => (Instance: i, Split: i.Name.LastIndexOf(':')))
+        var all = Instances("pcpu").Select(i => (Instance: i, Split: i.Name.LastIndexOf(':')))
             .Where(x => x.Split > 0 && int.TryParse(x.Instance.Name[(x.Split + 1)..], out var pid) && pid > 0)
             .Select(x => new ProcessActivity(int.Parse(x.Instance.Name[(x.Split + 1)..]), x.Instance.Name[..x.Split], x.Instance.Value / logicalProcessors,
-                io.GetValueOrDefault(x.Instance.Name) / (1024 * 1024), memory.GetValueOrDefault(x.Instance.Name) / (1024 * 1024)))
-            .OrderByDescending(p => p.CpuPercent + p.IoMBps / 5).Take(6).ToArray();
+                io.GetValueOrDefault(x.Instance.Name) / (1024 * 1024), memory.GetValueOrDefault(x.Instance.Name) / (1024 * 1024))).ToArray();
+        var top = all.OrderByDescending(p => p.CpuPercent + p.IoMBps / 5).Take(6).ToList();
+        // A download uses little CPU, so the program moving the most data is always kept, for naming downloads.
+        if (all.OrderByDescending(p => p.IoMBps).FirstOrDefault() is { IoMBps: >= 1 } busiestIo && !top.Contains(busiestIo)) top.Add(busiestIo);
+        return top;
     }
     private static int? Pid(string instance) => instance.StartsWith("pid_", StringComparison.Ordinal) && int.TryParse(instance[4..instance.IndexOf('_', 4)], out var pid) ? pid : null;
     private static string? Engine(string instance) { int i = instance.IndexOf("_luid_", StringComparison.Ordinal); return i < 0 ? null : instance[(i + 1)..]; }

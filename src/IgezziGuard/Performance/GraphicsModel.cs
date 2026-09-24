@@ -4,8 +4,9 @@ namespace IgezziGuard;
 public enum GpuVendor { Nvidia, Amd, Intel, Microsoft, Other }
 
 /// <param name="PreferenceRank">Position in Windows' high-performance GPU order (0 = the GPU Windows gives demanding apps).</param>
+/// <param name="Bus">PCI Express link and memory window (HANKI-GPU-113); null when Windows didn't report them.</param>
 public sealed record GpuAdapter(string Name, GpuVendor Vendor, uint VendorId, uint DeviceId, long Luid, ulong DedicatedMemory, ulong SharedMemory,
-    int PreferenceRank, string? DriverVersion, DateTime? DriverDate, bool LikelyIntegrated);
+    int PreferenceRank, string? DriverVersion, DateTime? DriverDate, bool LikelyIntegrated, GpuBusInfo? Bus = null);
 
 public sealed record DisplayMode(int Width, int Height, double RefreshHz);
 
