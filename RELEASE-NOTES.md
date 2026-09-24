@@ -1,3 +1,14 @@
+# Hanki Tools 0.18.0-rc.5 — Home search, deleting files and uninstalling apps
+
+An unsigned preview for testing. Deleting files, uninstalling apps and removing leftover app entries are new and haven't been tried on real PCs yet: every removal is confirmed first, and the Recycle Bin (the default) and .reg backups let you undo most of them.
+
+- **Home search.** "What do you need help with?" finds guided fixes and tools as you type, with everyday words (laggy, bsod, wifi, fps, undo). Enter opens the top result.
+- **Your PC at a glance and recent activity on Home.** Windows version, time since restart, system drive space, memory in use, graphics card and driver, and protection as Windows Security reports it; each tile opens its page. Below: your latest scan, Performance check and the changes Hanki made, each with a link to review or undo.
+- **Delete files.** In Maintain → Files, select one or many files and choose Delete… (or press Delete, or right-click). Choose Move to Recycle Bin (the default, restorable) or Delete permanently (after confirming it can't be undone). Files on any local drive can be deleted, except Windows, program and system folders, Store app files, app data, other people's profiles and Hanki itself.
+- **Uninstall apps.** In Maintain → Apps, select an app and choose Uninstall…: Hanki runs the app's own uninstaller, the same one Windows Settings uses, and checks afterwards that it's gone.
+- **Leftover app entries.** Apps whose files are already gone but still show as installed are marked "Leftover entry". Remove leftover entry… saves the entry to a .reg backup, then removes it (Windows asks for administrator permission for entries that apply to all users).
+- Deletions, uninstalls and removed entries appear in History → System actions.
+
 # Hanki Tools 0.18.0-rc.4 — cleaner, more modern layout
 
 An unsigned preview for testing. It changes how pages look and are laid out; the checks, settings and Recovery behave as in 0.18.0-rc.3.

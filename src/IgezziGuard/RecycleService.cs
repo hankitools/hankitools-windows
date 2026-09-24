@@ -38,6 +38,18 @@ internal static class RecycleService
         }
     }
 
+    /// <summary>
+    /// Deletes a file for good, after the same checks as recycling (protected places, links, unchanged since the
+    /// scan). Only after the person chose "Delete permanently" and confirmed that it can't be undone.
+    /// </summary>
+    public static void DeletePermanently(InventoryFile entry)
+    {
+        var reason = CleanupPolicy.BlockReason(entry);
+        if (reason is not null) throw new IOException(reason);
+        File.Delete(entry.FullPath);
+        if (File.Exists(entry.FullPath)) throw new IOException("Windows kept the file. It may be in use.");
+    }
+
     [DllImport("shell32.dll", CharSet = CharSet.Unicode, PreserveSig = true)]
     private static extern int SHCreateItemFromParsingName(string path, IntPtr bindContext, ref Guid iid, out IShellItem item);
 }

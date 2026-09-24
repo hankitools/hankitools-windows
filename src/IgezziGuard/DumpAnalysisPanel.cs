@@ -108,6 +108,8 @@ public sealed class TroubleshootingPanel : ToolPage
             new("Use Windows' own activation settings", "Windows Settings → System → Activation offers troubleshooting and lets you enter a genuine product key."),
         ]),
     ];
+    /// <summary>Opens the plan for a symptom, for example from the Home search.</summary>
+    internal void ShowSymptom(int index) { if (index >= 0 && index < symptom.Items.Count) symptom.SelectedIndex = index; }
     private void ShowGuide()
     {
         if (symptom.SelectedIndex < 0) return;

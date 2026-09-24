@@ -300,6 +300,8 @@ try
     await LicenseChecks.Run();
     ArchitectureChecks.Run(root);
     GamingChecks.Run();
+    HomeChecks.Run();
+    RemovalChecks.Run();
     PerformanceEngineChecks.Run();
     Console.WriteLine("All non-destructive checks passed. Native Windows operations, counters, debugger and external services still require acceptance tests.");
 }

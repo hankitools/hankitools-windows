@@ -5,9 +5,25 @@ internal sealed class HomePanel : UserControl
 {
     private readonly Label systemStatus = Status(), performanceStatus = Status();
     private readonly DiagnosticHistory scans = new(Path.Combine(SecurityPaths.Root, "diagnostic-history.json"));
-    public HomePanel(Action<string> navigate, Action startFixMyPc)
+    private readonly FlowLayoutPanel glance = new() { Dock = DockStyle.Top, AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink, Margin = Padding.Empty };
+    private readonly RecentActivityView activity;
+    private DateTime glanceRead = DateTime.MinValue;
+    private bool reading;
+    /// <param name="routes">Every page and tool (Find a tool's list), for the search.</param>
+    /// <param name="openGuide">Opens the guided checks with a symptom chosen.</param>
+    public HomePanel(Action<string> navigate, Action startFixMyPc, Func<IReadOnlyList<ToolLauncher.Route>> routes, Action<int> openGuide)
     {
         Dock = DockStyle.Fill; AutoScroll = true; Padding = new Padding(0, 4, 8, 16);
+        // Search: guided fixes for symptoms first, then pages and tools.
+        IReadOnlyList<SearchEntry>? index = null;
+        IReadOnlyList<SearchEntry> Entries() => index ??= TroubleshootingPanel.Guides.Select((g, i) => HomeSearch.Guide(i, g.Symptom, g.Steps.Length, g.Steps.Select(x => x.Title)))
+            .Concat(routes().Where(r => r.Name != "Home").Select(r => HomeSearch.Tool(r.Name, r.SearchText, Navigation.Find(r.Name)?.Introduction))).ToArray();
+        void Open(SearchEntry entry) {
+            if (entry.GuidedFix && int.TryParse(entry.Target.AsSpan("guide:".Length), out var guide)) openGuide(guide);
+            else routes().FirstOrDefault(r => r.Name == entry.Target)?.Open();
+        }
+        var search = new HomeSearchBox(Entries, Open);
+        activity = new RecentActivityView(navigate);
         var cards = new TableLayoutPanel { Dock = DockStyle.Top, AutoSize = true, ColumnCount = 2, Margin = Padding.Empty };
         cards.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50)); cards.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
         var system = Area(ProductArea.System, "Something not working?", "Scan Windows and fix what's wrong, safely.",
@@ -23,9 +39,44 @@ internal sealed class HomePanel : UserControl
         }
         SizeChanged += (_, _) => Fit();
 
-        Controls.Add(cards);
-        VisibleChanged += (_, _) => { if (Visible) RefreshStatus(); };
-        RefreshStatus(); Fit();
+        // Your PC at a glance: six tiles, three across when there's room; each opens its page.
+        foreach (var model in Loading()) {
+            var tile = new GlanceTile(model) { Margin = new Padding(0, 0, 14, 14) };
+            tile.Opened += target => routes().FirstOrDefault(r => r.Name == target)?.Open();
+            glance.Controls.Add(tile);
+        }
+        void FitTiles() {
+            int width = Math.Max(260, ClientSize.Width - Padding.Horizontal - SystemInformation.VerticalScrollBarWidth);
+            int columns = width >= 900 ? 3 : width >= 560 ? 2 : 1;
+            foreach (Control tile in glance.Controls) tile.Width = Math.Max(200, (width - 14 * columns) / columns);
+        }
+        SizeChanged += (_, _) => FitTiles();
+
+        // Docked to the top in reverse: search, the two areas, the glance tiles, then recent activity.
+        Controls.Add(activity); Controls.Add(ToolTiles.Heading("Recent activity"));
+        Controls.Add(glance); Controls.Add(ToolTiles.Heading("Your PC at a glance"));
+        Controls.Add(cards); Controls.Add(search);
+        ToolTiles.TopDown(this);
+        VisibleChanged += async (_, _) => { if (Visible) { RefreshStatus(); await RefreshGlance(); } };
+        RefreshStatus(); Fit(); FitTiles();
+    }
+
+    private static IEnumerable<GlanceTileModel> Loading() =>
+        new[] { ("Overview", "Windows"), ("Diagnostic", "Running since restart"), ("Storage", "System drive"), ("Memory", "Memory in use"), ("GPU", "Graphics"), ("Shield", "Protection") }
+            .Select(t => new GlanceTileModel(t.Item1, t.Item2, "…", "Reading", CardStatus.Info, null, ""));
+
+    /// <summary>Reads the glance facts in the background, at most once a minute.</summary>
+    private async Task RefreshGlance()
+    {
+        if (reading || DateTime.UtcNow - glanceRead < TimeSpan.FromMinutes(1)) return;
+        reading = true;
+        try {
+            var facts = await Task.Run(PcGlanceProbe.Collect);
+            if (IsDisposed) return;
+            var models = PcGlance.Tiles(facts);
+            foreach (var (tile, model) in glance.Controls.OfType<GlanceTile>().Zip(models)) tile.Set(model);
+            glanceRead = DateTime.UtcNow;
+        } finally { reading = false; }
     }
     private static Label Status() => new() { AutoSize = true, Font = new Font("Segoe UI", 11f), Margin = new Padding(0, 0, 0, 16), Tag = "intro" };
 
@@ -55,7 +106,13 @@ internal sealed class HomePanel : UserControl
             var latest = scans.Read().OrderByDescending(s => s.Ended).FirstOrDefault();
             systemStatus.Text = latest is null ? "No scan yet. Fix My PC checks Windows in one read-only pass." : SystemStatus(latest);
         } catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { systemStatus.Text = "Saved scan history couldn't be read."; }
-        performanceStatus.Text = PerformanceStatus.Describe(PerformanceStatus.Latest());
+        var performanceLatest = PerformanceStatus.Latest();
+        performanceStatus.Text = PerformanceStatus.Describe(performanceLatest);
+        DiagnosticScan? lastScan = null;
+        IReadOnlyList<SettingChange> changes = [];
+        try { lastScan = scans.Read().OrderByDescending(s => s.Ended).FirstOrDefault(); } catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
+        try { changes = WindowsSettings.Journal().Read(); } catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Text.Json.JsonException) { }
+        activity.Show(HomeActivity.Build(lastScan, performanceLatest, changes));
     }
     internal static string SystemStatus(DiagnosticScan scan)
     {
@@ -134,7 +191,7 @@ public sealed class SystemActionsPanel : ToolPage
             var scans = new DiagnosticHistory(Path.Combine(SecurityPaths.Root, "diagnostic-history.json")).Read();
             var repairs = new RepairAudit(Path.Combine(SecurityPaths.Root, "repair-audit.json")).Read();
             var changes = WindowsSettings.Journal().Read();
-            Output.Text = SystemActions.Format(SystemActions.Timeline(scans, repairs, changes));
+            Output.Text = SystemActions.Format(SystemActions.Timeline(scans, repairs, changes, RemovalLog.Default.Read()));
         } catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Text.Json.JsonException) {
             Output.Text = "System history couldn't be read: " + ex.Message + "\r\nOriginal files were preserved.";
         }
