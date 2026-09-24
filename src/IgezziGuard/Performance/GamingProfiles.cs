@@ -118,13 +118,17 @@ public static class GamingProfiles
     }
 
     /// <summary>
-    /// Frame-rate limiter and sync conflicts for one game (HANKI-GAME-208). Only configuration Hanki read directly is
-    /// used; in-game limiters and external tools aren't visible, which the text says.
+    /// Frame-rate limiter and sync conflicts for one game (HANKI-GAME-208/218). Only configuration Hanki read directly is
+    /// used: NVIDIA's limits and RivaTuner's global limit (rtssLimit, 0 = off). In-game limits aren't visible, which the text says.
     /// </summary>
-    public static IReadOnlyList<string> Conflicts(GameContext game, double refreshHz)
+    public static IReadOnlyList<string> Conflicts(GameContext game, double refreshHz, double? rtssLimit = null)
     {
         var notes = new List<string>();
-        if (game.NvidiaGlobal is null) return notes;
+        uint? rtss = rtssLimit is > 0 and var r ? (uint)Math.Round(r) : null;
+        if (game.NvidiaGlobal is null) {
+            if (rtss is { } only) notes.Add($"RivaTuner caps this game at {only} FPS. A limit set inside the game isn't visible to Hanki; keep one deliberate limit.");
+            return notes;
+        }
         uint? Value(uint id, NvidiaProfileView? view) => view?.Values.FirstOrDefault(v => v.Setting.Id == id && (view == game.NvidiaGlobal || v.Source == NvidiaSettingSource.ThisProfile))?.Value;
         uint? gameCap = Value(NvidiaSettings.FrameRateLimitId, game.Nvidia), globalCap = Value(NvidiaSettings.FrameRateLimitId, game.NvidiaGlobal);
         uint? vsync = Value(NvidiaSettings.VerticalSyncId, game.Nvidia) ?? Value(NvidiaSettings.VerticalSyncId, game.NvidiaGlobal);
@@ -135,7 +139,10 @@ public static class GamingProfiles
             notes.Add($"The {c} FPS cap is above the {Math.Round(refreshHz):0} Hz refresh rate while vertical sync is forced on, so vertical sync limits the game first and the cap does nothing.");
         if (cap is { } low && refreshHz > 0 && low < refreshHz * 0.5)
             notes.Add($"The {low} FPS cap is less than half of the {Math.Round(refreshHz):0} Hz refresh rate. That's fine for quiet play, but it limits smoothness.");
-        if (notes.Count > 0) notes.Add("Hanki reads NVIDIA's limits only; a limit set inside the game or by another tool isn't visible here.");
+        if (rtss is { } riva)
+            notes.Add(cap is { } both ? $"RivaTuner also caps games at {riva} FPS, on top of NVIDIA's {both} FPS: the lower one wins, and two limiters can make frame pacing uneven. Keep one."
+                : $"RivaTuner caps this game at {riva} FPS.");
+        if (notes.Count > 0) notes.Add("Hanki reads NVIDIA's and RivaTuner's limits; a limit set inside the game isn't visible here.");
         return notes;
     }
 }

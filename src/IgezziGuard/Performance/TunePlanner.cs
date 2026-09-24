@@ -4,9 +4,12 @@ namespace IgezziGuard;
 public enum TuneScenario { GamingPerformance, GamingQuality, Creative, LowPower }
 /// <summary>Whether the display has G-SYNC or FreeSync. Windows doesn't report it reliably, so Tune my PC asks.</summary>
 public enum AdaptiveSync { NotSure, Yes, No }
-public enum TuneArea { Display, Windows, Mouse, GraphicsDriver, Games, Processor, Memory, Storage }
+public enum TuneArea { Display, Windows, Mouse, GraphicsDriver, Games, Background, Processor, Memory, Storage }
 
-/// <summary>What the Tune my PC scan read. Nvidia is null without an NVIDIA driver; Findings are the CPU, memory and storage analyzers' results.</summary>
+/// <summary>
+/// What the Tune my PC scan read. Nvidia is null without an NVIDIA driver; Findings are the CPU, memory and storage
+/// analyzers' results and the background check's (overlays, recorders, limiters, busy programs).
+/// </summary>
 public sealed record TuneInputs(GraphicsInventory Graphics, WindowsGamingSettings Windows, IReadOnlyList<NvidiaGlobalSetting>? Nvidia, IReadOnlyList<DiagnosticResult> Findings);
 /// <summary>One line of the plan: a change Hanki makes (Kind set) or a step for you (Manual set).</summary>
 public sealed record TuneItem(TuneArea Area, ProposedChange Change);
@@ -235,10 +238,13 @@ public static partial class TunePlanner
         foreach (var f in x.Findings) {
             if (f.FindingId is "processor-maximum" or "power-mode" or "power-plan") continue;
             if (lowPower && f.FindingId is "memory-speed" or "core-parking") continue;
-            var area = f.ModuleId switch { "perf-cpu" => TuneArea.Processor, "perf-memory" => TuneArea.Memory, "perf-storage" => TuneArea.Storage, _ => TuneArea.Windows };
+            bool background = f.Metadata.GetValueOrDefault("source") == "Background";
+            // Busy programs, recorders and a second frame limiter matter while you game.
+            if (background && !gaming) continue;
+            var area = background ? TuneArea.Background : f.ModuleId switch { "perf-cpu" => TuneArea.Processor, "perf-memory" => TuneArea.Memory, "perf-storage" => TuneArea.Storage, _ => TuneArea.Windows };
             if (f.Severity is FindingSeverity.Warning or FindingSeverity.Critical)
                 Step(area, ChangeSource.Windows, f.FindingId, f.Title, f.Metadata.GetValueOrDefault("current", "?"), f.Metadata.GetValueOrDefault("recommended", "?"), f.Explanation,
-                    f.Recommendation ?? $"Open {area} for details.", f.Metadata.GetValueOrDefault("settings"));
+                    f.Recommendation ?? $"Open {area} for details.", f.Metadata.GetValueOrDefault("settings"), optional: background);
             else if (f.Severity == FindingSeverity.Healthy) Good(area, f.Title, f.Metadata.GetValueOrDefault("current", "OK"));
         }
 

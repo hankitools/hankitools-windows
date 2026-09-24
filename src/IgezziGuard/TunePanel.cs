@@ -83,11 +83,12 @@ internal sealed class TunePanel : UserControl
             .Concat(SystemAnalyzers.Storage(storage, games, Path.GetPathRoot(Environment.SystemDirectory)?[0] ?? 'C', now)).ToArray();
         var all = gaming.Findings.Concat(findings).GroupBy(f => (f.ModuleId, f.FindingId)).Select(g => g.First()).ToArray();
         try { PerformanceStatus.History.Add(new DiagnosticScan(Guid.NewGuid(), now, DateTimeOffset.UtcNow, 4, 4, false, all)); } catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
-        return new TuneInputs(gaming.Graphics, gaming.Windows!, nvidia, findings);
+        var background = gaming.Findings.Where(f => f.Metadata.GetValueOrDefault("source") == "Background");
+        return new TuneInputs(gaming.Graphics, gaming.Windows!, nvidia, findings.Concat(background).ToArray());
     }
 
     private static string AreaName(TuneArea area) => area switch {
-        TuneArea.GraphicsDriver => "Graphics driver", TuneArea.Games => "In your games", _ => area.ToString()
+        TuneArea.GraphicsDriver => "Graphics driver", TuneArea.Games => "In your games", TuneArea.Background => "Running in the background", _ => area.ToString()
     };
 
     private void ShowPlan(TunePlan p)

@@ -9,6 +9,7 @@ internal sealed class GamingState
     internal WindowsGamingSettings? Windows;
     internal NvidiaProfileView? NvidiaGlobal;
     internal string? NvidiaNote;
+    internal BackgroundSnapshot? Background;
     internal IReadOnlyList<DiagnosticResult> Findings = [];
 
     /// <summary>Reads hardware and settings (read-only). NVIDIA problems become a note, not a failure.</summary>
@@ -21,7 +22,11 @@ internal sealed class GamingState
             try { NvidiaGlobal = Nvidia.ReadProfiles([]).Global; }
             catch (NvidiaException ex) { NvidiaNote = ex.Message; }
         }
-        Findings = GamingHealth.Evaluate(Graphics, Windows, NvidiaGlobal, DateTimeOffset.UtcNow);
+        Background = BackgroundProbe.Collect();
+        var now = DateTimeOffset.UtcNow;
+        IEnumerable<string> games = [];
+        try { games = GameLibrary.Read(GameLibrary.StorePath).Select(g => Path.GetFileNameWithoutExtension(g.Executable)); } catch (IOException) { }
+        Findings = GamingHealth.Evaluate(Graphics, Windows, NvidiaGlobal, now).Concat(GamingBackground.Evaluate(Background, now, games)).ToArray();
     }
     internal static CardStatus Status(DiagnosticResult r) => r.Severity switch {
         FindingSeverity.Healthy => CardStatus.Good, FindingSeverity.Warning => CardStatus.Review, FindingSeverity.Critical => CardStatus.Problem, FindingSeverity.Informational => CardStatus.Info, _ => CardStatus.Unknown
@@ -51,7 +56,7 @@ public sealed class GamingOverviewPanel : ToolPage
 {
     private readonly ComboBox goal = new() { Width = 170, DropDownStyle = ComboBoxStyle.DropDownList, AccessibleName = "Optimization goal", Margin = new Padding(10, 6, 8, 0) };
     private readonly GamingState state;
-    internal GamingOverviewPanel(GamingState state) : base("A read-only check of your gaming setup: display refresh rate, which GPU apps use, Windows Game Mode and power settings, and NVIDIA driver settings. Choosing a goal changes nothing: you review each proposed change first, and every change Hanki makes can be undone in Recovery.")
+    internal GamingOverviewPanel(GamingState state) : base("A read-only check of your gaming setup: display refresh rate, which GPU apps use, Windows Game Mode and power settings, NVIDIA driver settings, and overlays, frame limiters and busy programs running in the background. Choosing a goal changes nothing: you review each proposed change first, and every change Hanki makes can be undone in Recovery.")
     {
         this.state = state;
         Button("Scan gaming setup", Scan);
@@ -204,7 +209,7 @@ public sealed class GamesPanel : ToolPage
                     text.AppendLine($"  {v.Setting.Name}: {v.Text} ({(context.Nvidia is null ? "global" : NvidiaSettings.SourceText(v.Source))})");
             }
             double refresh = state.Graphics!.Displays.Where(d => d.Primary).Select(d => d.Current.RefreshHz).FirstOrDefault();
-            var conflicts = GamingProfiles.Conflicts(context, refresh);
+            var conflicts = GamingProfiles.Conflicts(context, refresh, state.Background?.RtssLimit);
             if (conflicts.Count > 0) text.AppendLine("\r\nFrame-rate limits and sync:\r\n" + string.Join("\r\n", conflicts.Select(c => "• " + c)));
             text.AppendLine($"\r\nGoal: {GamingProfiles.Name(game.Goal)}. {GamingProfiles.Describe(game.Goal)}\r\nChoose Optimize this game to review what would change.");
             return text.ToString();

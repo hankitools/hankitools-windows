@@ -5,7 +5,7 @@ internal static class GamingChecks
 {
     private static void Check(bool ok, string text) => DiagnosticChecks.Check(ok, text);
     private static readonly DateTimeOffset Now = new(2026, 9, 24, 12, 0, 0, TimeSpan.Zero);
-    internal static void Run() { Facts(); Health(); Profiles(); NvidiaGlobal(); WindowsGaming(); Tune(); Library(); Live(); }
+    internal static void Run() { Facts(); Health(); Profiles(); NvidiaGlobal(); WindowsGaming(); Tune(); Background(); Library(); Live(); }
 
     private static GpuAdapter Gpu(GpuVendor vendor, string name, ulong memory, int rank, long luid) =>
         new(name, vendor, 0, 0, luid, memory, 8 * GraphicsFacts.GiB, rank, "32.0.16.1692", new DateTime(2026, 9, 4), GraphicsFacts.LikelyIntegrated(vendor, memory));
@@ -295,6 +295,30 @@ internal static class GamingChecks
         Check(amd.Changes.Single(c => c.Id == "tune-amd").Manual!.Contains("Anti-Lag on") && amd.Changes.Single(c => c.Id == "tune-amd").Manual!.Contains("162 FPS") && !amd.Changes.Any(c => c.Kind == NvidiaPresets.ChangeKind),
             "tune: Radeon owners get the matching AMD Software settings as a step");
         Check(Enum.GetValues<TuneScenario>().All(v => TunePlanner.Name(v).Length > 0 && !Navigation.UsesFaultLanguage(TunePlanner.Describe(v))), "tune: every choice has a name and a plain description");
+    }
+
+    private static void Background()
+    {
+        Check(GamingBackground.RtssLimit("[OSD]\r\nLimit=5\r\n[Framerate]\r\nLimit=5994\r\nLimitDenominator=100\r\n") is { } fractional && Math.Abs(fractional - 59.94) < 0.001
+            && GamingBackground.RtssLimit("[Framerate]\nLimit=141\n") == 141 && GamingBackground.RtssLimit("[Framerate]\nLimit=0\n") == 0 && GamingBackground.RtssLimit("[OSD]\nLimit=60\n") is null,
+            "background: RivaTuner's frame limit is read from its [Framerate] section, including fractional limits");
+        var snapshot = new BackgroundSnapshot([new("RTSS", 1, 0.5, 20), new("Discord", 6, 1, 600), new("obs64", 1, 6, 400), new("chrome", 24, 23, 3100), new("svchost", 80, 30, 900), new("cs2", 1, 60, 5000)], 141);
+        var findings = GamingBackground.Evaluate(snapshot, Now, ["cs2"]);
+        Check(findings.Single(f => f.FindingId == "limiter:rtss") is { Severity: FindingSeverity.Warning } rtss && rtss.Title.Contains("141") && findings.Single(f => f.FindingId == "overlay:discord").Severity == FindingSeverity.Informational
+            && findings.Single(f => f.FindingId == "recorder:obs64").Severity == FindingSeverity.Warning, "background: RivaTuner's cap, overlays and recorders are recognised");
+        Check(findings.Any(f => f.FindingId == "busy:chrome") && !findings.Any(f => f.FindingId == "busy:cs2") && !findings.Any(f => f.FindingId == "busy:svchost") && !findings.Any(f => f.FindingId == "busy:obs64")
+            && GamingBackground.Evaluate(snapshot, Now).Any(f => f.FindingId == "busy:cs2"),
+            "background: busy programs are reported; Windows' own processes, your games and known programs aren't reported as busy");
+        Check(findings.All(f => f.Metadata["source"] == "Background" && !Navigation.UsesFaultLanguage(f.Explanation) && !GamingHealth.BelongsInFixMyPc(f) && !GamingHealth.CanApply(f)),
+            "background: observations only; nothing is closed and nothing reaches Fix My PC");
+        Check(GamingBackground.Evaluate(new BackgroundSnapshot([new("svchost", 50, 2, 800)], null), Now).Single().Severity == FindingSeverity.Healthy, "background: a quiet PC says so");
+        var game = new GameContext("CS2", @"C:\Games\cs2.exe", null, Global(fps: 144), null);
+        Check(GamingProfiles.Conflicts(game, 165, 141).Any(n => n.Contains("RivaTuner also caps")) && GamingProfiles.Conflicts(game with { NvidiaGlobal = null }, 165, 60).Single().Contains("RivaTuner caps this game at 60"),
+            "limiters: RivaTuner's cap is part of the per-game conflicts");
+        var plan = TunePlanner.Plan(TuneScenario.GamingPerformance, AdaptiveSync.No, new TuneInputs(Desktop(Display(165, 1, 165)), Windows(), null, findings));
+        Check(plan.Items.Any(i => i.Area == TuneArea.Background && i.Change.Id == "busy:chrome" && i.Change.Optional && !i.Change.HankiApplies)
+            && !TunePlanner.Plan(TuneScenario.Creative, AdaptiveSync.No, new TuneInputs(Desktop(Display(165, 1, 165)), Windows(), null, findings)).Items.Any(i => i.Area == TuneArea.Background),
+            "tune: busy programs and a second limiter become optional steps when gaming");
     }
 
     private static void Library()

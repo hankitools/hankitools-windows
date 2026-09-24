@@ -142,13 +142,14 @@ Hanki controls and theme.
 | GPU-109, GAME-212, PERF-312 | Lab → Monitor, `PerformanceComparison` | Done: baselines, comparable before/after, keep or restore through Performance sessions. |
 | GPU-110 | Lab → Advanced Tuning | Deliberately separate and not started (placeholder only). |
 | GAME-215, 216, 217 | `Performance/GamingHealth.cs`, `WindowsGamingProbe.cs` | Done: Game Bar background recording, optimizations for windowed games, variable refresh rate and mouse acceleration in the gaming scan. Background recording and windowed-game optimizations are reviewed, Recovery-backed changes ("Windows gaming setting"); mouse acceleration is an observation the Competitive goal offers to turn off. |
+| GAME-218 | `Performance/GamingBackground.cs` | Done: overlays (Discord, Steam, NVIDIA, Xbox Game Bar, AMD, Overwolf, EA, Ubisoft), recorders (OBS, Streamlabs, Medal, XSplit), RivaTuner and its global frame limit, and busy background programs from a one-second sample; shown in the gaming scan, per-game limiter conflicts and as optional Tune my PC steps. Nothing is closed. |
 | GPU-113 | Gaming → NVIDIA, `Performance/NvidiaPresets.cs` | Done: NVIDIA global settings (16 from the public NVAPI SDK, each checked against the driver's own name) with built-in presets, a settings editor and your own saved presets (`nvidia-presets.json`). Changes are reviewed, recorded in Recovery as "NVIDIA global setting" and restorable. |
 | GPU-111, GAME-213 | Gaming page | Done: overview with goals and review, games tab. |
 | GPU-112, GAME-214 | `Performance/GamingDiagnostic.cs` | Done: Fix My PC shows only high-impact gaming findings, pointing to Gaming; never applies them. |
 | GAME-205 | `Performance/GameLibrary.cs` | Done: Steam, Epic, GOG and publisher records, manual .exe, rescans without duplicates. |
 | GAME-206, PERF-310, PERF-311 | `Performance/MonitorModel.cs`, Lab → Bottleneck Analyzer | Done: evidence-based limiter with confidence and recommendations. |
 | GAME-207 | Gaming scan + `Display mode` changes | Done: refresh-rate mismatches per display, applied with a 15-second keep-or-revert. |
-| GAME-208 | `GamingProfiles.Conflicts` | Done for NVIDIA limits and vertical sync; in-game and third-party limiters aren't visible, which the results say. |
+| GAME-208 | `GamingProfiles.Conflicts` | Done for NVIDIA limits, vertical sync and RivaTuner's global limit; in-game limits aren't visible, which the results say. |
 | GAME-209, PERF-309 | Lab → Stutter Diagnostics | Done: spikes matched to CPU, GPU, memory, disk, heat and background activity, as possibilities. |
 | GAME-210 | Games → Optimize this game | Done: analysis, reviewed proposal, Recovery, session; measure before and after in Lab → Monitor. |
 | GAME-211, PERF-314 | `Performance/Guardrails.cs` | Done: only documented change kinds can be applied; common internet tweaks listed with reasons. |
