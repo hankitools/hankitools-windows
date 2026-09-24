@@ -3,8 +3,13 @@ using System.Text.RegularExpressions;
 
 namespace IgezziGuard;
 
+/// <param name="Hive">"LocalMachine" or "CurrentUser"; with <paramref name="View"/> ("Registry64"/"Registry32") and
+/// <paramref name="Key"/> (the Uninstall subkey name) it locates the registration.</param>
+/// <param name="Uninstall">The registered uninstall command (UninstallString).</param>
+/// <param name="Leftover">The app's files are gone but its registration remains (see <see cref="AppRemoval.IsLeftover"/>).</param>
 public sealed record InstalledApp(string Name, string Publisher, string Version, DateTime? InstallDate,
-    long? EstimatedBytes, string Source)
+    long? EstimatedBytes, string Source, string Hive = "", string View = "", string Key = "", string? Uninstall = null,
+    string? InstallLocation = null, bool WindowsInstaller = false, bool NoRemove = false, bool Leftover = false)
 {
     public string Usage => "Unknown — not measured";
 }

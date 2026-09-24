@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 namespace IgezziGuard;
 
 public sealed class MaintainPanel : UserControl
@@ -8,7 +9,7 @@ public sealed class MaintainPanel : UserControl
     private readonly HankiButton largest = Button("Largest 100");
     private readonly HankiButton showAll = Button("All files");
     private readonly HankiButton reveal = Button("Open location");
-    private readonly HankiButton cleanup = Button("Preview cleanup…");
+    private readonly HankiButton cleanup = Button("Delete…");
     private readonly FlowLayoutPanel selectionActions = new() { Dock = DockStyle.Top, AutoSize = true, Visible = false };
     private readonly Label selectionHint = new() { AutoSize = true, Margin = new Padding(8, 12, 12, 0) };
     private readonly ComboBox preset = new() { Width = 230, DropDownStyle = ComboBoxStyle.DropDownList };
@@ -64,6 +65,16 @@ public sealed class MaintainPanel : UserControl
         };
         list.SelectedIndexChanged += (_, _) => UpdateSummary();
         list.DoubleClick += (_, _) => Reveal();
+        // Delete key and right-click: the same review as the Delete… button.
+        list.KeyDown += async (_, e) => { if (e.KeyCode == Keys.Delete && Selected().Length > 0) { e.Handled = true; await Cleanup(); } };
+        list.MouseUp += (_, e) => {
+            if (e.Button != MouseButtons.Right || IsBusy || Selected().Length == 0) return;
+            var menu = HankiMenu.Create();
+            if (Selected().Length == 1) menu.Items.Add(HankiMenu.Item("Open location", Reveal));
+            menu.Items.Add(HankiMenu.Item(Selected().Length == 1 ? "Delete…" : $"Delete {Selected().Length:N0} files…", async () => await Cleanup()));
+            menu.Closed += (_, _) => BeginInvoke(menu.Dispose);
+            menu.Show(list, e.Location);
+        };
         browse.Click += async (_, _) => await Scan();
         stop.Click += (_, _) => Cancel();
         apply.Click += (_, _) => RefreshView();
@@ -150,11 +161,11 @@ public sealed class MaintainPanel : UserControl
         if (IsBusy) return;
         var selected = Selected();
         summary.Text = scanSummary + $"\nShowing {visible.Length:N0}" + (category is null ? "" : $" {category.ToLowerInvariant()}") + $" · selected {selected.Length:N0} ({SizeText(selected.Sum(f => f.Bytes))}). " +
-            "Filters help you review; they don't prove a file is unneeded. Cleaned-up files go to the Recycle Bin, so space is freed when you empty it.";
+            "Filters help you review; they don't prove a file is unneeded. Select files (Ctrl or Shift for several), then Delete… to send them to the Recycle Bin or delete them permanently.";
         selectionActions.Visible = selected.Length > 0;
         selectionHint.Text = $"{selected.Length:N0} selected · {SizeText(selected.Sum(f => f.Bytes))}";
         reveal.Visible = selected.Length == 1;
-        cleanup.Text = $"Preview cleanup ({selected.Length:N0})…";
+        cleanup.Text = selected.Length == 1 ? "Delete…" : $"Delete {selected.Length:N0} files…";
         reveal.Enabled = selected.Length == 1;
         cleanup.Enabled = selected.Length > 0;
     }
@@ -169,51 +180,46 @@ public sealed class MaintainPanel : UserControl
         if (IsBusy) return;
         var selected = Selected();
         if (selected.Length == 0) return;
-        if (selected.Length > 100) { MessageBox.Show(this, "Select at most 100 files per cleanup batch.", "Hanki Maintain"); return; }
-        var reasons = selected.Select(f => (File: f, Reason: CleanupPolicy.BlockReason(f))).ToArray();
-        using var preview = new Form { Text = "Review cleanup — files will go to Recycle Bin", Size = new Size(850, 570),
-            StartPosition = FormStartPosition.CenterParent, MinimizeBox = false, MaximizeBox = false };
-        var details = new TextBox { Dock = DockStyle.Fill, Multiline = true, ReadOnly = true, ScrollBars = ScrollBars.Both,
-            Text = $"Selected: {selected.Length} files, {SizeText(selected.Sum(f => f.Bytes))}\r\n\r\n" +
-                "Restore through Windows Recycle Bin. Recycling does not immediately reclaim disk space.\r\n" +
-                "Cloud-synced deletions may propagate to other devices. Close programs using these files first.\r\n" +
-                "This preview has not been runtime-tested on Windows. Test only on disposable copies first.\r\n\r\n" +
-                string.Join("\r\n\r\n", reasons.Select(r => $"{r.File.FullPath}\r\n{SizeText(r.File.Bytes)} — {r.Reason ?? "Eligible for recycling"}")) };
-        var buttons = new FlowLayoutPanel { Dock = DockStyle.Bottom, Height = 50, FlowDirection = FlowDirection.RightToLeft };
-        var back = new HankiButton { Text = "Cancel", DialogResult = DialogResult.Cancel, AutoSize = true };
-        var approve = new HankiButton { Text = "Move selected to Recycle Bin", DialogResult = DialogResult.OK, AutoSize = true,
-            Enabled = reasons.All(r => r.Reason is null) };
-        buttons.Controls.AddRange([back, approve]); preview.Controls.Add(details); preview.Controls.Add(buttons);
-        preview.CancelButton = back; preview.AcceptButton = back;
-        HankiTheme.Apply(preview);
-        if (preview.ShowDialog(this) != DialogResult.OK) return;
+        if (selected.Length > 1000) { MessageBox.Show(this, "Select at most 1,000 files at a time.", "Hanki Maintain"); return; }
+        var checkedFiles = selected.Select(f => (File: f, Blocked: CleanupPolicy.BlockReason(f))).ToArray();
+        if (RemovalDialogs.DeleteFiles(this, checkedFiles) is not { } permanent) return;
+        var eligible = checkedFiles.Where(f => f.Blocked is null).Select(f => f.File).ToArray();
 
         using var cts = new CancellationTokenSource(); running = cts; SetBusy(true);
-        var recycled = new List<InventoryFile>();
-        var completion = new TaskCompletionSource<string?>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var removed = new List<InventoryFile>();
+        var failures = new List<string>();
+        var completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var owner = FindForm()!.Handle;
+        // Recycling needs an STA thread for the Windows shell; each file is checked again right before it goes.
         var worker = new Thread(() => {
             try {
-                foreach (var entry in selected) {
-                    cts.Token.ThrowIfCancellationRequested();
-                    RecycleService.Recycle(entry, owner);
-                    recycled.Add(entry);
+                foreach (var entry in eligible) {
+                    if (cts.Token.IsCancellationRequested) { failures.Add("Cancelled: the remaining files were kept."); break; }
+                    try {
+                        if (permanent) RecycleService.DeletePermanently(entry); else RecycleService.Recycle(entry, owner);
+                        removed.Add(entry);
+                    } catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException or COMException) {
+                        failures.Add($"{entry.Name}: {ex.Message}");
+                    }
                 }
-                completion.SetResult(null);
-            }
-            catch (OperationCanceledException) { completion.SetResult("Cancelled. Remaining files were not processed."); }
-            catch (Exception ex) { completion.SetResult("Stopped: " + ex.Message + "\nRemaining files were not processed. Rescan to refresh the inventory."); }
+            } finally { completion.SetResult(); }
         }) { IsBackground = true };
         worker.SetApartmentState(ApartmentState.STA);
-        summary.Text = "Recycling confirmed selection. Cancel stops before the next file; Windows may show its own dialog.";
+        summary.Text = permanent ? "Deleting the confirmed files. Cancel stops before the next file." : "Moving the confirmed files to the Recycle Bin. Cancel stops before the next file; Windows may show its own dialog.";
         try {
             worker.Start();
-            var error = await completion.Task;
-            foreach (var entry in recycled) inventory.Remove(entry);
-            scanSummary = "Cleanup finished; inventory may be stale. Rescan for current totals.";
+            await completion.Task;
+            foreach (var entry in removed) inventory.Remove(entry);
+            long bytes = removed.Sum(f => f.Bytes);
+            string done = permanent ? $"Deleted {removed.Count:N0} of {eligible.Length:N0} files permanently ({SizeText(bytes)} freed)."
+                : $"Moved {removed.Count:N0} of {eligible.Length:N0} files to the Recycle Bin ({SizeText(bytes)}). Restore them from the Recycle Bin; the space is freed when you empty it.";
+            if (removed.Count > 0)
+                RemovalLog.TryAdd(new(DateTimeOffset.Now, permanent ? "Files deleted permanently" : "Files moved to the Recycle Bin",
+                    $"{removed.Count:N0} {(removed.Count == 1 ? "file" : "files")}, {SizeText(bytes)}: " + string.Join(", ", removed.Take(5).Select(f => f.FullPath)) + (removed.Count > 5 ? $" and {removed.Count - 5:N0} more" : "")));
+            scanSummary = done + " The list may be out of date; rescan for current totals.";
             RefreshView();
-            MessageBox.Show(this, $"Confirmed recycled: {recycled.Count}/{selected.Length} files.\nRestore them through Windows Recycle Bin.\n\n" +
-                (error ?? "No permanent-delete fallback was used."), "Cleanup results");
+            MessageBox.Show(this, done + (failures.Count == 0 ? "" : "\n\nNot deleted:\n" + string.Join("\n", failures.Take(10)) + (failures.Count > 10 ? $"\n…and {failures.Count - 10} more" : "")),
+                permanent ? "Files deleted" : "Files moved to the Recycle Bin");
         }
         finally { running = null; SetBusy(false); UpdateSummary(); }
     }

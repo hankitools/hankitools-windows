@@ -191,7 +191,7 @@ public sealed class SystemActionsPanel : ToolPage
             var scans = new DiagnosticHistory(Path.Combine(SecurityPaths.Root, "diagnostic-history.json")).Read();
             var repairs = new RepairAudit(Path.Combine(SecurityPaths.Root, "repair-audit.json")).Read();
             var changes = WindowsSettings.Journal().Read();
-            Output.Text = SystemActions.Format(SystemActions.Timeline(scans, repairs, changes));
+            Output.Text = SystemActions.Format(SystemActions.Timeline(scans, repairs, changes, RemovalLog.Default.Read()));
         } catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Text.Json.JsonException) {
             Output.Text = "System history couldn't be read: " + ex.Message + "\r\nOriginal files were preserved.";
         }

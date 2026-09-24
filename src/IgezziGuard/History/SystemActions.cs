@@ -8,7 +8,8 @@ public sealed record TimelineEntry(DateTimeOffset At, string Kind, string Title,
 /// </summary>
 public static class SystemActions
 {
-    public static IReadOnlyList<TimelineEntry> Timeline(IEnumerable<DiagnosticScan> scans, IEnumerable<RepairAuditEntry> repairs, IEnumerable<SettingChange> changes)
+    public static IReadOnlyList<TimelineEntry> Timeline(IEnumerable<DiagnosticScan> scans, IEnumerable<RepairAuditEntry> repairs, IEnumerable<SettingChange> changes,
+        IEnumerable<RemovalRecord>? removals = null)
     {
         var entries = new List<TimelineEntry>();
         foreach (var scan in scans) {
@@ -23,6 +24,7 @@ public static class SystemActions
                 attempt.State == RepairState.Pending ? "Started but no result was recorded. Check Windows before trying again." : RepairGuidance.Outcome(attempt)));
         foreach (var change in changes.Where(c => !Navigation.IsPerformanceChange(c.Kind)))
             entries.Add(new(change.At, "Change", change.Kind, $"{change.Target}: {change.Before} → {change.After} ({change.Status})"));
+        foreach (var removal in removals ?? []) entries.Add(new(removal.At, "Removal", removal.Title, removal.Detail));
         return entries.OrderByDescending(e => e.At).ToArray();
     }
 

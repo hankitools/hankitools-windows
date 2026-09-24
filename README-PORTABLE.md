@@ -8,7 +8,7 @@ Start on Home or press Ctrl+K to find a tool. Each module explains its purpose. 
 
 Run normally as a standard user. Some Windows settings and Defender commands require administrator approval. Hanki does not automatically elevate the entire app. Read action previews before applying changes.
 
-“Cancel tasks” cancels active Hanki collection/tasks and stops local monitoring. It does not roll back completed changes or stop a scan running independently in Defender. Use Shield's Defender cancel action or Windows Security for that. Use Recovery for supported setting changes, Maintain's startup undo for registry entries, and Windows Recycle Bin for recycled files.
+“Cancel tasks” cancels active Hanki collection/tasks and stops local monitoring. It does not roll back completed changes or stop a scan running independently in Defender. Use Shield's Defender cancel action or Windows Security for that. Use Recovery for supported setting changes, Maintain's startup undo for registry entries, and Windows Recycle Bin for recycled files. Files deleted permanently can't be restored. A removed leftover app entry can be put back by double-clicking its .reg backup (in the app-entry-backups folder next to Hanki's saved data).
 
 ## Your data
 
