@@ -1,0 +1,196 @@
+name: Release unsigned build
+
+# Publishes the candidate ZIP of a green "Windows build" run on main as a GitHub release,
+# without rebuilding: the release carries the exact files CI checked and smoke-tested.
+# Versions with a suffix (0.18.0-rc.1) become an "unsigned preview" pre-release tagged
+# vVERSION-preview; plain versions become a "not code-signed yet" release tagged vVERSION.
+# Signed releases still go through PACKAGE-RELEASE.ps1 and PUBLISH-RELEASE.ps1.
+
+on:
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: 'Windows build run to release: the number after actions/runs/ in its URL'
+        required: true
+        type: string
+      draft:
+        description: 'Create a draft to review on GitHub before publishing'
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  actions: read
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Publish CI candidate
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      GH_TOKEN: ${{ github.token }}
+      REPO: ${{ github.repository }}
+      RUN_ID: ${{ inputs.run_id }}
+    steps:
+      - name: Check the build run
+        id: run
+        run: |
+          set -euo pipefail
+          if [[ ! "$RUN_ID" =~ ^[0-9]+$ ]]; then echo "::error::run_id must be the run number from its URL."; exit 1; fi
+          gh api "repos/$REPO/actions/runs/$RUN_ID" > "$RUNNER_TEMP/run.json"
+          default_branch=$(gh api "repos/$REPO" --jq .default_branch)
+          field() { jq -r "$1 // \"\"" "$RUNNER_TEMP/run.json"; }
+          path=$(field .path); event=$(field .event); branch=$(field .head_branch); head_repo=$(field .head_repository.full_name)
+          status=$(field .status); conclusion=$(field .conclusion)
+          if [[ "$path" != .github/workflows/windows-build.yml ]]; then echo "::error::Run $RUN_ID is from $path, not the Windows build workflow."; exit 1; fi
+          if [[ "$event" != push || "$branch" != "$default_branch" || "$head_repo" != "$REPO" ]]; then echo "::error::Run $RUN_ID built $event on $head_repo@$branch; only pushes to $default_branch are released."; exit 1; fi
+          if [[ "$status" != completed || "$conclusion" != success ]]; then echo "::error::Run $RUN_ID is $status/$conclusion, not green."; exit 1; fi
+          {
+            echo "sha=$(jq -r .head_sha "$RUNNER_TEMP/run.json")"
+            echo "url=$(jq -r .html_url "$RUNNER_TEMP/run.json")"
+            echo "artifact=HankiTools-win-x64-candidate-$(jq -r '"\(.run_number)-\(.run_attempt)"' "$RUNNER_TEMP/run.json")"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Check out the built commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.run.outputs.sha }}
+          persist-credentials: false
+
+      - name: Download and verify the candidate
+        id: candidate
+        env:
+          ARTIFACT: ${{ steps.run.outputs.artifact }}
+        run: |
+          set -euo pipefail
+          download="$RUNNER_TEMP/candidate"
+          gh run download "$RUN_ID" --repo "$REPO" --name "$ARTIFACT" --dir "$download"
+          mapfile -t zips < <(find "$download" -type f -name '*-candidate.zip')
+          if [[ ${#zips[@]} -ne 1 ]]; then echo "::error::Expected one candidate ZIP in $ARTIFACT, found ${#zips[@]}."; exit 1; fi
+          zip=${zips[0]}
+          expected=$(tr -d '\r' < "$zip.sha256" | awk 'NR == 1 { print toupper($1) }')
+          hash=$(sha256sum "$zip" | awk '{ print toupper($1) }')
+          if [[ "$hash" != "$expected" ]]; then echo "::error::$(basename "$zip") does not match its .sha256 file."; exit 1; fi
+          # build-info.json is written by Windows PowerShell (UTF-8 with BOM); check it against the files it describes.
+          version=$(python3 - "$zip" <<'PY'
+          import hashlib, json, sys, zipfile
+          with zipfile.ZipFile(sys.argv[1]) as archive:
+              if archive.testzip() is not None:
+                  sys.exit("::error::The candidate ZIP is damaged.")
+              entries = {name.replace("\\", "/"): name for name in archive.namelist()}
+              def sha256(path):
+                  if path not in entries:
+                      sys.exit(f"::error::The candidate ZIP has no {path}.")
+                  return hashlib.sha256(archive.read(entries[path])).hexdigest().upper()
+              build = json.loads(archive.read(entries.get("build-info.json", "build-info.json")).decode("utf-8-sig"))
+              if build.get("UiSmokePassed") is not True:
+                  sys.exit("::error::build-info.json does not record a passed UI smoke test.")
+              if build.get("Signed") is not False:
+                  sys.exit("::error::This build is signed; publish signed builds with PACKAGE-RELEASE.ps1 and PUBLISH-RELEASE.ps1.")
+              if sha256("HankiTools.exe") != str(build.get("ExeSHA256", "")).upper():
+                  sys.exit("::error::HankiTools.exe does not match build-info.json.")
+              for item in build.get("Payload") or []:
+                  path = item["Path"].replace("\\", "/")
+                  if sha256(path) != str(item["SHA256"]).upper():
+                      sys.exit(f"::error::{path} does not match build-info.json.")
+              print(build["Version"])
+          PY
+          )
+          project=$(sed -n 's:.*<Version>\(.*\)</Version>.*:\1:p' src/IgezziGuard/IgezziGuard.csproj)
+          if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?$ ]]; then echo "::error::Unexpected version '$version' in build-info.json."; exit 1; fi
+          if [[ "$version" != "$project" ]]; then echo "::error::The build is version $version but the commit's project version is $project."; exit 1; fi
+          if [[ "$version" == *-* ]]; then
+            tag="v$version-preview"; title="Hanki Tools $version - unsigned preview"; asset="HankiTools-$version-win-x64-unsigned-preview.zip"; prerelease=true
+          else
+            tag="v$version"; title="Hanki Tools $version (not code-signed yet)"; asset="HankiTools-$version-win-x64-unsigned.zip"; prerelease=false
+          fi
+          if [[ $(gh api "repos/$REPO/git/matching-refs/tags/$tag" --jq "[.[] | select(.ref == \"refs/tags/$tag\")] | length") != 0 ]]; then echo "::error::Tag $tag already exists. Bump the version in IgezziGuard.csproj and release a new build."; exit 1; fi
+          if [[ -n $(gh api --paginate "repos/$REPO/releases?per_page=100" --jq ".[] | select(.tag_name == \"$tag\") | .html_url") ]]; then echo "::error::A release (possibly a draft) for $tag already exists."; exit 1; fi
+          release="$RUNNER_TEMP/release"
+          mkdir -p "$release"
+          cp "$zip" "$release/$asset"
+          printf '%s  %s\r\n' "$hash" "$asset" > "$release/$asset.sha256"
+          {
+            echo "version=$version"
+            echo "tag=$tag"
+            echo "title=$title"
+            echo "asset=$release/$asset"
+            echo "hash=$hash"
+            echo "prerelease=$prerelease"
+          } >> "$GITHUB_OUTPUT"
+          echo "Verified $(basename "$zip") from run $RUN_ID: version $version, SHA-256 $hash."
+
+      - name: Write release notes
+        env:
+          SHA: ${{ steps.run.outputs.sha }}
+          RUN_URL: ${{ steps.run.outputs.url }}
+          VERSION: ${{ steps.candidate.outputs.version }}
+          ASSET: ${{ steps.candidate.outputs.asset }}
+          HASH: ${{ steps.candidate.outputs.hash }}
+          PRERELEASE: ${{ steps.candidate.outputs.prerelease }}
+        run: |
+          set -euo pipefail
+          # This version's section of RELEASE-NOTES.md: from "# Hanki Tools VERSION ..." to the next "# " heading.
+          section=$(awk -v version="$VERSION" '/^# / { if (found) exit; if ($2 == "Hanki" && $3 == "Tools" && $4 == version) { found = 1; next } } found' RELEASE-NOTES.md)
+          if [[ -z "${section//[[:space:]]/}" ]]; then echo "::error::RELEASE-NOTES.md has no section for $VERSION."; exit 1; fi
+          name=$(basename "$ASSET")
+          if [[ "$PRERELEASE" == true ]]; then
+            kind=preview
+            banner="> **Unsigned preview - not a verified release.** This build is not code-signed yet, so Windows SmartScreen will warn before the first run (More info > Run anyway). It passed the automated checks and a UI smoke test on GitHub Actions. Native Windows acceptance testing and code signing are still pending."
+            unsigned="This preview has no digital signature"
+          else
+            kind=release
+            banner="> **Not code-signed yet.** Windows SmartScreen will warn before the first run (More info > Run anyway). Compare the SHA-256 checksum below before running it. Code signing through the SignPath Foundation program is pending; see the code signing policy at the end."
+            unsigned="This release has no digital signature yet"
+          fi
+          {
+            echo "$banner"
+            echo
+            echo "Built by GitHub Actions from commit [${SHA:0:7}](https://github.com/$REPO/commit/$SHA) ([build run]($RUN_URL))."
+            echo
+            printf '%s\n' "$section" | sed -e '/./,$!d' | sed -e ':a' -e '/^\n*$/{$d;N;ba' -e '}'
+            echo
+            echo "## Download and verify"
+            echo
+            echo "1. Download \`$name\` and \`$name.sha256\`."
+            echo "2. In PowerShell: \`(Get-FileHash .\\$name).Hash\` must equal the value in the \`.sha256\` file: \`$HASH\`."
+            echo "3. Extract and run HankiTools.exe. $unsigned, so the file Properties show no Digital Signatures tab."
+            echo
+            echo "Portable app: no installer or .NET runtime needed. Updates are manual. Privacy: see PRIVACY.md in the package. The experimental file scanner is not an antivirus; Microsoft Defender remains your protection."
+            echo
+            echo "## Code signing policy"
+            echo
+            echo "This $kind is not code-signed. Future releases are intended to be signed through the SignPath Foundation program for open-source projects (application pending). Team roles, signing rules and the privacy policy: [Code signing policy](https://github.com/$REPO#code-signing-policy)."
+          } > "$RUNNER_TEMP/notes.md"
+          cat "$RUNNER_TEMP/notes.md"
+
+      - name: Create the GitHub release
+        env:
+          SHA: ${{ steps.run.outputs.sha }}
+          TAG: ${{ steps.candidate.outputs.tag }}
+          TITLE: ${{ steps.candidate.outputs.title }}
+          ASSET: ${{ steps.candidate.outputs.asset }}
+          HASH: ${{ steps.candidate.outputs.hash }}
+          PRERELEASE: ${{ steps.candidate.outputs.prerelease }}
+          DRAFT: ${{ inputs.draft }}
+        run: |
+          set -euo pipefail
+          args=(release create "$TAG" "$ASSET" "$ASSET.sha256" --repo "$REPO" --target "$SHA" --title "$TITLE" --notes-file "$RUNNER_TEMP/notes.md")
+          if [[ "$PRERELEASE" == true ]]; then args+=(--prerelease); fi
+          if [[ "$DRAFT" == true ]]; then args+=(--draft); fi
+          url=$(gh "${args[@]}")
+          # The releases API lists drafts too and reports each uploaded asset's SHA-256 digest;
+          # the size is compared when no digest is reported.
+          name=$(basename "$ASSET")
+          uploaded=$(gh api "repos/$REPO/releases?per_page=30" --jq ".[] | select(.tag_name == \"$TAG\") | .assets[] | select(.name == \"$name\") | \"\(.digest // \"-\") \(.size)\"")
+          read -r digest size <<< "$uploaded"
+          if [[ "$digest" == sha256:* ]]; then matched=$([[ "$digest" == "sha256:${HASH,,}" ]] && echo true || echo false)
+          else matched=$([[ -n "$size" && "$size" == "$(stat -c %s "$ASSET")" ]] && echo true || echo false); fi
+          if [[ "$matched" != true ]]; then echo "::error::Uploaded ZIP ($uploaded) does not match $HASH. Inspect or delete the release: $url"; exit 1; fi
+          echo "$( [[ "$DRAFT" == true ]] && echo 'Draft created' || echo 'Published' ): [$TITLE]($url) from run $RUN_ID, SHA-256 \`$HASH\`." >> "$GITHUB_STEP_SUMMARY"
+          echo "$url"

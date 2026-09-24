@@ -40,6 +40,8 @@ After testing that exact signed executable and recording evidence in its generat
 
 To publish on GitHub Releases, install the GitHub CLI (`winget install --id GitHub.cli`), sign in once with `gh auth login`, commit and push, then run `PUBLISH-RELEASE.ps1 -CandidateDirectory PATH_TO_CANDIDATE`. It re-verifies the packaged ZIP, checksum list and signature, requires a clean pushed commit matching the project version, and creates a **draft** release tagged `vVERSION` (marked pre-release for `-rc` versions) with notes from RELEASE-NOTES.md, then checks the uploaded ZIP against the local one. Review and publish the draft on GitHub, or pass `-Publish`. Use `-DryRun` to run every check without creating anything.
 
+Until signing is in place, releases come straight from CI: when a **Windows build** run on main is green, open Actions → **Release unsigned build** → Run workflow and enter that run's number (from its URL). It publishes the exact ZIP that run built, after checking its checksum, `build-info.json`, UI smoke result and that the version matches the commit. An `-rc` version becomes an unsigned preview pre-release tagged `vVERSION-preview`; a plain version becomes a "not code-signed yet" release tagged `vVERSION`. Notes come from this version's section of RELEASE-NOTES.md. Tick *draft* to review the release before publishing. Bump the version in `IgezziGuard.csproj` first: an existing tag is refused.
+
 ## Recover from an earlier ZIP failure
 
 If RC2 compiled and passed its smoke check but ZIP creation failed, use this package's helper without rebuilding the older candidate:
