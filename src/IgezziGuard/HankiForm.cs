@@ -6,7 +6,8 @@ public sealed class HankiForm : Form
     private readonly ScannerPanel scanner = new();
     private readonly DiagnosticPanel connection = new("Check my connection", "Checks your network adapter, router, name lookups (DNS for www.microsoft.com, cloudflare.com and example.com) and whether Cloudflare (1.1.1.1) and the first site that resolves answer on port 443. Those servers can see your IP address. Nothing is uploaded and no settings are changed.", "What this checks", NetworkDiagnostics.Check);
     private readonly HankiButton cancel = new() { Text = "Cancel", Dock = DockStyle.Bottom, Enabled = false, Visible = false };
-    private readonly Label status = new() { Text = "Ready — no checks run", Dock = DockStyle.Bottom, Height = 32, Tag = "intro" };
+    private const string IdleStatus = "Ready — no checks run";
+    private readonly Label status = new() { Text = IdleStatus, Dock = DockStyle.Bottom, Height = 32, Tag = "intro" };
     private readonly DiagnosticHistoryPanel diagnosticHistory = new();
     private readonly ActivationPanel activation = new();
     private readonly UpdateHealthPanel updateHealth = new();
@@ -145,32 +146,32 @@ public sealed class HankiForm : Form
         networkDeep.PrepareRequested += Prepare; sampling.PrepareRequested += Prepare;
         performance.PrepareRequested += Prepare;
         connection.PrepareRequested += Prepare;
-        var sidebar = new FlowLayoutPanel { Tag = "pine", Dock = DockStyle.Left, Width = 240, FlowDirection = FlowDirection.TopDown,
+        // Sidebar: brand and the five areas at the top; quick access, About and the version quietly at the bottom.
+        var sidebarHost = new Panel { Tag = "pine", Dock = DockStyle.Left, Width = 240 };
+        var sidebar = new FlowLayoutPanel { Tag = "pine", Dock = DockStyle.Fill, FlowDirection = FlowDirection.TopDown,
             AutoScroll = true, WrapContents = false, Padding = new Padding(12, 6, 12, 12) };
-        sidebar.Paint += (_, e) => {
-            if (SystemInformation.HighContrast) return;
-            using var edge = new Pen(HankiTheme.Border); e.Graphics.DrawLine(edge, sidebar.Width - 1, 0, sidebar.Width - 1, sidebar.Height);
-        };
-        sidebar.Controls.Add(new BrandHeader { Margin = new Padding(0, 0, 0, 10) });
+        var sidebarFooter = new FlowLayoutPanel { Tag = "pine", Dock = DockStyle.Bottom, AutoSize = true, FlowDirection = FlowDirection.TopDown, WrapContents = false, Padding = new Padding(12, 0, 12, 12) };
+        sidebarHost.Controls.Add(sidebar); sidebarHost.Controls.Add(sidebarFooter);
+        sidebar.Controls.Add(new BrandHeader { Margin = new Padding(0, 0, 0, 14) });
         // Five destinations (HANKI-UX-300): each area's landing page opens its other pages as tiles. The item of the
         // current area stays selected on those pages too, so you always know where you are.
         var navigation = new List<(HankiButton Button, ProductArea Area)>();
         foreach (var pageId in Navigation.Sidebar) {
             var item = Navigation.Find(pageId)!;
             var page = At(item.Page);
-            var button = new HankiButton { Text = item.Label, Width = 214, Height = 48, Margin = new Padding(0, 3, 0, 3), AccessibleName = "Open " + item.Label,
+            var button = new HankiButton { Text = item.Label, Width = 214, Height = 46, Margin = new Padding(0, 2, 0, 2), AccessibleName = "Open " + item.Label,
                 IconKind = item.Icon, AreaAccent = HankiTheme.AreaAccent(item.Area), Appearance = HankiButtonStyle.Navigation, Font = new Font("Segoe UI Semibold", 12f) };
             button.Click += (_, _) => tabs.SelectedTab = page;
             navigation.Add((button, item.Area)); sidebar.Controls.Add(button);
         }
         var quick = new FlowLayoutPanel { AutoSize = true, FlowDirection = FlowDirection.TopDown, WrapContents = false, Visible = false, Margin = Padding.Empty };
         var quickToggle = new HankiButton { Text = "›  Quick access", Width = 214, Height = 34, Appearance = HankiButtonStyle.Navigation,
-            Margin = new Padding(0, 18, 0, 2), AccessibleName = "Expand quick access", Font = new Font("Segoe UI", 9.75f) };
+            Margin = new Padding(0, 0, 0, 2), AccessibleName = "Expand quick access", Font = new Font("Segoe UI", 9.75f) };
         quickToggle.Click += (_, _) => {
             quick.Visible = !quick.Visible; quickToggle.Text = quick.Visible ? "⌄  Quick access" : "›  Quick access";
             quickToggle.AccessibleName = quick.Visible ? "Collapse quick access" : "Expand quick access";
         };
-        sidebar.Controls.Add(quickToggle); sidebar.Controls.Add(quick);
+        sidebarFooter.Controls.Add(quick); sidebarFooter.Controls.Add(quickToggle);
         foreach (var item in new[] { ("PowerShell (Admin)", "powershell"), ("CMD (Admin)", "cmd"), ("File Explorer", "explorer"), ("Task Manager", "task-manager"), ("Windows Settings", "settings"), ("Event Viewer", "event-viewer") }) {
             var shortcut = new HankiButton { Text = item.Item1, Width = 204, Height = 30, Appearance = HankiButtonStyle.Navigation, Font = new Font("Segoe UI", 9.25f), Margin = new Padding(10, 0, 0, 0) };
             shortcut.Click += (_, _) => DesktopShortcuts.Open(this, item.Item2); quick.Controls.Add(shortcut);
@@ -189,9 +190,9 @@ public sealed class HankiForm : Form
             var close = new HankiButton { Text = "Close", Dock = DockStyle.Bottom, Height = 40, DialogResult = DialogResult.Cancel };
             dialog.Controls.Add(body); dialog.Controls.Add(close); dialog.CancelButton = close; HankiTheme.Apply(dialog); dialog.ShowDialog(this);
         };
-        sidebar.Controls.Add(about);
-        sidebar.Controls.Add(new Label { Text = "v" + AppInfo.Version + "  ·  hanki.tools", AutoSize = true, Tag = "intro", Font = new Font("Segoe UI", 8.25f), Margin = new Padding(14, 8, 0, 4) });
-        var title = new Label { Text = "Overview", Dock = DockStyle.Top, Height = 58, Font = new Font("Segoe UI Semibold", 22f), Padding = new Padding(22, 16, 0, 0), AutoEllipsis = true };
+        sidebarFooter.Controls.Add(about);
+        sidebarFooter.Controls.Add(new Label { Text = "v" + AppInfo.Version + "  ·  hanki.tools", AutoSize = true, Tag = "intro", Font = new Font("Segoe UI", 8.25f), Margin = new Padding(14, 6, 0, 0) });
+        var title = new Label { Text = "Overview", Dock = DockStyle.Top, Height = 58, Font = new Font("Segoe UI Semibold", 21f), Padding = new Padding(22, 16, 0, 0), AutoEllipsis = true };
         var routes = new List<ToolLauncher.Route>();
         void AddRoutes(TabControl group, string prefix = "") {
             foreach (TabPage page in group.TabPages) {
@@ -243,6 +244,7 @@ public sealed class HankiForm : Form
         status.Dock = DockStyle.Fill; status.TextAlign = ContentAlignment.MiddleLeft; status.Font = new Font("Segoe UI", 9.25f);
         cancel.Dock = DockStyle.Right; cancel.Width = 110; cancel.Text = "Cancel task"; cancel.Font = new Font("Segoe UI", 9.25f);
         footer.Controls.Add(status); footer.Controls.Add(cancel);
+        footer.Visible = false;
         void RefreshNavigation() {
             // Before the handle exists SelectedTab can be null although Home is shown.
             var current = tabs.SelectedTab ?? (tabs.TabCount > 0 ? tabs.TabPages[0] : null);
@@ -263,7 +265,7 @@ public sealed class HankiForm : Form
         Shown += (_, _) => RefreshNavigation();
         // Contacts Polar only when a Technician licence is due for its weekly check; offline, the stored licence keeps working.
         Shown += async (_, _) => { try { await AppLicensing.RefreshAsync(CancellationToken.None); } catch (Exception ex) when (ex is IOException or HttpRequestException or InvalidOperationException) { } };
-        Controls.Add(content); Controls.Add(sidebar); Controls.Add(footer);
+        Controls.Add(content); Controls.Add(sidebarHost); Controls.Add(footer);
         var iconStream = typeof(HankiForm).Assembly.GetManifestResourceStream("IgezziGuard.Brand.hanki.ico");
         if (iconStream is not null) { using (iconStream) { using var branded = new Icon(iconStream); Icon = (Icon)branded.Clone(); } }
         HankiTheme.Apply(this);
@@ -285,6 +287,8 @@ public sealed class HankiForm : Form
         taskTimer.Tick += (_, _) => {
             var active = ActiveTasks(); cancel.Enabled = cancel.Visible = active.Length > 0;
             taskStatus.Text = active.Length == 0 ? "" : "Running: " + string.Join(", ", active);
+            // The status bar appears only while something runs or has a message; idle, the page gets the space.
+            footer.Visible = active.Length > 0 || status.Text != IdleStatus;
         };
         HankiTheme.Apply(taskStatus);
         taskTimer.Start(); Disposed += (_, _) => taskTimer.Dispose();

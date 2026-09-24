@@ -46,7 +46,7 @@ internal static class ResultPresentation
             new("Reported protection", OrUnknown(protection), FlagStatus(protection)),
             new("Security intelligence", OrUnknown(intelligence), intelligence.Contains("Not available", StringComparison.Ordinal) || intelligence.Length == 0 ? CardStatus.Unknown : CardStatus.Info),
             new("Exclusions & access", OrUnknown(exclusions), exclusions.Contains("unknown", StringComparison.OrdinalIgnoreCase) || exclusions.Length == 0 ? CardStatus.Unknown : exclusions.Split('\n').Any(l => !l.Contains("No entries", StringComparison.Ordinal)) ? CardStatus.Review : CardStatus.Good),
-            new("What to do next", "Review any disabled or unknown protections. If exclusions require administrator access, reopen Hanki as administrator and repeat the audit. Enabled protection does not prove the PC is free of threats. View technical details for configured preferences and raw evidence.")
+            new("What to do next", "Review any disabled or unknown protections. If exclusions require administrator access, reopen Hanki as administrator and repeat the audit. Enabled protection does not prove the PC is free of threats. See Technical details for configured preferences and raw evidence.")
         ];
     }
     /// <summary>The headline and its color follow reported protection; admin-only exclusions don't turn "on" into "unknown".</summary>
@@ -76,7 +76,7 @@ internal static class ResultPresentation
             new("Memory at this moment", OrUnknown(memory), memory.Length == 0 || memory.Contains("unavailable", StringComparison.Ordinal) ? CardStatus.Unknown : MemoryStatus(report)),
             new("Pagefile guidance", string.IsNullOrWhiteSpace(advice) ? "Memory guidance is unavailable. Review technical details and try another snapshot." : advice,
                 advice.Contains("Review now:", StringComparison.Ordinal) ? CardStatus.Review : string.IsNullOrWhiteSpace(advice) ? CardStatus.Unknown : CardStatus.Info),
-            new("What to do next", "Measure again during your usual heavy workload, or open monitoring to compare a longer session. Commit is promised memory, not pagefile disk activity. One snapshot cannot determine a custom pagefile size. View technical details for pagefiles, drive space and process working sets.")
+            new("What to do next", "Measure again during your usual heavy workload, or open monitoring to compare a longer session. Commit is promised memory, not pagefile disk activity. One snapshot cannot determine a custom pagefile size. See Technical details for pagefiles, drive space and process working sets.")
         };
         var drives = Section(report, "LOCAL FIXED-DRIVE FREE SPACE");
         if (drives.Length > 0) cards.Add(new("Drive space", string.Join("\n", drives), DriveStatus(drives)));

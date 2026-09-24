@@ -70,9 +70,9 @@ internal sealed class StatusCardPanel : Panel
         if (SystemInformation.HighContrast) { base.OnPaintBackground(e); ControlPaint.DrawBorder(e.Graphics, ClientRectangle, SystemColors.ControlText, ButtonBorderStyle.Solid); return; }
         float s = DeviceDpi / 96f; var g = e.Graphics;
         g.Clear(Parent?.BackColor ?? HankiTheme.Canvas); g.SmoothingMode = SmoothingMode.AntiAlias;
-        using var path = HankiButton.Rounded(new RectangleF(0.5f, 0.5f, Width - 1.5f, Height - 1.5f), 10 * s);
+        using var path = HankiButton.Rounded(new RectangleF(0.5f, 0.5f, Width - 1.5f, Height - 1.5f), HankiTheme.CardRadius * s);
         using (var fill = new SolidBrush(HankiTheme.Surface)) g.FillPath(fill, path);
-        using (var border = new Pen(HankiTheme.Border)) g.DrawPath(border, path);
+        using (var border = new Pen(HankiTheme.Hairline)) g.DrawPath(border, path);
         if (status == CardStatus.Info) return;
         var state = g.Save(); g.SetClip(path);
         using (var edge = new SolidBrush(HankiTheme.StatusColor(status))) g.FillRectangle(edge, 0, 0, 4 * s, Height);
@@ -97,9 +97,9 @@ internal sealed class StatusBanner : Control
         float s = DeviceDpi / 96f; var g = e.Graphics; bool hc = SystemInformation.HighContrast;
         g.Clear(Parent?.BackColor ?? HankiTheme.Canvas); g.SmoothingMode = SmoothingMode.AntiAlias;
         var color = hc ? SystemColors.ControlText : HankiTheme.StatusColor(status);
-        using (var path = HankiButton.Rounded(new RectangleF(0.5f, 0.5f, Width - 1.5f, Height - 1.5f), 10 * s)) {
-            using var fill = new SolidBrush(hc ? SystemColors.Control : Color.FromArgb(30, color)); g.FillPath(fill, path);
-            using var border = new Pen(hc ? SystemColors.ControlText : Color.FromArgb(110, color)); g.DrawPath(border, path);
+        using (var path = HankiButton.Rounded(new RectangleF(0.5f, 0.5f, Width - 1.5f, Height - 1.5f), HankiTheme.CardRadius * s)) {
+            using var fill = new SolidBrush(hc ? SystemColors.Control : Color.FromArgb(26, color)); g.FillPath(fill, path);
+            using var border = new Pen(hc ? SystemColors.ControlText : Color.FromArgb(70, color)); g.DrawPath(border, path);
         }
         float d = 12 * s;
         using (var dot = new SolidBrush(color)) g.FillEllipse(dot, 18 * s, (Height - d) / 2, d, d);
@@ -111,18 +111,18 @@ internal sealed class StatusBanner : Control
 internal sealed class ResultCardsView : UserControl
 {
     private readonly SummaryView summary = new();
-    private readonly HankiButton details = new() { Text = "View technical details", AutoSize = true, Appearance = HankiButtonStyle.Quiet, Enabled = false };
+    private readonly HankiButton details = new() { Text = "Technical details", AutoSize = true, Appearance = HankiButtonStyle.Quiet, Enabled = false, AccessibleName = "View technical details" };
+    private readonly FlowLayoutPanel footer = new() { Dock = DockStyle.Bottom, AutoSize = true, Padding = new Padding(0, 6, 0, 0) };
     private readonly TextBox evidence;
     public ResultCardsView(TextBox evidence)
     {
         Dock = DockStyle.Fill; this.evidence = evidence;
-        var footer = new FlowLayoutPanel { Dock = DockStyle.Bottom, AutoSize = true, Padding = new Padding(0, 6, 0, 0) };
         footer.Controls.Add(details);
         evidence.Visible = false;
         Controls.Add(evidence); Controls.Add(summary); Controls.Add(footer);
         details.Click += (_, _) => {
             bool show = !evidence.Visible; evidence.Visible = show; summary.Visible = !show;
-            details.Text = show ? "Back to summary" : "View technical details";
+            details.Text = show ? "Back to summary" : "Technical details";
         };
     }
     public void ShowCards(IEnumerable<ResultCard> items, bool hasEvidence = true) => Present(null, null, items, hasEvidence);
@@ -130,6 +130,8 @@ internal sealed class ResultCardsView : UserControl
     private void Present(CardStatus? status, string? headline, IEnumerable<ResultCard> items, bool hasEvidence)
     {
         summary.Show(status, headline, items);
-        evidence.Visible = false; summary.Visible = true; details.Enabled = hasEvidence; details.Text = "View technical details";
+        evidence.Visible = false; summary.Visible = true; details.Enabled = hasEvidence; details.Text = "Technical details";
     }
+    /// <summary>Moves the summary/details switch into a page's own action row, instead of a line below the cards.</summary>
+    internal void PlaceDetailsIn(Control host) { footer.Controls.Remove(details); footer.Visible = false; details.Margin = new Padding(0, 1, 4, 0); host.Controls.Add(details); }
 }

@@ -2,7 +2,7 @@ using System.Drawing.Drawing2D;
 
 namespace IgezziGuard;
 
-public enum HankiButtonStyle { Secondary, Quiet, Navigation, Tab, Field }
+public enum HankiButtonStyle { Secondary, Quiet, Navigation, Tab, Field, Icon }
 
 public sealed class HankiButton : Button
 {
@@ -16,12 +16,20 @@ public sealed class HankiButton : Button
     public bool Primary { get => primary; set { primary = value; UpdateSize(); Invalidate(); } }
     public HankiButtonStyle Appearance { get => appearance; set { appearance = value; UpdateSize(); Invalidate(); } }
     private void UpdateSize() {
-        int height = Appearance is HankiButtonStyle.Quiet or HankiButtonStyle.Navigation ? 32 : 38;
+        if (Appearance == HankiButtonStyle.Icon) { int side = (int)(36 * DeviceDpi / 96f); MinimumSize = new Size(side, side); Padding = System.Windows.Forms.Padding.Empty; return; }
+        int height = Appearance is HankiButtonStyle.Quiet or HankiButtonStyle.Navigation or HankiButtonStyle.Tab ? 34 : 38;
         MinimumSize = new Size(0, (int)(height * DeviceDpi / 96f));
         Padding = Primary ? new Padding(18, 6, 18, 6) : Appearance == HankiButtonStyle.Quiet ? new Padding(8, 3, 8, 3) : new Padding(14, 5, 14, 5);
     }
-    private bool selected, hover, pressed;
+    private bool selected, hover, pressed, wanted = true, folded;
     public bool Selected { get => selected; set { selected = value; AccessibleDescription = value ? "Current view" : ""; Invalidate(); } }
+    /// <summary>Whether the page wants this button shown (its own Visible setting), apart from folding.</summary>
+    internal bool Wanted => wanted;
+    /// <summary>Moved into a row's "More" menu because the row is full; the button keeps its place and state.</summary>
+    internal bool Folded { get => folded; set { if (folded == value) return; folded = value; base.SetVisibleCore(wanted && !folded); } }
+    protected override void SetVisibleCore(bool value) { wanted = value; base.SetVisibleCore(value && !folded); }
+    /// <summary>Runs the button's action from a menu, even while it's folded (PerformClick needs a visible button).</summary>
+    internal void Invoke() { if (Enabled) OnClick(EventArgs.Empty); }
     public HankiButton()
     {
         FlatStyle = FlatStyle.Flat; FlatAppearance.BorderSize = 0;
@@ -41,6 +49,7 @@ public sealed class HankiButton : Button
     protected override void OnLostFocus(EventArgs e) { Invalidate(); base.OnLostFocus(e); }
     public override Size GetPreferredSize(Size proposedSize)
     {
+        if (Appearance == HankiButtonStyle.Icon) return MinimumSize;
         var size = base.GetPreferredSize(proposedSize);
         float scale = DeviceDpi / 96f;
         // The base measurement treats "&" as a mnemonic marker; text is drawn literally.
@@ -71,17 +80,19 @@ public sealed class HankiButton : Button
                 bg = Selected || pressed ? HankiTheme.Raised : hover ? HankiTheme.Surface : surface;
                 fg = Selected || active ? HankiTheme.Text : HankiTheme.Muted; icon = Selected ? AreaAccent ?? HankiTheme.Accent : fg; break;
             case HankiButtonStyle.Tab:
-                bg = surface; fg = icon = Selected || active ? HankiTheme.Text : HankiTheme.Muted; break;
+                bg = Selected ? HankiTheme.Raised : hover ? HankiTheme.Surface : surface; fg = icon = Selected || active ? HankiTheme.Text : HankiTheme.Muted; break;
             case HankiButtonStyle.Quiet:
                 bg = active ? HankiTheme.Raised : surface; fg = icon = active ? HankiTheme.Text : HankiTheme.Accent; break;
             case HankiButtonStyle.Field:
                 bg = HankiTheme.Surface; fg = icon = HankiTheme.Muted; border = active ? HankiTheme.Muted : HankiTheme.Border; break;
+            case HankiButtonStyle.Icon:
+                bg = active ? HankiTheme.Raised : surface; fg = icon = active ? HankiTheme.Text : HankiTheme.Muted; break;
             default:
                 bg = pressed ? HankiTheme.Surface : hover ? HankiTheme.Raised : HankiTheme.Surface; fg = icon = HankiTheme.Text; border = hover ? HankiTheme.Muted : HankiTheme.Border; break;
         }
-        float radius = (style == HankiButtonStyle.Field ? 8 : 6) * scale;
+        float radius = HankiTheme.ControlRadius * scale;
         using (var path = Rounded(rect, radius)) {
-            if (style != HankiButtonStyle.Tab) { using var brush = new SolidBrush(bg); g.FillPath(brush, path); }
+            { using var brush = new SolidBrush(bg); g.FillPath(brush, path); }
             bool focusRing = Focused && ShowFocusCues;
             if (focusRing || border is not null) {
                 using var pen = new Pen(focusRing ? HankiTheme.Accent : border!.Value, focusRing ? 2 * scale : 1); g.DrawPath(pen, path);
@@ -91,10 +102,6 @@ public sealed class HankiButton : Button
             using var marker = new SolidBrush(AreaAccent ?? HankiTheme.Accent);
             float markerHeight = Math.Min(18 * scale, Height - 12 * scale);
             using var pill = Rounded(new RectangleF(2 * scale, (Height - markerHeight) / 2, 3 * scale, markerHeight), 1.5f * scale); g.FillPath(marker, pill);
-        }
-        if (style == HankiButtonStyle.Tab && (Selected || hover)) {
-            using var underline = new SolidBrush(Selected ? HankiTheme.Accent : HankiTheme.Border);
-            g.FillRectangle(underline, 8 * scale, Height - 2 * scale, Width - 16 * scale, 2 * scale);
         }
         bool leading = style is HankiButtonStyle.Navigation or HankiButtonStyle.Quiet or HankiButtonStyle.Field;
         var textBounds = Rectangle.Inflate(ClientRectangle, -(int)((leading ? 12 : 10) * scale), 0);
@@ -129,9 +136,9 @@ internal class RoundedPanel : Panel
         if (SystemInformation.HighContrast) { base.OnPaintBackground(e); ControlPaint.DrawBorder(e.Graphics, ClientRectangle, SystemColors.ControlText, ButtonBorderStyle.Solid); return; }
         float scale = DeviceDpi / 96f;
         e.Graphics.Clear(Parent?.BackColor ?? HankiTheme.Canvas); e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
-        using var path = HankiButton.Rounded(new RectangleF(0.5f, 0.5f, Width - 1.5f, Height - 1.5f), 10 * scale);
+        using var path = HankiButton.Rounded(new RectangleF(0.5f, 0.5f, Width - 1.5f, Height - 1.5f), HankiTheme.CardRadius * scale);
         using var fill = new SolidBrush(HankiTheme.Surface); e.Graphics.FillPath(fill, path);
-        using var border = new Pen(HankiTheme.Border); e.Graphics.DrawPath(border, path);
+        using var border = new Pen(HankiTheme.Hairline); e.Graphics.DrawPath(border, path);
     }
 }
 
@@ -189,23 +196,19 @@ public sealed class HankiTabs : TabControl
         if (m.Msg == 0x1328 && !DesignMode) { m.Result = (IntPtr)1; return; }
         base.WndProc(ref m);
     }
+    private readonly List<HankiButton> overflows = new();
     private void RebuildNavigation()
     {
         foreach (var strip in strips.Values) strip.Dispose();
-        strips.Clear();
+        strips.Clear(); overflows.Clear();
         foreach (TabPage page in TabPages) {
-            var strip = new FlowLayoutPanel { Dock = DockStyle.Top, AutoSize = true, WrapContents = true,
+            // One row of pill-shaped views; the ones that don't fit go into "More", and the current one always shows.
+            var strip = new FlowLayoutPanel { Dock = DockStyle.Top, AutoSize = true, WrapContents = false,
                 Padding = new Padding(0, 0, 0, 16), Margin = System.Windows.Forms.Padding.Empty, AccessibleName = "Workspace views" };
-            strip.Paint += (_, e) => {
-                if (SystemInformation.HighContrast) return;
-                using var line = new Pen(HankiTheme.Border);
-                int y = strip.Height - strip.Padding.Bottom;
-                e.Graphics.DrawLine(line, 0, y, strip.Width, y);
-            };
             foreach (TabPage destination in TabPages) {
                 var target = destination;
                 var button = new HankiButton { Text = ViewLabel(target.Text), AutoSize = true,
-                    Appearance = HankiButtonStyle.Tab, Margin = new Padding(0, 0, 2, 0), Font = new Font("Segoe UI Semibold", 11f),
+                    Appearance = HankiButtonStyle.Tab, Margin = new Padding(0, 0, 4, 0), Font = new Font("Segoe UI Semibold", 10.5f),
                     AccessibleName = "Open " + target.Text, Tag = target };
                 button.Click += (_, _) => {
                     SelectedTab = target;
@@ -214,6 +217,7 @@ public sealed class HankiTabs : TabControl
                 };
                 strip.Controls.Add(button);
             }
+            overflows.Add(Overflow.Attach(strip, b => b.Tag is TabPage, b => b.Selected, "More views", font: new Font("Segoe UI Semibold", 10.5f)));
             page.Controls.Add(strip); strips.Add(page, strip); HankiTheme.Apply(strip);
         }
         UpdateSelection();
@@ -239,6 +243,7 @@ public sealed class HankiTabs : TabControl
         var current = SelectedTab ?? (TabCount > 0 ? TabPages[0] : null);
         foreach (var strip in strips.Values)
             foreach (var button in strip.Controls.OfType<HankiButton>()) button.Selected = ReferenceEquals(button.Tag, current);
+        foreach (var more in overflows) Overflow.Refit(more);
     }
 }
 
@@ -326,10 +331,10 @@ internal sealed class HankiCard : Control
         bool hc = SystemInformation.HighContrast;
         g.Clear(Parent?.BackColor ?? HankiTheme.Canvas); g.SmoothingMode = SmoothingMode.AntiAlias;
         var text = hc ? SystemColors.ControlText : HankiTheme.Text; var muted = hc ? SystemColors.ControlText : HankiTheme.Muted;
-        using (var path = HankiButton.Rounded(new RectangleF(0.5f, 0.5f, Width - 1.5f, Height - 1.5f), 10 * s)) {
+        using (var path = HankiButton.Rounded(new RectangleF(0.5f, 0.5f, Width - 1.5f, Height - 1.5f), HankiTheme.CardRadius * s)) {
             using var fill = new SolidBrush(hc ? SystemColors.Control : hover ? HankiTheme.Raised : HankiTheme.Surface); g.FillPath(fill, path);
             bool ring = Focused && ShowFocusCues;
-            using var pen = new Pen(hc ? SystemColors.ControlText : ring ? accent : hover ? Color.FromArgb(70, 80, 96) : HankiTheme.Border, ring ? 2 * s : 1);
+            using var pen = new Pen(hc ? SystemColors.ControlText : ring ? accent : hover ? Color.FromArgb(62, 70, 84) : HankiTheme.Hairline, ring ? 2 * s : 1);
             g.DrawPath(pen, path);
         }
         int pad = (int)(18 * s);
@@ -417,7 +422,7 @@ internal sealed class Dashboard : UserControl
         hero.Controls.Add(layout);
 
         // Docked top in reverse: the tiles are added first, the hero last so it sits highest.
-        ToolTiles.Add(this, "DETAILED TOOLS", ToolTiles.For(ProductArea.System, navigate), HankiTheme.Accent);
+        ToolTiles.Add(this, "More tools", ToolTiles.For(ProductArea.System, navigate), HankiTheme.Accent);
         Controls.Add(hero);
         ToolTiles.TopDown(this);
         VisibleChanged += (_, _) => { if (Visible) RefreshLastScan(); };
@@ -478,11 +483,11 @@ internal sealed class ChoiceTile : Control
         bool hc = SystemInformation.HighContrast;
         g.Clear(Parent?.BackColor ?? HankiTheme.Canvas); g.SmoothingMode = SmoothingMode.AntiAlias;
         var text = hc ? SystemColors.ControlText : HankiTheme.Text; var muted = hc ? SystemColors.ControlText : HankiTheme.Muted;
-        using (var path = HankiButton.Rounded(new RectangleF(1, 1, Width - 2.5f, Height - 2.5f), 10 * s)) {
+        using (var path = HankiButton.Rounded(new RectangleF(1, 1, Width - 2.5f, Height - 2.5f), HankiTheme.CardRadius * s)) {
             var fill = hc ? (selected ? SystemColors.Highlight : SystemColors.Control) : selected ? Blend(HankiTheme.Surface, accent, 0.16f) : hover ? HankiTheme.Raised : HankiTheme.Surface;
             using var brush = new SolidBrush(fill); g.FillPath(brush, path);
             bool ring = selected || (Focused && ShowFocusCues);
-            using var pen = new Pen(hc ? SystemColors.ControlText : ring ? accent : hover ? Color.FromArgb(70, 80, 96) : HankiTheme.Border, ring ? 2 * s : 1);
+            using var pen = new Pen(hc ? SystemColors.ControlText : ring ? accent : hover ? Color.FromArgb(62, 70, 84) : HankiTheme.Hairline, ring ? 2 * s : 1);
             g.DrawPath(pen, path);
         }
         if (hc && selected) text = muted = SystemColors.HighlightText;
