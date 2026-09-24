@@ -40,13 +40,31 @@ internal sealed class TunePanel : UserControl
         syncRow.Controls.Add(syncStack);
         status.Text = "Choose one, then scan. Hanki reads your settings and shows every change before anything happens.";
         stack.Controls.AddRange([eyebrow, headline, scenarios, syncRow, scan, status]);
-        stack.SizeChanged += (_, _) => { var wrap = new Size(Math.Max(240, stack.ClientSize.Width - 8), 0); headline.MaximumSize = status.MaximumSize = syncHint.MaximumSize = wrap; };
+        stack.SizeChanged += (_, _) => {
+            int width = Math.Max(240, stack.ClientSize.Width - 8);
+            headline.MaximumSize = status.MaximumSize = syncHint.MaximumSize = new Size(width, 0);
+            FitTiles(width);
+        };
         hero.Controls.Add(stack);
         result.Controls.Add(resultStack);
         result.SizeChanged += (_, _) => Wrap(resultStack);
         scan.Click += async (_, _) => await Scan();
         var gap = new Panel { Dock = DockStyle.Top, Height = 14, Tag = "gap" };
         Controls.Add(result); Controls.Add(gap); Controls.Add(hero);
+    }
+
+    /// <summary>
+    /// The choices fill the card in four, two or one columns, all as tall as the longest description needs. The row's
+    /// maximum width makes it report its wrapped height, so the card below it isn't cut off.
+    /// </summary>
+    private void FitTiles(int width)
+    {
+        var tiles = scenarios.Controls.OfType<ChoiceTile>().ToArray();
+        int gap = tiles[0].Margin.Right, least = LogicalToDeviceUnits(230);
+        int columns = width >= 4 * (least + gap) ? 4 : width >= 2 * (least + gap) ? 2 : 1;
+        int tileWidth = width / columns - gap, height = tiles.Max(t => t.HeightFor(tileWidth));
+        foreach (var tile in tiles) tile.Size = new Size(tileWidth, height);
+        scenarios.MaximumSize = new Size(width, 0);
     }
 
     /// <summary>For the UI check's screenshots only: shows a plan built from fixed example data. Nothing is read or changed.</summary>

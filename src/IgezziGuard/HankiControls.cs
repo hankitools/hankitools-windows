@@ -454,6 +454,13 @@ internal sealed class ChoiceTile : Control
         Click += (_, _) => Choose();
         KeyDown += (_, e) => { if (e.KeyCode is Keys.Enter or Keys.Space) { Choose(); e.Handled = true; } };
     }
+    /// <summary>The height a large tile of this width needs to show its whole description.</summary>
+    internal int HeightFor(int width)
+    {
+        float s = DeviceDpi / 96f; int pad = (int)(14 * s);
+        var body = TextRenderer.MeasureText(description, bodyFont, new Size(Math.Max(1, width - pad * 2), int.MaxValue), TextFormatFlags.WordBreak | TextFormatFlags.NoPrefix);
+        return Math.Max((int)(100 * s), body.Height + pad * 2 + (int)(34 * s));
+    }
     private void Choose()
     {
         foreach (var tile in Parent?.Controls.OfType<ChoiceTile>() ?? []) tile.Selected = tile == this;
