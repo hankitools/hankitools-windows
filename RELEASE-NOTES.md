@@ -1,3 +1,7 @@
+# Hanki Tools 0.18.0-rc.8 — built on .NET 10
+
+An unsigned preview for testing. Hanki now runs on .NET 10, the long-term support release that Microsoft supports until November 2028; .NET 8 support ends on 10 November 2026. The portable package still includes everything it needs, so there is nothing extra to install. Features and behavior are the same as in 0.18.0-rc.7.
+
 # Hanki Tools 0.18.0-rc.7 — new checks: app crashes, link speed, clock, PCIe lanes, Resizable BAR, downloads
 
 An unsigned preview for testing. Every new check only reads what Windows already records; nothing is changed or sent.
