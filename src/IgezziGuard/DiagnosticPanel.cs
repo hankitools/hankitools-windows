@@ -27,7 +27,8 @@ public sealed class DiagnosticPanel : UserControl
         var bar = new FlowLayoutPanel { Dock = DockStyle.Fill, AutoSize = true, WrapContents = false, Margin = Padding.Empty };
         var run = new HankiButton { Text = label, AutoSize = true, Primary = true };
         var stop = new HankiButton { Text = "Cancel", AutoSize = true, Appearance = HankiButtonStyle.Quiet, Visible = false };
-        var options = new HankiButton { Text = "⋯", AutoSize = true, AccessibleName = "Report options", Margin = Padding.Empty, Font = new Font("Segoe UI Semibold", 12f), Anchor = AnchorStyles.Top | AnchorStyles.Right };
+        var options = new HankiButton { Text = "⋯", Appearance = HankiButtonStyle.Icon, AccessibleName = "Report options", Margin = new Padding(0, 1, 0, 0), Font = new Font("Segoe UI Semibold", 13f) };
+        var side = new FlowLayoutPanel { AutoSize = true, WrapContents = false, Margin = Padding.Empty, Anchor = AnchorStyles.Top | AnchorStyles.Right };
         bool reportReady = false;
         var activity = new Label { Text = "Ready • Start the check to see results", Dock = DockStyle.Top, Height = 34, Padding = new Padding(2, 8, 2, 6), Tag = "intro", AccessibleRole = AccessibleRole.StatusBar };
         var progress = new ProgressLine { Dock = DockStyle.Top };
@@ -35,7 +36,8 @@ public sealed class DiagnosticPanel : UserControl
         NativeTheme.PadText(output); output.Select(0, 0);
         var top = new TableLayoutPanel { Dock = DockStyle.Top, AutoSize = true, ColumnCount = 2, RowCount = 1, Padding = new Padding(0, 0, 0, 8), Margin = Padding.Empty };
         top.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100)); top.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
-        bar.Controls.AddRange([run, stop]); top.Controls.Add(bar, 0, 0); top.Controls.Add(options, 1, 0);
+        results?.PlaceDetailsIn(side); side.Controls.Add(options);
+        bar.Controls.AddRange([run, stop]); top.Controls.Add(bar, 0, 0); top.Controls.Add(side, 1, 0);
         Controls.Add((Control?)results ?? output); Controls.Add(activity); Controls.Add(progress); Controls.Add(top);
         stop.Click += (_, _) => Cancel();
         options.Click += (_, _) => {
@@ -56,7 +58,7 @@ public sealed class DiagnosticPanel : UserControl
                 var result = await Task.Run(() => diagnose(cts.Token), cts.Token);
                 output.Text = result.Report;
                 results?.Show(result);
-                reportReady = true; activity.Text = $"Finished at {DateTime.Now:t}" + (results is null ? "" : " • Summary below; the full report is under View technical details");
+                reportReady = true; activity.Text = $"Finished at {DateTime.Now:t}" + (results is null ? "" : " • Summary below; the full report is under Technical details");
             }
             catch (OperationCanceledException) { output.Text = "Cancelled — incomplete report discarded."; activity.Text = "Cancelled • Run the check again when ready"; results?.ShowCards([new("Check cancelled", output.Text, CardStatus.Unknown)], false); }
             catch (Exception ex) { activity.Text = "Could not complete the check"; output.Text = "Collection failed: " + ex.Message + "\r\nNo settings changed."; results?.ShowCards([new("Check unavailable", output.Text, CardStatus.Unknown)]); }

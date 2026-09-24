@@ -92,6 +92,16 @@ internal static class HankiTheme
                 root.ForeColor = highContrast ? SystemColors.WindowText : Text;
                 // A plain single border ignores the dark theme; the themed client edge follows it.
                 if (root is TextBox { BorderStyle: BorderStyle.FixedSingle } text) text.BorderStyle = BorderStyle.Fixed3D;
+                if (!highContrast) {
+                    // Drop-down lists: owner-drawn dark items at the height of the buttons beside them.
+                    if (root is ComboBox { DropDownStyle: ComboBoxStyle.DropDownList, DrawMode: DrawMode.Normal } combo) {
+                        combo.DrawMode = DrawMode.OwnerDrawFixed; combo.ItemHeight = (int)(28 * combo.DeviceDpi / 96f); combo.DrawItem += NativeTheme.DrawComboItem;
+                    }
+                    // Lists sit on their own surface; the white native edge goes.
+                    if (root is ListView { BorderStyle: not BorderStyle.None } list) list.BorderStyle = BorderStyle.None;
+                    if (root is ListBox { BorderStyle: not BorderStyle.None } listBox) listBox.BorderStyle = BorderStyle.None;
+                    if (root is UpDownBase { BorderStyle: BorderStyle.Fixed3D } upDown) upDown.BorderStyle = BorderStyle.FixedSingle;
+                }
                 // Multiline edges and scrollbars cannot both be dark; use a filled, borderless box with inner margins.
                 if (!highContrast && root is TextBoxBase { Multiline: true } multiline && multiline.BorderStyle != BorderStyle.None) {
                     multiline.BorderStyle = BorderStyle.None; NativeTheme.PadText(multiline);

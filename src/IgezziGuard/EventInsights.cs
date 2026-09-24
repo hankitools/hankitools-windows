@@ -159,7 +159,7 @@ public static class EventInsights
             : serious.Length > 0 ? serious[0].Meaning.Action
             : review.Length > 0 ? "Nothing urgent. If a specific app or device misbehaves, start with the matching card above."
             : "Nothing to do. If you have a specific problem, try Guided checks.";
-        cards.Add(new("What to do next", next + "\nEvents near a problem are clues, not proof of its cause. The full event list is under View technical details."));
+        cards.Add(new("What to do next", next + "\nEvents near a problem are clues, not proof of its cause. The full event list is under Technical details."));
         return Diagnosis.From(Report(events, groups.Select(g => (g.Provider, g.Id, g.Meaning, g.Events)).ToArray(), coverage, now), cards, headline);
     }
     private static string Report(IReadOnlyList<CrashEvent> events, (string Provider, int Id, EventMeaning Meaning, CrashEvent[] Events)[] groups, string coverage, DateTimeOffset now)

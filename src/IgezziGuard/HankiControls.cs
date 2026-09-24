@@ -2,7 +2,7 @@ using System.Drawing.Drawing2D;
 
 namespace IgezziGuard;
 
-public enum HankiButtonStyle { Secondary, Quiet, Navigation, Tab, Field }
+public enum HankiButtonStyle { Secondary, Quiet, Navigation, Tab, Field, Icon }
 
 public sealed class HankiButton : Button
 {
@@ -16,6 +16,7 @@ public sealed class HankiButton : Button
     public bool Primary { get => primary; set { primary = value; UpdateSize(); Invalidate(); } }
     public HankiButtonStyle Appearance { get => appearance; set { appearance = value; UpdateSize(); Invalidate(); } }
     private void UpdateSize() {
+        if (Appearance == HankiButtonStyle.Icon) { int side = (int)(36 * DeviceDpi / 96f); MinimumSize = new Size(side, side); Padding = System.Windows.Forms.Padding.Empty; return; }
         int height = Appearance is HankiButtonStyle.Quiet or HankiButtonStyle.Navigation or HankiButtonStyle.Tab ? 34 : 38;
         MinimumSize = new Size(0, (int)(height * DeviceDpi / 96f));
         Padding = Primary ? new Padding(18, 6, 18, 6) : Appearance == HankiButtonStyle.Quiet ? new Padding(8, 3, 8, 3) : new Padding(14, 5, 14, 5);
@@ -48,6 +49,7 @@ public sealed class HankiButton : Button
     protected override void OnLostFocus(EventArgs e) { Invalidate(); base.OnLostFocus(e); }
     public override Size GetPreferredSize(Size proposedSize)
     {
+        if (Appearance == HankiButtonStyle.Icon) return MinimumSize;
         var size = base.GetPreferredSize(proposedSize);
         float scale = DeviceDpi / 96f;
         // The base measurement treats "&" as a mnemonic marker; text is drawn literally.
@@ -83,6 +85,8 @@ public sealed class HankiButton : Button
                 bg = active ? HankiTheme.Raised : surface; fg = icon = active ? HankiTheme.Text : HankiTheme.Accent; break;
             case HankiButtonStyle.Field:
                 bg = HankiTheme.Surface; fg = icon = HankiTheme.Muted; border = active ? HankiTheme.Muted : HankiTheme.Border; break;
+            case HankiButtonStyle.Icon:
+                bg = active ? HankiTheme.Raised : surface; fg = icon = active ? HankiTheme.Text : HankiTheme.Muted; break;
             default:
                 bg = pressed ? HankiTheme.Surface : hover ? HankiTheme.Raised : HankiTheme.Surface; fg = icon = HankiTheme.Text; border = hover ? HankiTheme.Muted : HankiTheme.Border; break;
         }

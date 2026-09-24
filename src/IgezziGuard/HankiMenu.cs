@@ -56,13 +56,14 @@ internal static class HankiMenu
 }
 
 /// <summary>
-/// Keeps a row of views or actions on one line: what doesn't fit moves into a "More" menu, in order. Fixed items
-/// (the primary action, drop-downs, labels) and the selected view always stay visible.
+/// Keeps a row of views or actions tidy: what doesn't fit moves into a "More" menu, in order. Fixed items (the
+/// primary action, drop-downs, labels) and pinned items (the selected view) always stay. A row of actions may use a
+/// second line so that the main action and the next two stay visible; views always stay on one line.
 /// </summary>
 internal static class Overflow
 {
     internal static HankiButton Attach(FlowLayoutPanel row, Func<HankiButton, bool> foldable, Func<HankiButton, bool>? pinned = null, string label = "More",
-        HankiButtonStyle style = HankiButtonStyle.Tab, Font? font = null)
+        HankiButtonStyle style = HankiButtonStyle.Tab, Font? font = null, int maxRows = 1, int keepVisible = 0)
     {
         var more = new HankiButton { Text = label + "  ▾", AutoSize = true, Appearance = style, AccessibleName = label, Folded = true, Margin = new Padding(0, 0, 8, 0) };
         if (font is not null) more.Font = font;
@@ -79,22 +80,28 @@ internal static class Overflow
             if (fitting || row.IsDisposed) return;
             fitting = true;
             try {
+                int available = row.ClientSize.Width - row.Padding.Horizontal;
                 int Width(Control c) => c.GetPreferredSize(Size.Empty).Width + c.Margin.Horizontal;
+                // Lines a flow of these items needs at this width.
+                int Lines(IEnumerable<Control> items) {
+                    int lines = 1, x = 0;
+                    foreach (var c in items) { int w = Width(c); if (x > 0 && x + w > available) { lines++; x = 0; } x += w; }
+                    return lines;
+                }
                 var items = row.Controls.Cast<Control>().Where(c => c != more && (c is not HankiButton b || b.Wanted)).ToList();
                 var candidates = items.OfType<HankiButton>().Where(foldable).ToList();
                 foreach (var b in candidates) b.Folded = false;
-                int available = row.ClientSize.Width - row.Padding.Horizontal;
-                if (available <= 0 || items.Sum(Width) <= available) { more.Folded = true; return; }
-                int room = available - Width(more) - items.Except(candidates).Sum(Width);
-                var keep = candidates.Where(b => pinned?.Invoke(b) == true).ToHashSet();
-                room -= keep.Sum(Width);
-                foreach (var b in candidates) {
-                    if (keep.Contains(b)) continue;
-                    if (Width(b) > room) break;
-                    keep.Add(b); room -= Width(b);
-                }
+                if (available <= 0 || Lines(items) == 1) { more.Folded = true; row.WrapContents = false; return; }
+                var keep = candidates.ToHashSet();
+                var essential = candidates.Where(b => pinned?.Invoke(b) == true).Concat(candidates.Take(keepVisible)).ToHashSet();
+                IEnumerable<Control> Shown() => items.Where(c => c is not HankiButton b || !candidates.Contains(b) || keep.Contains(b)).Append(more);
+                int limit = maxRows > 1 && Lines(items.Where(c => c is not HankiButton b || !candidates.Contains(b) || essential.Contains(b)).Append(more)) > 1 ? maxRows : 1;
+                // Fold from the end until the row fits its lines.
+                for (int i = candidates.Count - 1; i >= 0 && Lines(Shown()) > limit; i--)
+                    if (!essential.Contains(candidates[i])) keep.Remove(candidates[i]);
                 foreach (var b in candidates) b.Folded = !keep.Contains(b);
                 more.Folded = candidates.All(keep.Contains);
+                row.WrapContents = limit > 1;
             } finally { fitting = false; }
         }
         row.SizeChanged += (_, _) => Fit();

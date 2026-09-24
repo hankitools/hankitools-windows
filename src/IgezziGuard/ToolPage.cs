@@ -10,8 +10,9 @@ public class ToolPage : UserControl
     private readonly SearchField find = new("Find in report  (Ctrl+F)", 240) { Margin = new Padding(8, 0, 0, 0) };
     private readonly Label matches = new() { AutoSize = true, Tag = "intro", Margin = new Padding(8, 8, 0, 0) };
     private readonly SummaryView summary = new() { Visible = false };
-    private readonly HankiButton details = new() { Text = "View technical details", Appearance = HankiButtonStyle.Quiet, AutoSize = true, Visible = false, Margin = new Padding(0, 0, 4, 0) };
-    private readonly HankiButton options = new() { Text = "⋯", AutoSize = true, AccessibleName = "Report options", Margin = Padding.Empty, Font = new Font("Segoe UI Semibold", 12f) };
+    private readonly HankiButton details = new() { Text = "Technical details", Appearance = HankiButtonStyle.Quiet, AutoSize = true, Visible = false, Margin = new Padding(0, 1, 4, 0), AccessibleName = "View technical details" };
+    private readonly HankiButton options = new() { Text = "⋯", Appearance = HankiButtonStyle.Icon, AccessibleName = "Report options", Margin = new Padding(0, 1, 0, 0), Font = new Font("Segoe UI Semibold", 13f) };
+    private readonly HankiButton barMore;
     private readonly ProgressLine progress = new() { Dock = DockStyle.Top };
     private readonly ToolTip tips = new();
     private RoundedPanel report = null!;
@@ -35,7 +36,7 @@ public class ToolPage : UserControl
         var top = new TableLayoutPanel { Dock = DockStyle.Top, AutoSize = true, ColumnCount = 2, RowCount = 1, Padding = new Padding(0, 0, 0, 14), Margin = Padding.Empty };
         top.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100)); top.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
         top.Controls.Add(Bar, 0, 0); top.Controls.Add(side, 1, 0);
-        Overflow.Attach(Bar, b => !b.Primary, label: "More", style: HankiButtonStyle.Secondary);
+        barMore = Overflow.Attach(Bar, b => !b.Primary, label: "More", style: HankiButtonStyle.Secondary, maxRows: 2, keepVisible: 2);
         tips.SetToolTip(options, "Share, send to the Assistant, previous report");
         Disposed += (_, _) => tips.Dispose();
         // Report card: status and cancel on the left, search on the right, a progress line, then the report.
@@ -146,7 +147,7 @@ public class ToolPage : UserControl
 
     protected HankiButton Button(string text, Action action)
     {
-        var b = new HankiButton { Text = text, AutoSize = true, Primary = !Bar.Controls.OfType<HankiButton>().Any() };
+        var b = new HankiButton { Text = text, AutoSize = true, Primary = !Bar.Controls.OfType<HankiButton>().Any(x => x != barMore) };
         b.Click += (_, _) => { if (!IsBusy) action(); }; Bar.Controls.Add(b); return b;
     }
     protected bool Review(string text) => MessageBox.Show(this, text, "Review action", MessageBoxButtons.OKCancel, MessageBoxIcon.Information, MessageBoxDefaultButton.Button2) == DialogResult.OK;
@@ -163,7 +164,7 @@ public class ToolPage : UserControl
         // A field, not details.Visible: Visible reads false whenever this page's tab is not shown.
         visible &= hasSummary;
         summary.Visible = visible; report.Visible = !visible;
-        details.Text = visible ? "View technical details" : "Back to summary";
+        details.Text = visible ? "Technical details" : "Back to summary";
         details.Invalidate();
     }
     /// <summary>Runs structured work: the report fills the technical view and the summary is shown first.</summary>
