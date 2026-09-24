@@ -26,7 +26,7 @@ authentication, Pro gating, or runtime behavior changes are introduced.
 
 | Area | Current implementation and implication |
 | --- | --- |
-| Solution/application | `IgezziGuard.sln` contains `src/IgezziGuard/IgezziGuard.csproj`: one .NET 8 Windows Forms executable, `net8.0-windows`, assembly `HankiTools`, namespace `IgezziGuard`. Nullable references, deterministic builds and warnings-as-errors are enabled. No package references or service-host framework are declared in this project. |
+| Solution/application | `IgezziGuard.sln` contains `src/IgezziGuard/IgezziGuard.csproj`: one .NET 10 Windows Forms executable, `net10.0-windows`, assembly `HankiTools`, namespace `IgezziGuard`. Nullable references, deterministic builds and warnings-as-errors are enabled. No package references or service-host framework are declared in this project. |
 | Entry point | `src/IgezziGuard/Program.cs` initializes WinForms on STA, installs fatal exception handlers, handles the explicit UI smoke-test mode, creates local storage and holds a per-user exclusive instance lock before running `HankiForm`. |
 | Composition root | `src/IgezziGuard/HankiForm.cs` constructs panels directly, connects events, builds module/subview navigation and coordinates busy indicators and cancellation. There are no separate view-models or DI container/service registrations. |
 | Shared UI | `src/IgezziGuard/HankiControls.cs`, `HankiTheme.cs`, `ToolIcon.cs` and `ToolLauncher.cs` implement the custom controls, theme, icons and tool discovery. `WorkspacePages`/`HankiTabs` and ordinary WinForms controls host the pages. UI is programmatic rather than XAML/MVVM. |
@@ -208,7 +208,7 @@ Because source is linked explicitly, new pure contract/adapter files will need
 intentional test-project inclusion if that convention is retained.
 
 `src/IgezziGuard/UiSmokeTest.cs` is invoked through the explicit app argument.
-`BUILD-WINDOWS.ps1` runs checks, resolves a current .NET 8 runtime patch, publishes
+`BUILD-WINDOWS.ps1` runs checks, resolves a current .NET 10 runtime patch, publishes
 a self-contained win-x64 single-file candidate with external signature data,
 optionally signs it, runs UI smoke and writes build/acceptance metadata and ZIP
 checksums. `build/Packaging.ps1` and `build/ArchiveBuilder.cs` handle archives.
@@ -218,7 +218,7 @@ is not the full validation path.
 
 `PACKAGE-RELEASE.ps1` requires a valid timestamped signature, exact executable
 and payload hashes, current runtime and recorded acceptance evidence before
-public packaging. Its .NET 8 release-window cutoff is 2026-11-10 UTC.
+public packaging. Its .NET 10 release-window cutoff is 2028-11-10 UTC.
 `RELEASE-CHECKLIST.md`, `RELEASE-STATUS.md`, `PRIVACY.md` and `SECURITY.md` remain
 relevant release constraints. This audit neither approves a release nor records
 native acceptance as passed. No runtime build/tests are required to establish

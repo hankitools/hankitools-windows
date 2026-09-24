@@ -14,9 +14,9 @@ if ($hash -ne $build.ExeSHA256 -or $hash -ne $acceptance.ExeSHA256) { throw 'Exe
 if ($smoke.Passed -ne $true -or $smoke.Version -ne $build.Version) { throw 'Matching UI smoke result required.' }
 $signature=Get-AuthenticodeSignature -LiteralPath $exe
 if ($signature.Status -ne 'Valid' -or $null -eq $signature.TimeStamperCertificate) { throw 'Build with a valid timestamped publisher signature before acceptance testing.' }
-if ((Get-Date).ToUniversalTime() -ge [datetime]'2026-11-10T00:00:00Z') { throw 'This branch targets .NET 8, now outside its release window. Upgrade to a supported .NET LTS and revalidate before publishing.' }
+if ((Get-Date).ToUniversalTime() -ge [datetime]'2028-11-10T00:00:00Z') { throw 'This branch targets .NET 10, now outside its release window. Upgrade to a supported .NET LTS and revalidate before publishing.' }
 [Net.ServicePointManager]::SecurityProtocol=[Net.SecurityProtocolType]::Tls12
-$metadata=Invoke-RestMethod 'https://dotnetcli.blob.core.windows.net/dotnet/release-metadata/8.0/releases.json' -TimeoutSec 30
+$metadata=Invoke-RestMethod 'https://dotnetcli.blob.core.windows.net/dotnet/release-metadata/10.0/releases.json' -TimeoutSec 30
 if ($build.Runtime -ne $metadata.'latest-runtime') { throw 'Bundled runtime is no longer current. Rebuild, sign and repeat acceptance.' }
 $required=@('clean-install-launch','dpi-keyboard-contrast','all-module-navigation','readonly-diagnostics','scan-cancel-history','cleanup-recycle-restore','startup-and-undo','power-dns-and-undo','defender-controls','monitor-save-load','ai-consent-cancel','upgrade-data-retention','full-system-scan-activation','diagnostic-history-privacy','community-edition-boundaries')
 if ([string]::IsNullOrWhiteSpace($acceptance.Tester) -or [string]::IsNullOrWhiteSpace($acceptance.WindowsVersion) -or [string]::IsNullOrWhiteSpace($acceptance.TestedAt)) { throw 'Record the tester, Windows version and test date.' }
