@@ -61,6 +61,7 @@ internal sealed class WindowsSettings : ISettingBackend
     {
         try { return action(); }
         catch (NvidiaException ex) { throw new IOException(ex.Message, ex); }
+        catch (AmdException ex) { throw new IOException(ex.Message, ex); }
         catch (Exception ex) when (ex is UnauthorizedAccessException or System.Security.SecurityException) { throw new IOException("Windows didn't allow the change: " + ex.Message, ex); }
     }
     internal static NetworkInterface Adapter(string id) => NetworkInterface.GetAllNetworkInterfaces().SingleOrDefault(a => Guid.TryParse(a.Id, out var guid) && guid == Guid.Parse(id)) ?? throw new IOException("Adapter no longer present.");

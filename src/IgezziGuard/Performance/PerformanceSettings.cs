@@ -12,11 +12,12 @@ namespace IgezziGuard;
 ///   NVIDIA global setting: target "0x1057EB71",      value as for NVIDIA setting, in the global profile (all games)
 ///   Windows gaming setting: target "game-mode", "background-recording", "windowed-optimizations" or "variable-refresh", value
 ///                    "on", "off" or "default" (never changed); target "mouse-acceleration", value "6,10,1"
+///   AMD setting:     target "{gpu}|AntiLag",          value "on", "off:144", "on:30-60" or "mode:1" (see AmdSettings)
 /// </summary>
 internal static class PerformanceSettings
 {
     internal const string WindowsGamingKind = "Windows gaming setting";
-    internal static bool Handles(string kind) => kind is "Display mode" or "GPU preference" or "Processor power" or "NVIDIA setting" or NvidiaPresets.ChangeKind or WindowsGamingKind;
+    internal static bool Handles(string kind) => kind is "Display mode" or "GPU preference" or "Processor power" or "NVIDIA setting" or NvidiaPresets.ChangeKind or WindowsGamingKind or AmdSettings.ChangeKind;
 
     internal static string Read(string kind, string target) => kind switch {
         "Display mode" => DisplayMode(target),
@@ -25,6 +26,7 @@ internal static class PerformanceSettings
         "NVIDIA setting" => NvidiaSetting(target),
         NvidiaPresets.ChangeKind => Nvidia.ReadProfileSetting(null, ParseNvidiaGlobalTarget(target)),
         WindowsGamingKind => WindowsGaming(target),
+        AmdSettings.ChangeKind => Amd.ReadState(target),
         _ => throw new IOException("Unsupported setting.")
     };
     internal static void Write(string kind, string target, string value)
@@ -35,6 +37,10 @@ internal static class PerformanceSettings
             case "Processor power": SetProcessor(target, value); break;
             case "NVIDIA setting": SetNvidiaSetting(target, value); break;
             case WindowsGamingKind: SetWindowsGaming(target, value); break;
+            case AmdSettings.ChangeKind:
+                if (AmdSettings.Parse(AmdSettings.ParseTarget(target).Kind, value) is null) throw new IOException("Invalid AMD setting value.");
+                Amd.WriteState(target, value);
+                break;
             case NvidiaPresets.ChangeKind:
                 if (!NvidiaSettings.ValidState(value)) throw new IOException("Invalid NVIDIA setting value.");
                 Nvidia.WriteProfileSetting(null, ParseNvidiaGlobalTarget(target), value);

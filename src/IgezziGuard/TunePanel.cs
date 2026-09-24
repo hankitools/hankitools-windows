@@ -95,7 +95,7 @@ internal sealed class TunePanel : UserControl
         var all = gaming.Findings.Concat(findings).GroupBy(f => (f.ModuleId, f.FindingId)).Select(g => g.First()).ToArray();
         try { PerformanceStatus.History.Add(new DiagnosticScan(Guid.NewGuid(), now, DateTimeOffset.UtcNow, 4, 4, false, all)); } catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
         var background = gaming.Findings.Where(f => f.Metadata.GetValueOrDefault("source") == "Background");
-        return new TuneInputs(gaming.Graphics, gaming.Windows!, nvidia, findings.Concat(background).ToArray());
+        return new TuneInputs(gaming.Graphics, gaming.Windows!, nvidia, findings.Concat(background).ToArray(), gaming.Amd);
     }
 
     private static string AreaName(TuneArea area) => area switch {

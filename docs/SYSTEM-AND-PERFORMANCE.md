@@ -133,7 +133,7 @@ Hanki controls and theme.
 | ARCH-200 | `Navigation.cs`, `AreaPanels.cs`, `HankiForm.cs` | Done: areas, home, Performance shell, Lab, separate histories, docs, tests. |
 | GPU-101 | `Performance/GraphicsProbe.cs`, `GpuPanel.cs` | Done: DXGI adapters in Windows' high-performance order, drivers, VRAM, displays and modes, HDR, vendor interfaces. |
 | GPU-102 | `Performance/Nvidia.cs` | Done: NVAPI DRS read of global and per-game profiles; every setting id is checked against the driver's own name. |
-| GPU-103, GAME-203 | – | Not yet: AMD ADLX is detected, but Radeon settings aren't read. Needs AMD hardware to build and test. |
+| GPU-103, GAME-203 | Gaming → AMD Radeon, `Performance/Amd.cs`, `Performance/AmdModel.cs` | Built, **not yet tested on AMD hardware**: Radeon Anti-Lag, Chill, Boost, Image Sharpening, Enhanced Sync, Wait for Vertical Refresh, Frame Rate Target Control and Anisotropic Filtering are read and changed through AMD's ADLX (`amdadlx64.dll`, installed with AMD Software) for the first discrete Radeon. Values stay inside the range the driver reports. Changes are reviewed, recorded in Recovery as "AMD setting" (target `{gpu id}|{setting}`) and verified by reading them back. Tune my PC applies them when they can be read and lists them as steps otherwise. |
 | GPU-104, GAME-201 | `Performance/GamingHealth.cs`, Gaming → Overview | Done: read-only Gaming Health Scan in the common result model. |
 | GPU-105, GAME-204 | `Performance/GamingProfiles.cs` | Done: six vendor-neutral goals turned into reviewed, capability-aware changes. |
 | GPU-106 | `Performance/PerformanceSettings.cs`, `ChangeReview` | Done: snapshot in Recovery, apply, verify, restore; partial failures reported per change. |

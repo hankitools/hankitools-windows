@@ -92,7 +92,8 @@ in processor-limited games; enabling the profile is a BIOS step [15].
 
 **AMD Radeon.** Anti-Lag on and Chill off for competitive play, FreeSync with a frame-rate
 target just under the refresh rate rather than Enhanced Sync, Chill for low power [16].
-Hanki lists these as steps until it reads Radeon settings.
+Hanki applies these through AMD's driver interface when it can read Radeon settings, and lists them as
+steps otherwise. Radeon support isn't yet tested on AMD hardware.
 
 ## What Tune my PC doesn't do
 

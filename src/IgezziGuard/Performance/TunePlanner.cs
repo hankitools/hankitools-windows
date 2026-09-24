@@ -10,7 +10,8 @@ public enum TuneArea { Display, Windows, Mouse, GraphicsDriver, Games, Backgroun
 /// What the Tune my PC scan read. Nvidia is null without an NVIDIA driver; Findings are the CPU, memory and storage
 /// analyzers' results and the background check's (overlays, recorders, limiters, busy programs).
 /// </summary>
-public sealed record TuneInputs(GraphicsInventory Graphics, WindowsGamingSettings Windows, IReadOnlyList<NvidiaGlobalSetting>? Nvidia, IReadOnlyList<DiagnosticResult> Findings);
+/// <param name="Amd">Radeon settings from AMD's driver interface, when it could be read.</param>
+public sealed record TuneInputs(GraphicsInventory Graphics, WindowsGamingSettings Windows, IReadOnlyList<NvidiaGlobalSetting>? Nvidia, IReadOnlyList<DiagnosticResult> Findings, AmdGpuSettings? Amd = null);
 /// <summary>One line of the plan: a change Hanki makes (Kind set) or a step for you (Manual set).</summary>
 public sealed record TuneItem(TuneArea Area, ProposedChange Change);
 /// <summary>A setting the scan checked that already suits the choice, listed so you can see what was looked at.</summary>
@@ -214,16 +215,18 @@ public static partial class TunePlanner
             Step(TuneArea.GraphicsDriver, ChangeSource.Nvidia, "tune-nvidia-missing", "NVIDIA driver settings", "Not available", "Readable",
                 "Hanki couldn't open the NVIDIA driver interface, so driver settings aren't part of this plan.", "Install or repair the NVIDIA driver from nvidia.com, then run Tune my PC again.");
 
-        // ---- AMD Radeon: shown as steps until Hanki reads Radeon settings ----------------------------------------------
-        if (amd) {
-            string radeon = scenario switch {
+        // ---- AMD Radeon: changes through AMD's driver interface when it could be read, otherwise steps ----------------------
+        if (x.Amd is { } radeon)
+            foreach (var change in AmdSettings.ForScenario(scenario, sync, radeon, cap)) items.Add(new(TuneArea.GraphicsDriver, change with { Id = "tune-" + change.Id }));
+        else if (amd) {
+            string choices = scenario switch {
                 TuneScenario.GamingPerformance => "Radeon Anti-Lag on, Radeon Chill off, Radeon Boost off, Enhanced Sync off" + (sync == AdaptiveSync.Yes ? $", FreeSync on with Frame Rate Target Control at {Math.Max(30, (int)cap - 3)} FPS" : "") + ", Texture Filtering Quality: Performance.",
                 TuneScenario.GamingQuality => "Radeon Anti-Lag on, Radeon Chill off" + (sync == AdaptiveSync.Yes ? $", FreeSync on with Frame Rate Target Control at {Math.Max(30, (int)cap - 3)} FPS" : ", Wait for Vertical Refresh: Always on") + ", Texture Filtering Quality: High.",
                 TuneScenario.Creative => "use the Default graphics profile; gaming features such as Chill or Boost don't help creative apps.",
                 _ => "Radeon Chill on (for example 40–60 FPS) and Frame Rate Target Control at 60 FPS."
             };
-            Step(TuneArea.GraphicsDriver, ChangeSource.Amd, "tune-amd", "AMD Radeon settings", "Not read by Hanki yet", "See the step",
-                "Hanki doesn't read or change Radeon settings yet. These are the matching choices for " + Name(scenario) + ".", "AMD Software → Gaming → Graphics: " + radeon, optional: true);
+            Step(TuneArea.GraphicsDriver, ChangeSource.Amd, "tune-amd", "AMD Radeon settings", "Couldn't be read", "See the step",
+                "AMD's driver interface couldn't be read on this PC, so these are the matching choices for " + Name(scenario) + " to set yourself.", "AMD Software → Gaming → Graphics: " + choices, optional: true);
         }
 
         // ---- In-game settings: the biggest levers, which only the game controls ------------------------------------------

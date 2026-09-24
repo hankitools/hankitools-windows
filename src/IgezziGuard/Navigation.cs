@@ -109,7 +109,7 @@ public static class Navigation
     /// Recovery itself stays shared and lists every kind.
     /// </summary>
     public static readonly IReadOnlySet<string> PerformanceChangeKinds = new HashSet<string>(StringComparer.Ordinal) {
-        "Power plan", "Display mode", "GPU preference", "NVIDIA setting", NvidiaPresets.ChangeKind, "Processor power", "Windows gaming setting"
+        "Power plan", "Display mode", "GPU preference", "NVIDIA setting", NvidiaPresets.ChangeKind, "Processor power", "Windows gaming setting", AmdSettings.ChangeKind
     };
     public static bool IsPerformanceChange(string kind) => PerformanceChangeKinds.Contains(kind);
 

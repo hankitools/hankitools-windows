@@ -10,6 +10,8 @@ internal sealed class GamingState
     internal NvidiaProfileView? NvidiaGlobal;
     internal string? NvidiaNote;
     internal BackgroundSnapshot? Background;
+    internal AmdGpuSettings? Amd;
+    internal string? AmdNote;
     internal IReadOnlyList<DiagnosticResult> Findings = [];
 
     /// <summary>Reads hardware and settings (read-only). NVIDIA problems become a note, not a failure.</summary>
@@ -21,6 +23,11 @@ internal sealed class GamingState
         if (Graphics.Adapters.Any(a => a.Vendor == GpuVendor.Nvidia)) {
             try { NvidiaGlobal = Nvidia.ReadProfiles([]).Global; }
             catch (NvidiaException ex) { NvidiaNote = ex.Message; }
+        }
+        Amd = null; AmdNote = null;
+        if (Graphics.Adapters.Any(a => a.Vendor == GpuVendor.Amd && !a.LikelyIntegrated)) {
+            try { Amd = IgezziGuard.Amd.ReadSettings(); }
+            catch (AmdException ex) { AmdNote = ex.Message; }
         }
         Background = BackgroundProbe.Collect();
         var now = DateTimeOffset.UtcNow;
@@ -45,7 +52,8 @@ internal sealed class GamingState
             (w.MouseAcceleration is { } accel ? $", mouse acceleration {(accel ? "on" : "off")}" : ""));
         if (NvidiaGlobal is { } nv) text.AppendLine("NVIDIA global: " + string.Join(", ", nv.Values.Select(v => $"{v.Setting.Name} {v.Text}")));
         if (NvidiaNote is not null) text.AppendLine("NVIDIA: " + NvidiaNote);
-        if (Graphics.AdlxPresent) text.AppendLine("AMD: the Radeon driver interface (ADLX) is installed; Hanki doesn't read Radeon settings yet.");
+        if (Amd is { } radeon) text.AppendLine($"AMD Radeon ({radeon.GpuName}): " + string.Join(", ", radeon.Settings.Select(s => $"{AmdSettings.Name(s.Kind)} {s.Text}")));
+        if (AmdNote is not null) text.AppendLine("AMD: " + AmdNote);
         foreach (var note in Graphics.Notes) text.AppendLine("Note: " + note);
         return text.ToString();
     }

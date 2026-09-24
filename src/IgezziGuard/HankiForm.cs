@@ -42,13 +42,14 @@ public sealed class HankiForm : Form
     private readonly GamingOverviewPanel gamingOverview = new(gaming);
     private readonly GamesPanel gamesPanel = new(gaming);
     private readonly NvidiaPanel nvidiaPanel = new(gaming);
+    private readonly AmdPanel amdPanel = new(gaming);
     private readonly GpuPanel gpuPanel = new();
     private readonly CpuPanel cpuPanel = new();
     private readonly MemoryHealthPanel memoryHealth = new();
     private readonly StoragePanel storagePanel = new();
     /// <summary>Every navigable tool, as listed in Find a tool.</summary>
     internal IReadOnlyList<ToolLauncher.Route> Routes { get; private set; } = [];
-    private ToolPage[] ExtraPages => [activation, updateHealth, batteryStartup, diagnosticHistory, systemActions, performanceSessions, gamingOverview, gamesPanel, nvidiaPanel, gpuPanel, bottleneck, stutter, cpuPanel, memoryHealth, storagePanel, fullScan, duplicates, startupFolders, longPerformance, tuning, networkTools, defenderTools, dumps, guidance, recovery, scanner];
+    private ToolPage[] ExtraPages => [activation, updateHealth, batteryStartup, diagnosticHistory, systemActions, performanceSessions, gamingOverview, gamesPanel, nvidiaPanel, amdPanel, gpuPanel, bottleneck, stutter, cpuPanel, memoryHealth, storagePanel, fullScan, duplicates, startupFolders, longPerformance, tuning, networkTools, defenderTools, dumps, guidance, recovery, scanner];
 
     public HankiForm()
     {
@@ -113,7 +114,7 @@ public sealed class HankiForm : Form
         // Hanki Performance. Pages without their tools yet say what will be there; nothing runs by opening them.
         At("Performance overview").Controls.Add(new PerformanceOverviewPanel(Navigate));
         var gamingTabs = new HankiTabs { Dock = DockStyle.Fill };
-        AddTab(gamingTabs, "Overview", gamingOverview); AddTab(gamingTabs, "Games", gamesPanel); AddTab(gamingTabs, "NVIDIA", nvidiaPanel);
+        AddTab(gamingTabs, "Overview", gamingOverview); AddTab(gamingTabs, "Games", gamesPanel); AddTab(gamingTabs, "NVIDIA", nvidiaPanel); AddTab(gamingTabs, "AMD Radeon", amdPanel);
         At("Gaming").Controls.Add(gamingTabs);
         At("GPU").Controls.Add(gpuPanel);
         var cpuTabs = new HankiTabs { Dock = DockStyle.Fill };

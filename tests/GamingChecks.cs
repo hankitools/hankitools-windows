@@ -4,8 +4,9 @@ using IgezziGuard;
 internal static class GamingChecks
 {
     private static void Check(bool ok, string text) => DiagnosticChecks.Check(ok, text);
+    private static bool Throws(Action action) { try { action(); return false; } catch (IOException) { return true; } }
     private static readonly DateTimeOffset Now = new(2026, 9, 24, 12, 0, 0, TimeSpan.Zero);
-    internal static void Run() { Facts(); Health(); Profiles(); NvidiaGlobal(); WindowsGaming(); Tune(); Background(); Launch(); Library(); Live(); }
+    internal static void Run() { Facts(); Health(); Profiles(); NvidiaGlobal(); WindowsGaming(); Tune(); Radeon(); Background(); Launch(); Library(); Live(); }
 
     private static GpuAdapter Gpu(GpuVendor vendor, string name, ulong memory, int rank, long luid) =>
         new(name, vendor, 0, 0, luid, memory, 8 * GraphicsFacts.GiB, rank, "32.0.16.1692", new DateTime(2026, 9, 4), GraphicsFacts.LikelyIntegrated(vendor, memory));
@@ -295,6 +296,61 @@ internal static class GamingChecks
         Check(amd.Changes.Single(c => c.Id == "tune-amd").Manual!.Contains("Anti-Lag on") && amd.Changes.Single(c => c.Id == "tune-amd").Manual!.Contains("162 FPS") && !amd.Changes.Any(c => c.Kind == NvidiaPresets.ChangeKind),
             "tune: Radeon owners get the matching AMD Software settings as a step");
         Check(Enum.GetValues<TuneScenario>().All(v => TunePlanner.Name(v).Length > 0 && !Navigation.UsesFaultLanguage(TunePlanner.Describe(v))), "tune: every choice has a name and a plain description");
+    }
+
+    private static void Radeon()
+    {
+        Check(AmdSettings.State(AmdSettingKind.AntiLag, true, null) == "on" && AmdSettings.State(AmdSettingKind.Chill, true, 30, 60) == "on:30-60"
+            && AmdSettings.State(AmdSettingKind.FrameRateTargetControl, false, 144) == "off:144" && AmdSettings.State(AmdSettingKind.WaitForVerticalRefresh, true, 2) == "mode:2",
+            "amd: states keep the value even when a feature is off");
+        Check(AmdSettings.Parse(AmdSettingKind.Chill, "off:40-72") == (false, 40, 72) && AmdSettings.Parse(AmdSettingKind.WaitForVerticalRefresh, "mode:3") == (true, 3, null)
+            && AmdSettings.Parse(AmdSettingKind.AntiLag, "on:5") is null && AmdSettings.Parse(AmdSettingKind.WaitForVerticalRefresh, "mode:4") is null
+            && AmdSettings.Parse(AmdSettingKind.Chill, "on:60-30") is null && AmdSettings.Parse(AmdSettingKind.FrameRateTargetControl, "on:-1") is null
+            && AmdSettings.Parse(AmdSettingKind.Boost, "maybe") is null && AmdSettings.Parse(AmdSettingKind.ImageSharpening, "on:1e3") is null,
+            "amd: only well-formed states are accepted");
+        Check(AmdSettings.Describe(AmdSettingKind.Chill, "on:30-60") == "On, 30–60 FPS" && AmdSettings.Describe(AmdSettingKind.FrameRateTargetControl, "off:144") == "Off"
+            && AmdSettings.Describe(AmdSettingKind.WaitForVerticalRefresh, "mode:0") == "Always off" && AmdSettings.Describe(AmdSettingKind.AnisotropicFiltering, "on:16") == "On, 16x",
+            "amd: settings are described the way AMD Software names them");
+        Check(AmdSettings.ParseTarget(AmdSettings.Target(-5, AmdSettingKind.Chill)) == (-5, AmdSettingKind.Chill)
+            && new[] { "x|Chill", "1|Nope", "1|7", "1|Chill|2", "1" }.All(t => Throws(() => AmdSettings.ParseTarget(t))), "amd: Recovery targets name the GPU and the setting, nothing else");
+
+        var gpu = new AmdGpuSettings(7, "AMD Radeon RX 7800 XT", [
+            new(AmdSettingKind.AntiLag, false, null), new(AmdSettingKind.Chill, true, 30, 60, 30, 300), new(AmdSettingKind.Boost, true, 50, null, 50, 85),
+            new(AmdSettingKind.FrameRateTargetControl, false, 144, null, 30, 300), new(AmdSettingKind.WaitForVerticalRefresh, true, AmdSettings.WfvrOffUnlessApp),
+            new(AmdSettingKind.AnisotropicFiltering, false, 16, null, 2, 16)]);
+        var antiLag = AmdSettings.Change(gpu, AmdSettingKind.AntiLag, true, null, "why");
+        Check(antiLag is { Kind: AmdSettings.ChangeKind, Target: "7|AntiLag", After: "on", Current: "Off", Recommended: "On", Source: ChangeSource.Amd } && Guardrails.Allowed(antiLag)
+            && PerformanceSettings.Handles(AmdSettings.ChangeKind), "amd: a change is a Recovery-backed Performance change");
+        Check(AmdSettings.Change(gpu, AmdSettingKind.AntiLag, false, null, "why") is null && AmdSettings.Change(gpu, AmdSettingKind.EnhancedSync, true, null, "why") is null
+            && AmdSettings.Change(gpu, AmdSettingKind.FrameRateTargetControl, true, 400, "why") is null && AmdSettings.Change(gpu, AmdSettingKind.Chill, true, 10, "why", value2: 60) is null,
+            "amd: nothing is proposed when it's already set, unsupported, or outside the driver's range");
+        Check(AmdSettings.Change(gpu, AmdSettingKind.Chill, false, null, "why")?.After == "off:30-60" && AmdSettings.Change(gpu, AmdSettingKind.FrameRateTargetControl, true, 162, "why")?.After == "on:162"
+            && AmdSettings.ChangeTo(gpu, AmdSettingKind.Boost, "off:50", "why")?.After == "off:50" && AmdSettings.ChangeTo(gpu, AmdSettingKind.Boost, "sideways", "why") is null,
+            "amd: turning a feature off keeps its value, so an undo restores both");
+
+        var frtc = AmdSettings.Choices(gpu.Settings.Single(s => s.Kind == AmdSettingKind.FrameRateTargetControl), 165);
+        Check(frtc[0] == ("Current: Off", "off:144") && frtc.Select(c => c.State).SequenceEqual(["off:144", "on:60", "on:162", "on:165"]),
+            "amd: editor choices start with the current value and include a cap just below the refresh rate");
+        Check(gpu.Settings.All(s => AmdSettings.Choices(s, 165).All(c => AmdSettings.Parse(s.Kind, c.State) is not null) && AmdSettings.Choices(s, 165).Select(c => c.State).Distinct().Count() == AmdSettings.Choices(s, 165).Count)
+            && AmdSettings.Choices(gpu.Settings.Single(s => s.Kind == AmdSettingKind.WaitForVerticalRefresh), 60).Count == 4, "amd: every choice is a valid state, listed once");
+
+        string? After(IReadOnlyList<ProposedChange> changes, AmdSettingKind kind) => changes.SingleOrDefault(c => c.Target == AmdSettings.Target(7, kind))?.After;
+        var competitive = AmdSettings.ForScenario(TuneScenario.GamingPerformance, AdaptiveSync.Yes, gpu, 165);
+        Check(After(competitive, AmdSettingKind.AntiLag) == "on" && After(competitive, AmdSettingKind.Chill) == "off:30-60" && After(competitive, AmdSettingKind.Boost) == "off:50"
+            && After(competitive, AmdSettingKind.FrameRateTargetControl) == "on:162", "amd: Gaming + Performance turns on Anti-Lag, turns off Chill and Boost, and caps 3 below 165 Hz with FreeSync");
+        Check(After(AmdSettings.ForScenario(TuneScenario.GamingPerformance, AdaptiveSync.No, gpu, 165), AmdSettingKind.FrameRateTargetControl) is null
+            && After(AmdSettings.ForScenario(TuneScenario.GamingQuality, AdaptiveSync.No, gpu, 165), AmdSettingKind.WaitForVerticalRefresh) == "mode:2"
+            && After(AmdSettings.ForScenario(TuneScenario.LowPower, AdaptiveSync.NotSure, gpu, 144), AmdSettingKind.Chill) is null
+            && After(AmdSettings.ForScenario(TuneScenario.LowPower, AdaptiveSync.NotSure, gpu with { Settings = [new(AmdSettingKind.Chill, false, 40, 144, 30, 300)] }, 144), AmdSettingKind.Chill) == "on:30-60"
+            && AmdSettings.ForScenario(TuneScenario.Creative, AdaptiveSync.Yes, gpu, 165).Count == 0,
+            "amd: no cap without FreeSync, vertical sync for quality, Chill for low power and nothing for creative work");
+
+        var radeon = Desktop(Display(165, 1, 165), Gpu(GpuVendor.Amd, "AMD Radeon RX 7800 XT", 16 * GraphicsFacts.GiB, 0, 1));
+        var plan = TunePlanner.Plan(TuneScenario.GamingPerformance, AdaptiveSync.Yes, new TuneInputs(radeon, Windows() with { WindowedOptimizations = true, Mouse = [0, 0, 0] }, null, [], gpu));
+        var applied = plan.Changes.Where(c => c.Kind == AmdSettings.ChangeKind).ToArray();
+        Check(applied.Length == 4 && applied.All(c => c.Id.StartsWith("tune-amd-", StringComparison.Ordinal) && Guardrails.Allowed(c) && !Navigation.UsesFaultLanguage(c.Why))
+            && !plan.Changes.Any(c => c.Id == "tune-amd") && plan.Items.Where(i => i.Change.Kind == AmdSettings.ChangeKind).All(i => i.Area == TuneArea.GraphicsDriver),
+            "tune: when Radeon settings can be read, Hanki applies them instead of listing a step");
     }
 
     private static void Background()
