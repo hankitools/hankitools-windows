@@ -9,7 +9,9 @@ internal sealed class HomeSearchBox : UserControl
 {
     private readonly SearchField field = new("What do you need help with?  For example: slow, blue screen, Wi-Fi, FPS", 400) { Dock = DockStyle.Top, Height = 52, Fill = HankiTheme.Surface };
     private readonly Panel results = new() { Dock = DockStyle.Top, Visible = false, Padding = new Padding(0, 8, 0, 0) };
-    private readonly FlowLayoutPanel tryRow = new() { Dock = DockStyle.Top, AutoSize = true, WrapContents = true, Padding = new Padding(0, 10, 0, 0) };
+    // Sized by FitTry: an auto-sized flow inside an auto-sized parent is measured as one line, so a wrapped second line was cut off.
+    private readonly FlowLayoutPanel tryRow = new() { Dock = DockStyle.Top, WrapContents = true, Padding = new Padding(0, 10, 0, 0) };
+    private readonly Label tryLabel = new() { Text = "Try", AutoSize = true, Tag = "intro", Margin = new Padding(2, 0, 6, 0) };
     private readonly Func<IReadOnlyList<SearchEntry>> entries;
     private readonly Action<SearchEntry> open;
 
@@ -18,9 +20,9 @@ internal sealed class HomeSearchBox : UserControl
         this.entries = entries; this.open = open;
         Dock = DockStyle.Top; AutoSize = true; AutoSizeMode = AutoSizeMode.GrowAndShrink; Padding = new Padding(0, 0, 0, 18);
         field.Box.Font = new Font("Segoe UI", 12.5f); field.Box.AccessibleName = "Search for a problem or a tool";
-        tryRow.Controls.Add(new Label { Text = "Try", AutoSize = true, Tag = "intro", Margin = new Padding(2, 7, 6, 0) });
+        tryRow.Controls.Add(tryLabel);
         foreach (var suggestion in HomeSearch.Suggestions) {
-            var chip = new HankiButton { Text = suggestion, AutoSize = true, Appearance = HankiButtonStyle.Tab, Margin = new Padding(0, 0, 4, 0), AccessibleName = "Search for " + suggestion };
+            var chip = new HankiButton { Text = suggestion, AutoSize = true, Appearance = HankiButtonStyle.Tab, Margin = new Padding(0, 0, 4, 4), AccessibleName = "Search for " + suggestion };
             chip.Click += (_, _) => { field.Box.Text = suggestion; field.Box.Focus(); field.Box.SelectionStart = field.Box.TextLength; };
             tryRow.Controls.Add(chip);
         }
@@ -33,6 +35,24 @@ internal sealed class HomeSearchBox : UserControl
             else if (e.KeyCode == Keys.Escape) { field.Box.Clear(); e.SuppressKeyPress = true; }
         };
         results.SizeChanged += (_, _) => FitRows();
+        tryRow.SizeChanged += (_, _) => FitTry();
+    }
+
+    /// <summary>Wraps the suggestions to the row's width, with "Try" centered on the first line.</summary>
+    private void FitTry()
+    {
+        int available = tryRow.ClientSize.Width - tryRow.Padding.Horizontal, x = 0, line = 0, height = 0, first = 0;
+        foreach (Control c in tryRow.Controls) {
+            var size = c.GetPreferredSize(Size.Empty);
+            int w = size.Width + c.Margin.Horizontal, h = size.Height + c.Margin.Vertical;
+            if (x > 0 && x + w > available) { height += line; x = line = 0; }
+            x += w; line = Math.Max(line, h);
+            if (height == 0 && c is HankiButton) first = Math.Max(first, size.Height);
+        }
+        int top = Math.Max(0, (first - tryLabel.GetPreferredSize(Size.Empty).Height) / 2);
+        if (tryLabel.Margin.Top != top) tryLabel.Margin = new Padding(tryLabel.Margin.Left, top, tryLabel.Margin.Right, 0);
+        int wanted = height + line + tryRow.Padding.Vertical;
+        if (tryRow.Height != wanted) tryRow.Height = wanted;
     }
 
     private void Show(IReadOnlyList<SearchEntry> found)

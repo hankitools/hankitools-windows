@@ -64,6 +64,8 @@ internal static class UiSmokeTest
                         if (original is not null) tabs.SelectedTab = original;
                     } else foreach (Control child in root.Controls) Visit(child, prefix);
                 }
+                // The window fits the screen; the check uses its designed sizes, which can be larger than the test machine's screen.
+                form.MinimumSize = new Size(Dpi.Px(1120), Dpi.Px(740));
                 foreach (var size in new[] { new Size(1320, 880), new Size(1120, 740) }) { form.Size = new Size(Dpi.Px(size.Width), Dpi.Px(size.Height)); Visit(form, size.Width + "px/"); }
                 if (visited.Count < 50) throw new IOException("Fewer workspace views than expected were visited.");
                 // Guided checks open tools by route name; a renamed tab must not silently break a step.
