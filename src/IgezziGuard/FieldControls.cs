@@ -20,7 +20,7 @@ internal sealed class SearchField : Panel
     protected override void OnLayout(LayoutEventArgs e)
     {
         // Center the single-line box vertically, after the icon.
-        float s = DeviceDpi / 96f;
+        float s = Dpi.Factor;
         int top = Math.Max(0, (Height - Box.PreferredHeight) / 2);
         float icon = Math.Min(20 * s, Height * 0.4f);
         Padding = new Padding((int)(icon * 2.2f), top, (int)(10 * s), 0);
@@ -28,7 +28,7 @@ internal sealed class SearchField : Panel
     }
     protected override void OnPaintBackground(PaintEventArgs e)
     {
-        var g = e.Graphics; float s = DeviceDpi / 96f;
+        var g = e.Graphics; float s = Dpi.Factor;
         if (SystemInformation.HighContrast) { base.OnPaintBackground(e); ControlPaint.DrawBorder(g, ClientRectangle, SystemColors.WindowText, ButtonBorderStyle.Solid); return; }
         g.Clear(Parent?.BackColor ?? HankiTheme.Surface); g.SmoothingMode = SmoothingMode.AntiAlias;
         using (var path = HankiButton.Rounded(new RectangleF(0.5f, 0.5f, Width - 1.5f, Height - 1.5f), HankiTheme.ControlRadius * s)) {

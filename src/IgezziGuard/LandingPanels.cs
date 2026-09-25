@@ -9,9 +9,9 @@ internal static class ToolTiles
         var cards = new FlowLayoutPanel { Dock = DockStyle.Top, AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink, Margin = Padding.Empty };
         foreach (var (icon, title, text, open) in tiles) cards.Controls.Add(new HankiCard(icon, title, text, open, accent) { Margin = new Padding(0, 0, 14, 14) });
         void Fit() {
-            int width = Math.Max(260, page.ClientSize.Width - page.Padding.Horizontal - SystemInformation.VerticalScrollBarWidth);
-            int columns = width >= 900 ? 3 : width >= 560 ? 2 : 1;
-            foreach (Control card in cards.Controls) card.Width = Math.Max(220, (width - 14 * columns) / columns);
+            int width = Math.Max(Dpi.Px(260), page.ClientSize.Width - page.Padding.Horizontal - SystemInformation.VerticalScrollBarWidth);
+            int columns = width >= Dpi.Px(900) ? 3 : width >= Dpi.Px(560) ? 2 : 1;
+            foreach (Control card in cards.Controls) card.Width = Math.Max(Dpi.Px(220), (width - card.Margin.Horizontal * columns) / columns);
         }
         page.SizeChanged += (_, _) => Fit();
         page.Controls.Add(cards);

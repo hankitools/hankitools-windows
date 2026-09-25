@@ -33,7 +33,7 @@ internal sealed class HomePanel : UserControl
         cards.Controls.Add(system, 0, 0); cards.Controls.Add(performance, 1, 0);
         // Side by side when there is room, stacked otherwise.
         void Fit() {
-            bool narrow = ClientSize.Width < 820;
+            bool narrow = ClientSize.Width < Dpi.Px(820);
             cards.ColumnStyles[1].Width = narrow ? 0 : 50; cards.ColumnStyles[0].Width = narrow ? 100 : 50;
             cards.SetCellPosition(performance, new TableLayoutPanelCellPosition(narrow ? 0 : 1, narrow ? 1 : 0));
         }
@@ -46,9 +46,9 @@ internal sealed class HomePanel : UserControl
             glance.Controls.Add(tile);
         }
         void FitTiles() {
-            int width = Math.Max(260, ClientSize.Width - Padding.Horizontal - SystemInformation.VerticalScrollBarWidth);
-            int columns = width >= 900 ? 3 : width >= 560 ? 2 : 1;
-            foreach (Control tile in glance.Controls) tile.Width = Math.Max(200, (width - 14 * columns) / columns);
+            int width = Math.Max(Dpi.Px(260), ClientSize.Width - Padding.Horizontal - SystemInformation.VerticalScrollBarWidth);
+            int columns = width >= Dpi.Px(900) ? 3 : width >= Dpi.Px(560) ? 2 : 1;
+            foreach (Control tile in glance.Controls) tile.Width = Math.Max(Dpi.Px(200), (width - tile.Margin.Horizontal * columns) / columns);
         }
         SizeChanged += (_, _) => FitTiles();
 

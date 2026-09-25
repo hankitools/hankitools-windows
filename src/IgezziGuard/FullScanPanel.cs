@@ -10,7 +10,7 @@ public sealed class FullScanPanel : ToolPage
     private readonly RoundedPanel results = new() { Dock = DockStyle.Top, Height = 320, Padding = new Padding(6, 4, 6, 8), Visible = false };
     private readonly Panel counts = new() { Dock = DockStyle.Top, Height = 40, Tag = "card" };
     private readonly Panel resultsGap = new() { Dock = DockStyle.Top, Height = 14, Visible = false };
-    private readonly Font pillFont = new("Segoe UI Semibold", 8.25f), metaFont = new("Segoe UI", 9f);
+    private readonly Font pillFont = Dpi.PaintFont("Segoe UI Semibold", 8.25f), metaFont = Dpi.PaintFont("Segoe UI", 9f);
     private DiagnosticScan? latest;
     // Repairs run from the latest scan: they stop further proposals from it and go into the customer report.
     private RepairReport? repairs;
@@ -34,10 +34,10 @@ public sealed class FullScanPanel : ToolPage
             Output.Text = FindingAnalysis.Describe(r);
         };
         findings.DrawItem += DrawFinding;
-        findings.HandleCreated += (_, _) => findings.ItemHeight = (int)(42 * findings.DeviceDpi / 96f);
+        findings.HandleCreated += (_, _) => findings.ItemHeight = Dpi.Px(42);
         counts.Paint += (_, e) => {
             if (latest is null) return;
-            float s = counts.DeviceDpi / 96f;
+            float s = Dpi.Factor;
             string total = $"{latest.Results.Count} results";
             TextRenderer.DrawText(e.Graphics, total, pillFont, new Rectangle((int)(12 * s), 0, counts.Width, counts.Height), SystemInformation.HighContrast ? SystemColors.ControlText : HankiTheme.Muted,
                 TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
@@ -57,7 +57,7 @@ public sealed class FullScanPanel : ToolPage
     private void DrawFinding(object? sender, DrawItemEventArgs e)
     {
         if (e.Index < 0 || findings.Items[e.Index] is not DiagnosticResult r) return;
-        var g = e.Graphics; float s = findings.DeviceDpi / 96f;
+        var g = e.Graphics; float s = Dpi.Factor;
         bool hc = SystemInformation.HighContrast, selected = (e.State & DrawItemState.Selected) != 0;
         var text = hc ? (selected ? SystemColors.HighlightText : SystemColors.WindowText) : HankiTheme.Text;
         var muted = hc ? text : HankiTheme.Muted;

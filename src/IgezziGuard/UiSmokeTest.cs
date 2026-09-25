@@ -64,7 +64,7 @@ internal static class UiSmokeTest
                         if (original is not null) tabs.SelectedTab = original;
                     } else foreach (Control child in root.Controls) Visit(child, prefix);
                 }
-                foreach (var size in new[] { new Size(1320, 880), new Size(1120, 740) }) { form.Size = size; Visit(form, size.Width + "px/"); }
+                foreach (var size in new[] { new Size(1320, 880), new Size(1120, 740) }) { form.Size = new Size(Dpi.Px(size.Width), Dpi.Px(size.Height)); Visit(form, size.Width + "px/"); }
                 if (visited.Count < 50) throw new IOException("Fewer workspace views than expected were visited.");
                 // Guided checks open tools by route name; a renamed tab must not silently break a step.
                 var missing = TroubleshootingPanel.Guides.SelectMany(g => g.Steps).Select(s => s.Route).OfType<string>()
@@ -84,14 +84,14 @@ internal static class UiSmokeTest
                 if (screenshotFolder is not null) {
                     try {
                         Directory.CreateDirectory(screenshotFolder);
-                        form.Size = new Size(1320, 880);
+                        form.Size = new Size(Dpi.Px(1320), Dpi.Px(880));
                         foreach (var (file, route) in Screens) {
                             if (form.Routes.FirstOrDefault(r => r.Name == route) is not { } open) { screenshotError = "No route " + route; continue; }
                             Note("screenshot " + route);
                             open.Open(); form.PerformLayout(); Application.DoEvents();
                             if (file == "tune-plan") { Find<TunePanel>(form)?.Preview(ExamplePlan()); form.PerformLayout(); Application.DoEvents(); }
                             if (file == "home-search") { Find<HomeSearchBox>(form)?.Query("slow"); form.PerformLayout(); Application.DoEvents(); }
-                            if (file == "home-glance" && Find<HomePanel>(form) is { } home) { Find<HomeSearchBox>(form)?.Query(""); home.AutoScrollPosition = new Point(0, 460); Application.DoEvents(); }
+                            if (file == "home-glance" && Find<HomePanel>(form) is { } home) { Find<HomeSearchBox>(form)?.Query(""); home.AutoScrollPosition = new Point(0, Dpi.Px(460)); Application.DoEvents(); }
                             using var bitmap = new Bitmap(form.Width, form.Height);
                             form.DrawToBitmap(bitmap, new Rectangle(Point.Empty, form.Size));
                             var path = Path.Combine(screenshotFolder, file + ".png");
@@ -105,7 +105,7 @@ internal static class UiSmokeTest
             finally {
                 Note(error is null ? "finished" : "failed: " + error);
                 try { File.WriteAllText(Path.GetFullPath(reportPath), JsonSerializer.Serialize(new {
-                    Version = AppInfo.Version, Passed = error is null, At = DateTimeOffset.Now, Dpi = form.DeviceDpi,
+                    Version = AppInfo.Version, Passed = error is null, At = DateTimeOffset.Now, Dpi = form.DeviceDpi, Scale = Dpi.Factor, form.Size,
                     Visited = visited, Error = error, Screenshots = screenshots, ScreenshotError = screenshotError,
                     Limitation = "Structural navigation only. Does not validate pixels, screen readers, native actions, Defender, networking or repairs."
                 }, new JsonSerializerOptions { WriteIndented = true })); }

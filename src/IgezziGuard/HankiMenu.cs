@@ -5,7 +5,7 @@ internal static class HankiMenu
 {
     internal static ContextMenuStrip Create(bool checks = false)
     {
-        var menu = new ContextMenuStrip { ShowImageMargin = false, ShowCheckMargin = checks, Font = new Font("Segoe UI", 10.5f), Padding = new Padding(4) };
+        var menu = new ContextMenuStrip { ShowImageMargin = false, ShowCheckMargin = checks, Font = Dpi.PaintFont("Segoe UI", 10.5f), Padding = new Padding(Dpi.Px(4)) };
         if (!SystemInformation.HighContrast) { menu.Renderer = new Renderer(); menu.BackColor = HankiTheme.Surface; menu.ForeColor = HankiTheme.Text; }
         return menu;
     }
@@ -16,7 +16,7 @@ internal static class HankiMenu
         return item;
     }
     /// <summary>Opens the menu under a button, aligned to its left edge.</summary>
-    internal static void ShowBelow(Control anchor, ContextMenuStrip menu) => menu.Show(anchor, new Point(0, anchor.Height + (int)(4 * anchor.DeviceDpi / 96f)));
+    internal static void ShowBelow(Control anchor, ContextMenuStrip menu) => menu.Show(anchor, new Point(0, anchor.Height + Dpi.Px(4)));
 
     private sealed class Renderer() : ToolStripProfessionalRenderer(new Palette())
     {
@@ -29,7 +29,7 @@ internal static class HankiMenu
         protected override void OnRenderItemCheck(ToolStripItemImageRenderEventArgs e)
         {
             var g = e.Graphics; g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
-            var r = e.ImageRectangle; float s = e.Item.Owner?.DeviceDpi / 96f ?? 1;
+            var r = e.ImageRectangle; float s = Dpi.Factor;
             using var pen = new Pen(HankiTheme.Accent, 2 * s) { StartCap = System.Drawing.Drawing2D.LineCap.Round, EndCap = System.Drawing.Drawing2D.LineCap.Round };
             g.DrawLines(pen, [new PointF(r.Left + r.Width * 0.2f, r.Top + r.Height * 0.55f), new PointF(r.Left + r.Width * 0.42f, r.Top + r.Height * 0.75f), new PointF(r.Left + r.Width * 0.8f, r.Top + r.Height * 0.3f)]);
         }

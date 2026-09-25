@@ -48,7 +48,13 @@ internal static class HankiTheme
         return false;
     }
 
+    /// <summary>Scales what's new to the display (see <see cref="Dpi"/>), then applies the theme.</summary>
     public static void Apply(Control root)
+    {
+        Dpi.Scale(root);
+        Theme(root);
+    }
+    private static void Theme(Control root)
     {
         bool highContrast = SystemInformation.HighContrast;
         // Native TabControl can report a light system BackColor despite our setter.
@@ -95,7 +101,7 @@ internal static class HankiTheme
                 if (!highContrast) {
                     // Drop-down lists: owner-drawn dark items at the height of the buttons beside them.
                     if (root is ComboBox { DropDownStyle: ComboBoxStyle.DropDownList, DrawMode: DrawMode.Normal } combo) {
-                        combo.DrawMode = DrawMode.OwnerDrawFixed; combo.ItemHeight = (int)(28 * combo.DeviceDpi / 96f); combo.DrawItem += NativeTheme.DrawComboItem;
+                        combo.DrawMode = DrawMode.OwnerDrawFixed; combo.ItemHeight = Dpi.Px(28); combo.DrawItem += NativeTheme.DrawComboItem;
                     }
                     // Lists sit on their own surface; the white native edge goes.
                     if (root is ListView { BorderStyle: not BorderStyle.None } list) list.BorderStyle = BorderStyle.None;
@@ -118,6 +124,6 @@ internal static class HankiTheme
                 break;
         }
         NativeTheme.Apply(root);
-        foreach (Control child in root.Controls) Apply(child);
+        foreach (Control child in root.Controls) Theme(child);
     }
 }

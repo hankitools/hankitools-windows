@@ -15,11 +15,15 @@ public sealed class HankiButton : Button
     private HankiButtonStyle appearance;
     public bool Primary { get => primary; set { primary = value; UpdateSize(); Invalidate(); } }
     public HankiButtonStyle Appearance { get => appearance; set { appearance = value; UpdateSize(); Invalidate(); } }
+    // The display scale this button has been scaled by (see Dpi): sizes set later follow it instead of 100%.
+    private float layoutScale = 1f;
+    protected override void ScaleControl(SizeF factor, BoundsSpecified specified) { base.ScaleControl(factor, specified); layoutScale *= factor.Height; }
+    private int S(int logical) => (int)Math.Round(logical * layoutScale);
     private void UpdateSize() {
-        if (Appearance == HankiButtonStyle.Icon) { int side = (int)(36 * DeviceDpi / 96f); MinimumSize = new Size(side, side); Padding = System.Windows.Forms.Padding.Empty; return; }
+        if (Appearance == HankiButtonStyle.Icon) { MinimumSize = new Size(S(36), S(36)); Padding = System.Windows.Forms.Padding.Empty; return; }
         int height = Appearance is HankiButtonStyle.Quiet or HankiButtonStyle.Navigation or HankiButtonStyle.Tab ? 34 : 38;
-        MinimumSize = new Size(0, (int)(height * DeviceDpi / 96f));
-        Padding = Primary ? new Padding(18, 6, 18, 6) : Appearance == HankiButtonStyle.Quiet ? new Padding(8, 3, 8, 3) : new Padding(14, 5, 14, 5);
+        MinimumSize = new Size(0, S(height));
+        Padding = Primary ? new Padding(S(18), S(6), S(18), S(6)) : Appearance == HankiButtonStyle.Quiet ? new Padding(S(8), S(3), S(8), S(3)) : new Padding(S(14), S(5), S(14), S(5));
     }
     private bool selected, hover, pressed, wanted = true, folded;
     public bool Selected { get => selected; set { selected = value; AccessibleDescription = value ? "Current view" : ""; Invalidate(); } }
@@ -39,7 +43,6 @@ public sealed class HankiButton : Button
         UseMnemonic = false;
         SetStyle(ControlStyles.UserPaint | ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer, true);
     }
-    protected override void OnDpiChangedAfterParent(EventArgs e) { base.OnDpiChangedAfterParent(e); UpdateSize(); }
     protected override void OnMouseEnter(EventArgs e) { hover = true; Invalidate(); base.OnMouseEnter(e); }
     protected override void OnMouseLeave(EventArgs e) { hover = pressed = false; Invalidate(); base.OnMouseLeave(e); }
     protected override void OnMouseDown(MouseEventArgs e) { pressed = true; Invalidate(); base.OnMouseDown(e); }
@@ -53,7 +56,7 @@ public sealed class HankiButton : Button
     {
         if (Appearance == HankiButtonStyle.Icon) return MinimumSize;
         var size = base.GetPreferredSize(proposedSize);
-        float scale = DeviceDpi / 96f;
+        float scale = Dpi.Factor;
         if (IconKind is not null) size.Width += (int)(26 * scale);
         if (Hint is not null) size.Width += TextRenderer.MeasureText(Hint, Font).Width + (int)(12 * scale);
         return size;
@@ -61,7 +64,7 @@ public sealed class HankiButton : Button
     protected override void OnPaint(PaintEventArgs e)
     {
         if (SystemInformation.HighContrast) { base.OnPaint(e); return; }
-        float scale = DeviceDpi / 96f;
+        float scale = Dpi.Factor;
         var g = e.Graphics;
         var surface = Parent?.BackColor ?? HankiTheme.Canvas;
         g.Clear(surface); g.SmoothingMode = SmoothingMode.AntiAlias;
@@ -134,7 +137,7 @@ internal class RoundedPanel : Panel
     protected override void OnPaintBackground(PaintEventArgs e)
     {
         if (SystemInformation.HighContrast) { base.OnPaintBackground(e); ControlPaint.DrawBorder(e.Graphics, ClientRectangle, SystemColors.ControlText, ButtonBorderStyle.Solid); return; }
-        float scale = DeviceDpi / 96f;
+        float scale = Dpi.Factor;
         e.Graphics.Clear(Parent?.BackColor ?? HankiTheme.Canvas); e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
         using var path = HankiButton.Rounded(new RectangleF(0.5f, 0.5f, Width - 1.5f, Height - 1.5f), HankiTheme.CardRadius * scale);
         using var fill = new SolidBrush(HankiTheme.Surface); e.Graphics.FillPath(fill, path);
@@ -278,11 +281,9 @@ internal sealed class BrandHeader : Control
         SetStyle(ControlStyles.UserPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.AllPaintingInWmPaint, true);
         meaning.SetToolTip(this, AppInfo.TaglineMeaning);
     }
-    // Painting is DPI-scaled; keep the tagline row inside the control at higher scaling.
-    protected override void OnHandleCreated(EventArgs e) { base.OnHandleCreated(e); Height = (int)Math.Ceiling(82 * DeviceDpi / 96f); }
     protected override void OnPaint(PaintEventArgs e) {
         base.OnPaint(e); var g = e.Graphics; g.SmoothingMode = SmoothingMode.AntiAlias; g.InterpolationMode = InterpolationMode.HighQualityBicubic;
-        float s = DeviceDpi / 96f;
+        float s = Dpi.Factor;
         // App-icon tile: the mark's dark backdrop is clipped to a rounded square.
         var state = g.Save(); g.ScaleTransform(s, s);
         using (var tile = HankiButton.Rounded(new RectangleF(10, 14, 36, 36), 9)) {
@@ -308,7 +309,7 @@ internal sealed class HankiCard : Control
 {
     private readonly string kind, title, description;
     private readonly Color accent;
-    private readonly Font titleFont = new("Segoe UI Semibold", 13f), bodyFont = new("Segoe UI", 10.5f);
+    private readonly Font titleFont = Dpi.PaintFont("Segoe UI Semibold", 13f), bodyFont = Dpi.PaintFont("Segoe UI", 10.5f);
     private bool hover;
     public HankiCard(string kind, string title, string description, Action open, Color? accent = null)
     {
@@ -327,7 +328,7 @@ internal sealed class HankiCard : Control
     protected override void OnLostFocus(EventArgs e) { Invalidate(); base.OnLostFocus(e); }
     protected override void OnPaint(PaintEventArgs e)
     {
-        var g = e.Graphics; float s = DeviceDpi / 96f;
+        var g = e.Graphics; float s = Dpi.Factor;
         bool hc = SystemInformation.HighContrast;
         g.Clear(Parent?.BackColor ?? HankiTheme.Canvas); g.SmoothingMode = SmoothingMode.AntiAlias;
         var text = hc ? SystemColors.ControlText : HankiTheme.Text; var muted = hc ? SystemColors.ControlText : HankiTheme.Muted;
@@ -356,7 +357,7 @@ internal sealed class LastScanView : Control
 {
     private DiagnosticScan? scan;
     private string? problem;
-    private readonly Font eyebrow = new("Segoe UI", 8.25f, FontStyle.Bold), large = new("Segoe UI Semibold", 13f), body = new("Segoe UI", 9.75f);
+    private readonly Font eyebrow = Dpi.PaintFont("Segoe UI", 8.25f, FontStyle.Bold), large = Dpi.PaintFont("Segoe UI Semibold", 13f), body = Dpi.PaintFont("Segoe UI", 9.75f);
     public LastScanView() { SetStyle(ControlStyles.UserPaint | ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.ResizeRedraw, true); AccessibleRole = AccessibleRole.StaticText; }
     protected override void Dispose(bool disposing) { if (disposing) { eyebrow.Dispose(); large.Dispose(); body.Dispose(); } base.Dispose(disposing); }
     public void Show(DiagnosticScan? latest, string? error = null)
@@ -368,7 +369,7 @@ internal sealed class LastScanView : Control
     }
     protected override void OnPaint(PaintEventArgs e)
     {
-        var g = e.Graphics; float s = DeviceDpi / 96f;
+        var g = e.Graphics; float s = Dpi.Factor;
         g.Clear(Parent?.BackColor ?? HankiTheme.Surface);
         bool hc = SystemInformation.HighContrast;
         var text = hc ? SystemColors.ControlText : HankiTheme.Text; var muted = hc ? SystemColors.ControlText : HankiTheme.Muted;
@@ -452,7 +453,7 @@ internal sealed class ChoiceTile : Control
     public ChoiceTile(string title, string description, Color? accent = null, bool compact = false)
     {
         this.title = title; this.description = description; this.accent = accent ?? HankiTheme.Accent;
-        titleFont = new Font("Segoe UI Semibold", compact ? 11f : 13f); bodyFont = new Font("Segoe UI", 10f);
+        titleFont = Dpi.PaintFont("Segoe UI Semibold", compact ? 11f : 13f); bodyFont = Dpi.PaintFont("Segoe UI", 10f);
         Text = title; AccessibleName = title; AccessibleDescription = description; AccessibleRole = AccessibleRole.RadioButton;
         TabStop = true; Cursor = Cursors.Hand; Height = compact ? 48 : 112; Width = compact ? 150 : 236;
         SetStyle(ControlStyles.UserPaint | ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.ResizeRedraw | ControlStyles.Selectable, true);
@@ -462,7 +463,7 @@ internal sealed class ChoiceTile : Control
     /// <summary>The height a large tile of this width needs to show its whole description.</summary>
     internal int HeightFor(int width)
     {
-        float s = DeviceDpi / 96f; int pad = (int)(14 * s);
+        float s = Dpi.Factor; int pad = (int)(14 * s);
         var body = TextRenderer.MeasureText(description, bodyFont, new Size(Math.Max(1, width - pad * 2), int.MaxValue), TextFormatFlags.WordBreak | TextFormatFlags.NoPrefix);
         return Math.Max((int)(100 * s), body.Height + pad * 2 + (int)(34 * s));
     }
@@ -479,7 +480,7 @@ internal sealed class ChoiceTile : Control
     protected override void OnLostFocus(EventArgs e) { Invalidate(); base.OnLostFocus(e); }
     protected override void OnPaint(PaintEventArgs e)
     {
-        var g = e.Graphics; float s = DeviceDpi / 96f;
+        var g = e.Graphics; float s = Dpi.Factor;
         bool hc = SystemInformation.HighContrast;
         g.Clear(Parent?.BackColor ?? HankiTheme.Canvas); g.SmoothingMode = SmoothingMode.AntiAlias;
         var text = hc ? SystemColors.ControlText : HankiTheme.Text; var muted = hc ? SystemColors.ControlText : HankiTheme.Muted;

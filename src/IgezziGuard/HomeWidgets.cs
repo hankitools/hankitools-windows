@@ -74,7 +74,7 @@ internal sealed class SearchResultRow : Control
 {
     internal SearchEntry Entry { get; }
     internal event Action? Opened;
-    private readonly Font titleFont = new("Segoe UI Semibold", 11f), detailFont = new("Segoe UI", 9.5f);
+    private readonly Font titleFont = Dpi.PaintFont("Segoe UI Semibold", 11f), detailFont = Dpi.PaintFont("Segoe UI", 9.5f);
     private bool hover;
     public SearchResultRow(SearchEntry entry)
     {
@@ -84,7 +84,6 @@ internal sealed class SearchResultRow : Control
         Click += (_, _) => Opened?.Invoke();
         KeyDown += (_, e) => { if (e.KeyCode is Keys.Enter or Keys.Space) { Opened?.Invoke(); e.Handled = true; } };
     }
-    protected override void OnHandleCreated(EventArgs e) { base.OnHandleCreated(e); Height = (int)(58 * DeviceDpi / 96f); }
     protected override bool IsInputKey(Keys keyData) => keyData is Keys.Up or Keys.Down || base.IsInputKey(keyData);
     protected override void Dispose(bool disposing) { if (disposing) { titleFont.Dispose(); detailFont.Dispose(); } base.Dispose(disposing); }
     protected override void OnMouseEnter(EventArgs e) { hover = true; Invalidate(); base.OnMouseEnter(e); }
@@ -93,7 +92,7 @@ internal sealed class SearchResultRow : Control
     protected override void OnLostFocus(EventArgs e) { Invalidate(); base.OnLostFocus(e); }
     protected override void OnPaint(PaintEventArgs e)
     {
-        var g = e.Graphics; float s = DeviceDpi / 96f; bool hc = SystemInformation.HighContrast;
+        var g = e.Graphics; float s = Dpi.Factor; bool hc = SystemInformation.HighContrast;
         using (var back = new SolidBrush(Parent?.BackColor ?? HankiTheme.Canvas)) g.FillRectangle(back, ClientRectangle);
         g.SmoothingMode = SmoothingMode.AntiAlias;
         bool active = hover || Focused;
@@ -121,7 +120,7 @@ internal sealed class SearchResultRow : Control
 internal sealed class GlanceTile : Control
 {
     private GlanceTileModel model;
-    private readonly Font labelFont = new("Segoe UI", 9.5f), valueFont = new("Segoe UI Semibold", 13f), detailFont = new("Segoe UI", 9.25f);
+    private readonly Font labelFont = Dpi.PaintFont("Segoe UI", 9.5f), valueFont = Dpi.PaintFont("Segoe UI Semibold", 13f), detailFont = Dpi.PaintFont("Segoe UI", 9.25f);
     private bool hover;
     internal event Action<string>? Opened;
     public GlanceTile(GlanceTileModel model)
@@ -145,7 +144,7 @@ internal sealed class GlanceTile : Control
     protected override void OnLostFocus(EventArgs e) { Invalidate(); base.OnLostFocus(e); }
     protected override void OnPaint(PaintEventArgs e)
     {
-        var g = e.Graphics; float s = DeviceDpi / 96f; bool hc = SystemInformation.HighContrast;
+        var g = e.Graphics; float s = Dpi.Factor; bool hc = SystemInformation.HighContrast;
         using (var back = new SolidBrush(Parent?.BackColor ?? HankiTheme.Canvas)) g.FillRectangle(back, ClientRectangle);
         g.SmoothingMode = SmoothingMode.AntiAlias;
         var text = hc ? SystemColors.ControlText : HankiTheme.Text; var muted = hc ? SystemColors.ControlText : HankiTheme.Muted;

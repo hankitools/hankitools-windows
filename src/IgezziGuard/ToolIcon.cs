@@ -8,7 +8,7 @@ internal sealed class ToolIcon : Control
     protected override void OnPaint(PaintEventArgs e)
     {
         base.OnPaint(e);
-        Draw(e.Graphics, new RectangleF(0, 0, 28 * DeviceDpi / 96f, 28 * DeviceDpi / 96f), Kind,
+        Draw(e.Graphics, new RectangleF(0, 0, 28 * Dpi.Factor, 28 * Dpi.Factor), Kind,
             SystemInformation.HighContrast ? SystemColors.ControlText : HankiTheme.Accent);
     }
     internal static void Draw(Graphics graphics, RectangleF bounds, string kind, Color color)

@@ -63,7 +63,7 @@ internal sealed class TunePanel : UserControl
     private void FitTiles(int width)
     {
         var tiles = scenarios.Controls.OfType<ChoiceTile>().ToArray();
-        int gap = tiles[0].Margin.Right, least = LogicalToDeviceUnits(230);
+        int gap = tiles[0].Margin.Right, least = Dpi.Px(230);
         int columns = width >= 4 * (least + gap) ? 4 : width >= 2 * (least + gap) ? 2 : 1;
         int tileWidth = width / columns - gap, height = tiles.Max(t => t.HeightFor(tileWidth));
         foreach (var tile in tiles) tile.Size = new Size(tileWidth, height);

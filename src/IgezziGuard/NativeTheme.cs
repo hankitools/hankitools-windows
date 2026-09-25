@@ -45,7 +45,7 @@ internal static class NativeTheme
                 case TextBoxBase { Multiline: true } multiline:
                     SetWindowTheme(control.Handle, dark ? "DarkMode_Explorer" : null, null);
                     if (Padded.TryGetValue(multiline, out _)) {
-                        int margin = (int)(10 * multiline.DeviceDpi / 96f);
+                        int margin = Dpi.Px(10);
                         SendMessage(multiline.Handle, EM_SETMARGINS, (IntPtr)(EC_LEFTMARGIN | EC_RIGHTMARGIN), (IntPtr)(margin | margin << 16));
                     }
                     break;
@@ -103,7 +103,7 @@ internal static class NativeTheme
         var fore = hc ? (selected ? SystemColors.HighlightText : SystemColors.WindowText) : HankiTheme.Text;
         using (var brush = new SolidBrush(back)) e.Graphics.FillRectangle(brush, e.Bounds);
         if (e.Index < 0 || e.Index >= box.Items.Count) return;
-        int pad = (int)(8 * box.DeviceDpi / 96f);
+        int pad = Dpi.Px(8);
         TextRenderer.DrawText(e.Graphics, box.GetItemText(box.Items[e.Index]), box.Font, new Rectangle(e.Bounds.X + pad, e.Bounds.Y, e.Bounds.Width - pad * 2, e.Bounds.Height), fore,
             TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis | TextFormatFlags.NoPrefix | TextFormatFlags.SingleLine);
     }
@@ -126,7 +126,7 @@ internal static class NativeTheme
         }
         private void Paint(Graphics g)
         {
-            float s = box.DeviceDpi / 96f;
+            float s = Dpi.Factor;
             // Only this control's rectangle: a printing device context covers the whole window being printed.
             g.SetClip(new Rectangle(0, 0, box.Width, box.Height));
             using (var back = new SolidBrush(box.Parent?.BackColor ?? HankiTheme.Canvas)) g.FillRectangle(back, 0, 0, box.Width, box.Height);

@@ -50,12 +50,12 @@ internal sealed class SummaryView : UserControl
     };
     private void Fit()
     {
-        int width = Math.Max(180, cards.ClientSize.Width - SystemInformation.VerticalScrollBarWidth - 6);
+        int width = Math.Max(Dpi.Px(180), cards.ClientSize.Width - SystemInformation.VerticalScrollBarWidth - Dpi.Px(6));
         foreach (Control card in cards.Controls) {
             card.MinimumSize = new Size(width, 0); card.MaximumSize = new Size(width, 0);
             var content = card.Controls[0];
             foreach (var label in content.Controls.OfType<Label>().Where(l => l.Tag as string is not { } tag || !tag.StartsWith("status-", StringComparison.Ordinal)))
-                label.MaximumSize = new Size(Math.Max(100, width - card.Padding.Horizontal - (label.Font.Bold || label.Font.Name.Contains("Semibold") ? 130 : 8)), 0);
+                label.MaximumSize = new Size(Math.Max(Dpi.Px(100), width - card.Padding.Horizontal - Dpi.Px(label.Font.Bold || label.Font.Name.Contains("Semibold") ? 130 : 8)), 0);
         }
     }
 }
@@ -68,7 +68,7 @@ internal sealed class StatusCardPanel : Panel
     protected override void OnPaintBackground(PaintEventArgs e)
     {
         if (SystemInformation.HighContrast) { base.OnPaintBackground(e); ControlPaint.DrawBorder(e.Graphics, ClientRectangle, SystemColors.ControlText, ButtonBorderStyle.Solid); return; }
-        float s = DeviceDpi / 96f; var g = e.Graphics;
+        float s = Dpi.Factor; var g = e.Graphics;
         g.Clear(Parent?.BackColor ?? HankiTheme.Canvas); g.SmoothingMode = SmoothingMode.AntiAlias;
         using var path = HankiButton.Rounded(new RectangleF(0.5f, 0.5f, Width - 1.5f, Height - 1.5f), HankiTheme.CardRadius * s);
         using (var fill = new SolidBrush(HankiTheme.Surface)) g.FillPath(fill, path);
@@ -84,17 +84,19 @@ internal sealed class StatusCardPanel : Panel
 internal sealed class StatusBanner : Control
 {
     private CardStatus status;
-    private readonly Font font = new("Segoe UI Semibold", 12f);
+    private readonly Font font = Dpi.PaintFont("Segoe UI Semibold", 12f);
+    private float layoutScale = 1f;
+    protected override void ScaleControl(SizeF factor, BoundsSpecified specified) { base.ScaleControl(factor, specified); layoutScale *= factor.Height; }
     public StatusBanner() { Height = 58; AccessibleRole = AccessibleRole.StaticText; SetStyle(ControlStyles.UserPaint | ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.ResizeRedraw, true); }
     protected override void Dispose(bool disposing) { if (disposing) font.Dispose(); base.Dispose(disposing); }
     public void Set(CardStatus value, string headline)
     {
         status = value; Text = headline; AccessibleName = (SummaryView.StatusText(value) is { Length: > 0 } label ? label + ": " : "") + headline;
-        Height = (int)(58 * DeviceDpi / 96f); Invalidate();
+        Height = (int)Math.Round(58 * layoutScale); Invalidate();
     }
     protected override void OnPaint(PaintEventArgs e)
     {
-        float s = DeviceDpi / 96f; var g = e.Graphics; bool hc = SystemInformation.HighContrast;
+        float s = Dpi.Factor; var g = e.Graphics; bool hc = SystemInformation.HighContrast;
         g.Clear(Parent?.BackColor ?? HankiTheme.Canvas); g.SmoothingMode = SmoothingMode.AntiAlias;
         var color = hc ? SystemColors.ControlText : HankiTheme.StatusColor(status);
         using (var path = HankiButton.Rounded(new RectangleF(0.5f, 0.5f, Width - 1.5f, Height - 1.5f), HankiTheme.CardRadius * s)) {

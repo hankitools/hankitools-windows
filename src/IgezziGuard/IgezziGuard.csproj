@@ -19,6 +19,8 @@
     <NoWarn>$(NoWarn);WFO1000</NoWarn>
     <ApplicationIcon>Brand/hanki.ico</ApplicationIcon>
     <ApplicationManifest>app.manifest</ApplicationManifest>
+    <!-- Sizes are written for 100% and scaled once by Dpi.cs to the display scale Windows had when Hanki started. -->
+    <ApplicationHighDpiMode>SystemAware</ApplicationHighDpiMode>
     <InvariantGlobalization>false</InvariantGlobalization>
     <PublishTrimmed>false</PublishTrimmed>
   </PropertyGroup>
