@@ -1,3 +1,14 @@
+# Hanki Tools 0.19.0-rc.2 — Tactical Vision
+
+An unsigned preview for testing, adding per-game NVIDIA color saturation controls.
+
+- **Tactical Vision.** In Gaming → Games, select a game and choose Tactical Vision. Enable it and choose Digital Vibrance from 51–100%; the default is 70%. Existing games remain off until enabled.
+- **Automatic activation and restoration.** Keep Hanki open. Colors boost while the selected game's executable is focused and return to their previous setting when you switch away, close the game, or exit Hanki. A recovery record allows Hanki to restore colors after an interrupted session when reopened with the display connected.
+- **Display scope.** The boost affects the entire display containing the game window. Requires an SDR display connected directly to NVIDIA. HDR is unsupported, and some drivers may not expose the required Digital Vibrance controls. This is a color adjustment, with no FPS improvement claimed.
+- **Manual settings respected.** An existing stronger boost is preserved, and manual changes in NVIDIA Control Panel take precedence on restoration.
+
+Testing: build, gaming regression checks, restoration and recovery tests, and UI smoke checks passed for the feature commit. Live NVIDIA color output, fullscreen behavior and driver compatibility still need real-game verification. Native Windows acceptance and code signing remain pending. See docs/TACTICAL-VISION.md for usage and recovery details.
+
 # Hanki Tools 0.19.0-rc.1 — Tune my PC looks further
 
 An unsigned preview for testing. Tune my PC checks more of your PC and turns more of what Hanki already measures into advice. It still changes nothing until you apply, and each new change is saved in Recovery first.
