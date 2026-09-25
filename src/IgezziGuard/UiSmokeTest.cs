@@ -98,6 +98,13 @@ internal static class UiSmokeTest
                             bitmap.Save(path, ImageFormat.Png);
                             screenshots.Add(path);
                         }
+                        using var vision = new TacticalVisionDialog(new GameEntry(Guid.Empty, "Example game", "example.exe", "UI fixture", GamingGoal.Balanced));
+                        vision.Show(form); vision.PerformLayout(); Application.DoEvents();
+                        using var visionBitmap = new Bitmap(vision.Width, vision.Height);
+                        vision.DrawToBitmap(visionBitmap, new Rectangle(Point.Empty, vision.Size));
+                        var visionPath = Path.Combine(screenshotFolder, "tactical-vision.png");
+                        visionBitmap.Save(visionPath, ImageFormat.Png); screenshots.Add(visionPath);
+                        vision.Close();
                     } catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or System.Runtime.InteropServices.ExternalException) { screenshotError = ex.Message; }
                 }
             }

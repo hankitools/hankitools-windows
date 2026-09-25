@@ -106,27 +106,42 @@ public sealed class GamingOverviewPanel : ToolPage
 /// <summary>Gaming → Games: the local game list, per-game settings, conflicts and Optimize This Game (HANKI-GAME-205/208/210, HANKI-GPU-107).</summary>
 public sealed class GamesPanel : ToolPage
 {
+    private readonly Label visionStatus = new() { Dock = DockStyle.Top, AutoSize = true, MaximumSize = new Size(720, 0), Padding = new Padding(0, 0, 0, 12), Tag = "intro", AccessibleName = "Tactical Vision status" };
     private readonly ComboBox games = new() { Width = 300, DropDownStyle = ComboBoxStyle.DropDownList, AccessibleName = "Game", Margin = new Padding(0, 6, 8, 0) };
     private readonly ComboBox goal = new() { Width = 160, DropDownStyle = ComboBoxStyle.DropDownList, AccessibleName = "Goal for this game", Margin = new Padding(0, 6, 8, 0) };
     private readonly GamingState state;
     private IReadOnlyList<GameEntry> list = [];
-    internal GamesPanel(GamingState state) : base("Games Hanki found in Steam, Epic, GOG and other launchers' records on this PC, plus any you add. Nothing is looked up online. Settings are changed for one game at a time, in its own driver profile, and only after you review them.")
+    internal GamesPanel(GamingState state) : base("Games Hanki found in Steam, Epic, GOG and other launchers' records on this PC, plus any you add. Nothing is looked up online. Review optimization changes per game, or enable Tactical Vision to boost your NVIDIA display's color saturation while a selected game is focused.")
     {
         this.state = state;
         Bar.Controls.Add(games);
         goal.Items.AddRange(Enum.GetValues<GamingGoal>().Select(g => (object)GamingProfiles.Name(g)).ToArray()); goal.SelectedIndex = 0;
         Bar.Controls.Add(goal);
         Button("Optimize this game", Optimize);
+        Button("Tactical Vision…", ConfigureTacticalVision);
         Button("Launch and measure", LaunchAndMeasure);
         Button("Find installed games", Find);
         Button("Add a game…", Add);
         Button("Remove from list", Remove);
         Button("Remove Hanki's NVIDIA profile", RemoveProfile);
+        Controls.Add(visionStatus);
+        Controls.SetChildIndex(visionStatus, 1);
+        void UpdateVisionStatus() => visionStatus.Text = TacticalVisionController.Status;
+        TacticalVisionController.StatusChanged += UpdateVisionStatus;
+        Disposed += (_, _) => TacticalVisionController.StatusChanged -= UpdateVisionStatus;
+        UpdateVisionStatus();
         games.SelectedIndexChanged += (_, _) => { if (!IsBusy) ShowGame(); };
         goal.SelectedIndexChanged += (_, _) => SaveGoal();
         VisibleChanged += (_, _) => { if (Visible && list.Count == 0) LoadList(); };
     }
     private GameEntry? Selected => games.SelectedIndex >= 0 && games.SelectedIndex < VisibleGames().Count ? VisibleGames()[games.SelectedIndex] : null;
+    private void ConfigureTacticalVision()
+    {
+        if (Selected is not { } game) { Output.Text = "Choose a game first, or add one."; return; }
+        using var dialog = new TacticalVisionDialog(game);
+        if (dialog.ShowDialog(this) != DialogResult.OK) return;
+        Save(list.Select(g => g.Id == game.Id ? g with { TacticalVision = dialog.SelectedStrength } : g).ToArray(), game.Id);
+    }
     private IReadOnlyList<GameEntry> VisibleGames() => list.Where(g => !g.Hidden).ToArray();
 
     private void LoadList(Guid? select = null)
@@ -212,6 +227,7 @@ public sealed class GamesPanel : ToolPage
             var context = Context(game);
             var text = new StringBuilder($"{game.Name}\r\n{game.Executable}{(File.Exists(game.Executable) ? "" : "\r\nThis file isn't there any more; the game may have been moved or uninstalled.")}\r\nFound in: {game.Source}\r\n\r\n");
             text.AppendLine($"Windows GPU choice: {(context.WindowsPreference is { } p ? WindowsGamingParsing.PreferenceText(p) : "Let Windows decide")}");
+            text.AppendLine(game.TacticalVision > 0 ? $"Tactical Vision: {game.TacticalVision}% Digital Vibrance while focused (keep Hanki open)." : "Tactical Vision: off. Choose Tactical Vision to boost color saturation for this game.");
             if (context.NvidiaGlobal is not null) {
                 text.AppendLine(context.Nvidia is null ? "NVIDIA profile: none, so your global NVIDIA settings apply." : $"NVIDIA profile: {context.Nvidia.ProfileName}{(context.Nvidia.Predefined ? " (made by NVIDIA)" : "")}");
                 foreach (var v in context.Nvidia?.Values ?? context.NvidiaGlobal.Values)

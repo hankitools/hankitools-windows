@@ -28,6 +28,7 @@ internal static class Program
         using var licenceHttp = new HttpClient { Timeout = TimeSpan.FromSeconds(20) };
         licenceHttp.DefaultRequestHeaders.UserAgent.TryParseAdd("HankiTools/" + AppInfo.Version);
         AppLicensing.Start(new PolarLicenseProvider(new WindowsLicenseStore(), LicenseStoreConfig.Current(), licenceHttp, () => DateTimeOffset.UtcNow));
+        using var tacticalVision = new TacticalVisionController();
         Application.Run(new HankiForm());
     }
 

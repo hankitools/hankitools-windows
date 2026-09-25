@@ -6,6 +6,8 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="../src/IgezziGuard/Performance/TacticalVision.cs" Link="Performance/TacticalVision.cs" />
+    <Compile Include="../src/IgezziGuard/Performance/NvidiaVibrance.cs" Link="Performance/NvidiaVibrance.cs" />
     <Compile Include="../src/IgezziGuard/Scheduling/ScheduledHealthChecks.cs" Link="Scheduling/ScheduledHealthChecks.cs" />
     <Compile Include="../src/IgezziGuard/Diagnostics/Modules/ActivationDiagnostic.cs" Link="Diagnostics/Modules/ActivationDiagnostic.cs" />
     <Compile Include="../src/IgezziGuard/Sharing/ReviewedContext.cs" Link="Sharing/ReviewedContext.cs" />

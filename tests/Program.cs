@@ -1,4 +1,9 @@
 using IgezziGuard;
+if (args is ["--gaming-checks"]) {
+    GamingChecks.Run();
+    Console.WriteLine("All gaming checks passed.");
+    return;
+}
 
 if (args.Length == 1 && args[0] == "--json-notes-fixture") {
     Console.WriteLine("""{"Status":{"AntivirusEnabled":true}}""");
