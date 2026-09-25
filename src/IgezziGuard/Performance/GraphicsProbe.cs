@@ -106,11 +106,14 @@ internal static class GraphicsProbe
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
     private struct SourceName { public InfoHeader Header; [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 32)] public string GdiName; }
     [StructLayout(LayoutKind.Sequential)] private struct AdvancedColor { public InfoHeader Header; public uint Value, Encoding, BitsPerChannel; }
+    // DISPLAYCONFIG_GET_ADVANCED_COLOR_INFO_2 (Windows 11 24H2): bit 6 wideColorSupported, bit 7 wideColorUserEnabled (ACM).
+    [StructLayout(LayoutKind.Sequential)] private struct AdvancedColor2 { public InfoHeader Header; public uint Value, Encoding, BitsPerChannel, ActiveColorMode; }
     [DllImport("user32.dll")] private static extern int GetDisplayConfigBufferSizes(uint flags, out uint paths, out uint modes);
     [DllImport("user32.dll")] private static extern int QueryDisplayConfig(uint flags, ref uint pathCount, [Out] PathInfo[] paths, ref uint modeCount, [Out] ModeInfo[] modes, IntPtr topology);
     [DllImport("user32.dll", EntryPoint = "DisplayConfigGetDeviceInfo")] private static extern int GetTargetName(ref TargetName info);
     [DllImport("user32.dll", EntryPoint = "DisplayConfigGetDeviceInfo")] private static extern int GetSourceName(ref SourceName info);
     [DllImport("user32.dll", EntryPoint = "DisplayConfigGetDeviceInfo")] private static extern int GetAdvancedColor(ref AdvancedColor info);
+    [DllImport("user32.dll", EntryPoint = "DisplayConfigGetDeviceInfo")] private static extern int GetAdvancedColor2(ref AdvancedColor2 info);
 
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
     internal struct DevMode {
@@ -142,6 +145,8 @@ internal static class GraphicsProbe
                 string name = GetTargetName(ref target) == 0 && !string.IsNullOrWhiteSpace(target.FriendlyName) ? target.FriendlyName : "Display";
                 var color = new AdvancedColor { Header = new() { Type = 9, Size = (uint)Marshal.SizeOf<AdvancedColor>(), Adapter = path.Target.Adapter, Id = path.Target.Id } };
                 bool colorKnown = GetAdvancedColor(ref color) == 0;
+                var color2 = new AdvancedColor2 { Header = new() { Type = 15, Size = (uint)Marshal.SizeOf<AdvancedColor2>(), Adapter = path.Target.Adapter, Id = path.Target.Id } };
+                bool acmKnown = GetAdvancedColor2(ref color2) == 0; // Fails before Windows 11 24H2.
                 var current = NewDevMode();
                 if (!EnumDisplaySettingsW(source.GdiName, -1, ref current)) continue;
                 double refresh = path.Target.Refresh.Hz > 0 ? path.Target.Refresh.Hz : current.DisplayFrequency;
@@ -152,7 +157,9 @@ internal static class GraphicsProbe
                 result.Add(new DisplayInfo(name, source.GdiName, path.Source.Adapter.Value, new DisplayMode((int)current.PelsWidth, (int)current.PelsHeight, refresh),
                     supported.OrderByDescending(m => m.Width * m.Height).ThenByDescending(m => m.RefreshHz).ToArray(),
                     colorKnown ? (color.Value & 1) != 0 : null, colorKnown ? (color.Value & 2) != 0 : null,
-                    current.PositionX == 0 && current.PositionY == 0, Connection(path.Target.OutputTechnology)));
+                    current.PositionX == 0 && current.PositionY == 0, Connection(path.Target.OutputTechnology),
+                    colorKnown ? (int)color.Encoding : null, colorKnown && color.BitsPerChannel is > 0 and <= 16 ? (int)color.BitsPerChannel : null,
+                    acmKnown ? (color2.Value & (1 << 6)) != 0 : null, acmKnown ? (color2.Value & (1 << 7)) != 0 : null));
             }
             return result;
         }

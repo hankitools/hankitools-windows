@@ -62,6 +62,16 @@ internal static class SystemFactsProbe
         return (cpu, memory, storage);
     }
 
+    /// <summary>Whether any of these drivers or services is registered (its key under Services); null when Windows didn't say.</summary>
+    internal static bool? ServiceInstalled(params string[] names)
+    {
+        try {
+            using var services = Registry.LocalMachine.OpenSubKey(@"SYSTEM\CurrentControlSet\Services");
+            if (services is null) return null;
+            return names.Any(name => { using var key = services.OpenSubKey(name); return key is not null; });
+        } catch (Exception ex) when (ex is System.Security.SecurityException or UnauthorizedAccessException or IOException) { return null; }
+    }
+
     /// <summary>Whether the default GPU can create a DirectX 12 device at feature level 12_0 (a test call; no device is kept).</summary>
     private static bool? DirectX12()
     {

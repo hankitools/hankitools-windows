@@ -3,7 +3,7 @@ namespace IgezziGuard;
 
 /// <param name="Media">Physical medium as Windows reports it: "802.3" for Ethernet, "Native 802.11" for Wi-Fi.</param>
 /// <param name="Bps">Negotiated receive link speed in bits per second.</param>
-internal sealed record LinkAdapter(string Name, string Description, string Media, double Bps, bool? FullDuplex);
+public sealed record LinkAdapter(string Name, string Description, string Media, double Bps, bool? FullDuplex);
 internal sealed record NetworkLinkFacts(LinkAdapter[]? Adapters, string? Notes);
 
 /// <summary>

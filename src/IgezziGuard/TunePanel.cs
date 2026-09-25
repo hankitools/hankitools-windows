@@ -104,7 +104,7 @@ internal sealed class TunePanel : UserControl
         if (busy) return;
         if (Scenario is not { } scenario) { status.Text = "Choose how you want to tune your PC first."; return; }
         busy = true; scan.Enabled = false;
-        status.Text = "Reading display, Windows, graphics driver, processor, memory and storage settings. Nothing is changed…";
+        status.Text = "Reading display, Windows, graphics driver, processor, memory, storage and network settings. Nothing is changed…";
         try {
             var inputs = await Collect();
             plan = TunePlanner.Plan(scenario, TunePlanner.IsGaming(scenario) ? TunePlanner.Resolve(Sync, inputs.Sync) : AdaptiveSync.NotSure, inputs);
@@ -131,6 +131,13 @@ internal sealed class TunePanel : UserControl
         var all = gaming.Findings.Concat(findings).GroupBy(f => (f.ModuleId, f.FindingId)).Select(g => g.First()).ToArray();
         try { PerformanceStatus.History.Add(new DiagnosticScan(Guid.NewGuid(), now, DateTimeOffset.UtcNow, 4, 4, false, all)); } catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
         var background = gaming.Findings.Where(f => f.Metadata.GetValueOrDefault("source") == "Background");
+        // The gaming check's hardware findings: PCIe lanes, Resizable BAR, a monitor on the motherboard's output.
+        var hardware = gaming.Findings.Where(f => f.ModuleId == GamingHealth.ModuleId &&
+            (f.Metadata.GetValueOrDefault("source") == "Hardware" || f.Metadata.GetValueOrDefault("remedy") == GamingHealth.RemedyHardware));
+        // Connected network adapters, for the wired-or-Wi-Fi advice. Optional: the plan works without them.
+        IReadOnlyList<LinkAdapter>? links = null;
+        try { links = NetworkLink.Parse(await new WindowsDiagnosticProbe().ReadAsync(NetworkLink.Script, 30, CancellationToken.None)).Adapters; }
+        catch (Exception ex) when (ex is IOException or InvalidOperationException or System.Text.Json.JsonException or TimeoutException or OperationCanceledException or System.ComponentModel.Win32Exception) { }
         // G-SYNC on the main display and your games' NVIDIA profiles, for the adaptive-sync and per-game rules.
         AdaptiveSyncStatus? sync = null; IReadOnlyList<GameContext>? contexts = null;
         if (nvidia is not null) {
@@ -143,11 +150,20 @@ internal sealed class TunePanel : UserControl
                 } catch (NvidiaException) { }
             }
         }
-        return new TuneInputs(gaming.Graphics, gaming.Windows!, nvidia, findings.Concat(background).ToArray(), gaming.Amd, sync, contexts);
+        // AMD's 3D V-Cache driver and Intel's Dynamic Tuning (APO), OBS's encoders, and your games' latest measured runs.
+        bool? vcache = SystemFactsProbe.ServiceInstalled("amd3dvcache", "amd3dvcacheSvc"), intelTuning = SystemFactsProbe.ServiceInstalled("ipfsvc", "dptftcs");
+        IReadOnlyList<ObsEncoder> obs;
+        try { obs = ObsSettings.Read(ObsSettings.ProfilesFolder); } catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { obs = []; }
+        IReadOnlyList<MeasuredGame> measured = [];
+        try { measured = LaunchMeasure.Latest(PerformanceSessionsPanel.Store.Read(), games.Where(g => !g.Hidden).Select(g => g.Name)); }
+        catch (Exception ex) when (ex is IOException or System.Text.Json.JsonException) { }
+        return new TuneInputs(gaming.Graphics, gaming.Windows!, nvidia, findings.Concat(background).Concat(hardware).ToArray(), gaming.Amd, sync, contexts, links, now,
+            cpu, vcache, intelTuning, obs, measured);
     }
 
     private static string AreaName(TuneArea area) => area switch {
-        TuneArea.GraphicsDriver => "Graphics driver", TuneArea.Games => "In your games", TuneArea.Background => "Running in the background", _ => area.ToString()
+        TuneArea.GraphicsDriver => "Graphics driver", TuneArea.Games => "In your games", TuneArea.Background => "Running in the background",
+        TuneArea.Hardware => "Hardware and BIOS", TuneArea.Streaming => "Streaming and recording", _ => area.ToString()
     };
 
     private void ShowPlan(TunePlan p)

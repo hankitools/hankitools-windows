@@ -1,3 +1,19 @@
+# Hanki Tools 0.19.0-rc.1 — Tune my PC looks further
+
+An unsigned preview for testing. Tune my PC checks more of your PC and turns more of what Hanki already measures into advice. It still changes nothing until you apply, and each new change is saved in Recovery first.
+
+- **Laptops.** Gaming on a laptop whose screen runs through the integrated graphics suggests the MUX switch or Advanced Optimus (the dedicated-GPU mode in your laptop maker's app). Low power suggests hybrid mode, sets the power mode for battery as well as plugged in, and offers to start Energy saver at 50% battery.
+- **Auto HDR.** Gaming + Quality with HDR on offers to turn on Auto HDR for DirectX 11 and 12 games.
+- **Graphics driver age.** A driver six months old is an optional update step; after a year it's a required one.
+- **Network (Gaming + Performance).** A slow or half-duplex wired link is a cable step, Wi-Fi gets an optional "use a cable" step, and there's a step to pause game-launcher and Windows Update downloads while you play.
+- **Hardware.** PCIe lane, Resizable BAR and motherboard-output findings from the gaming check now appear in the plan, as does memory that ran short earlier.
+- **Processor helpers.** Ryzen 9 X3D processors with two core groups get a check for AMD's 3D V-Cache optimizer and the Balanced power plan. Processors Intel lists for Application Optimization (APO) get a step when Intel Dynamic Tuning isn't installed.
+- **Creative work: color.** A YCbCr 4:2:2 or 4:2:0 signal, or 6-bit color on an external display, is a step. On Windows 11 24H2, automatic color management is suggested for wide-gamut displays.
+- **Streaming.** OBS profiles that encode with x264 on the processor get a step to use NVENC, AMF or Quick Sync instead.
+- **Your measured games.** Launch and measure now saves what limited each run. Tune my PC turns each game's latest run into advice for that game: for example, lower textures when video memory was full, or raise graphics settings for free when the processor was the limit.
+
+Testing: 737 automated checks and a UI smoke test. Reading the new facts was checked on a Windows 11 desktop, and the Energy saver change was written, read back and restored on a throwaway copy of a power plan. Not yet tried on a laptop, an X3D or APO processor, or with OBS installed.
+
 # Hanki Tools 0.18.0 — Fix my PC and Tune my PC
 
 Hanki Tools 0.18 is the first full release of the 0.18 series. It is not code-signed yet: signing is pending, so Windows SmartScreen warns before the first run. Compare the published SHA-256 checksum before running it.

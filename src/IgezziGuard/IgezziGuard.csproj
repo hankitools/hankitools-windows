@@ -7,9 +7,9 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <AssemblyName>HankiTools</AssemblyName>
     <RootNamespace>IgezziGuard</RootNamespace>
-    <Version>0.18.0</Version>
-    <AssemblyVersion>0.18.0.0</AssemblyVersion>
-    <FileVersion>0.18.0.0</FileVersion>
+    <Version>0.19.0-rc.1</Version>
+    <AssemblyVersion>0.19.0.0</AssemblyVersion>
+    <FileVersion>0.19.0.0</FileVersion>
     <Product>Hanki Tools</Product>
     <Description>Windows diagnostics, maintenance and performance toolkit</Description>
     <Deterministic>true</Deterministic>

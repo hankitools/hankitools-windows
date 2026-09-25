@@ -11,8 +11,9 @@ public enum SessionOutcome { Measured, Improved, NoClearChange, Worse, NotCompar
 /// changes tested (ids of Recovery journal entries, so they can be kept or restored), the measurement afterwards and
 /// the outcome. Sessions are Hanki Performance history; repairs and maintenance stay in System actions.
 /// </summary>
+/// <param name="Limiter">What held the measured run back, for runs Hanki analyzed (Launch &amp; measure since 0.19); Tune my PC turns it into advice for that game.</param>
 public sealed record PerformanceSession(Guid Id, string Name, DateTimeOffset Created, PerformanceMeasurement Baseline,
-    IReadOnlyList<Guid> ChangesTested, PerformanceMeasurement? After, SessionOutcome Outcome, string Summary);
+    IReadOnlyList<Guid> ChangesTested, PerformanceMeasurement? After, SessionOutcome Outcome, string Summary, Limiter? Limiter = null);
 
 public static class PerformanceMetrics
 {

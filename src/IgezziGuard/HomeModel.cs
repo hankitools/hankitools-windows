@@ -160,7 +160,7 @@ public static class HomeActivity
             case "Windows gaming setting":
                 return c.Target switch {
                     "game-mode" => "Game Mode", "background-recording" => "Game Bar background recording", "windowed-optimizations" => "Optimizations for windowed games",
-                    "variable-refresh" => "Variable refresh rate", "mouse-acceleration" => "Mouse acceleration", "power-mode" => "Power mode", _ => "Windows gaming setting"
+                    "variable-refresh" => "Variable refresh rate", "auto-hdr" => "Auto HDR", "mouse-acceleration" => "Mouse acceleration", "power-mode" => "Power mode", _ => "Windows gaming setting"
                 };
             case "NVIDIA global setting": return (Nvidia(c.Target) ?? "NVIDIA setting") + " (all games)";
             case "NVIDIA setting": {

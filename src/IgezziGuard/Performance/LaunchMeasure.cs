@@ -23,13 +23,24 @@ internal static class LaunchMeasure
         sessions.Where(s => s.Name == SessionName(game)).OrderByDescending(s => s.Created).FirstOrDefault();
 
     /// <summary>A session for this run: compared with the previous run when there is one, with the changes made in between.</summary>
-    internal static PerformanceSession Session(string game, PerformanceMeasurement current, PerformanceSession? previous, IReadOnlyList<SettingChange> changes, string summary)
+    internal static PerformanceSession Session(string game, PerformanceMeasurement current, PerformanceSession? previous, IReadOnlyList<SettingChange> changes, string summary, Limiter? limiter = null)
     {
         var last = previous?.After ?? previous?.Baseline;
         var between = last is null ? Array.Empty<Guid>() : changes.Where(c => Navigation.IsPerformanceChange(c.Kind) && c.Status == "Applied" && c.At >= last.Ended && c.At <= current.Started).Select(c => c.Id).ToArray();
         return last is null
-            ? new(Guid.NewGuid(), SessionName(game), DateTimeOffset.UtcNow, current, [], null, SessionOutcome.Measured, summary)
-            : new(Guid.NewGuid(), SessionName(game), DateTimeOffset.UtcNow, last, between, current, PerformanceComparison.Outcome(last, current), summary);
+            ? new(Guid.NewGuid(), SessionName(game), DateTimeOffset.UtcNow, current, [], null, SessionOutcome.Measured, summary, limiter)
+            : new(Guid.NewGuid(), SessionName(game), DateTimeOffset.UtcNow, last, between, current, PerformanceComparison.Outcome(last, current), summary, limiter);
+    }
+
+    /// <summary>Each game's latest analyzed run, newest first, for Tune my PC's per-game advice.</summary>
+    internal static IReadOnlyList<MeasuredGame> Latest(IEnumerable<PerformanceSession> sessions, IEnumerable<string> games)
+    {
+        static double? Metric(PerformanceMeasurement m, string key) => m.Metrics.TryGetValue(key, out var v) ? v : null;
+        return games.Distinct(StringComparer.Ordinal)
+            .Select(game => sessions.Where(s => s.Name == SessionName(game) && s.Limiter is not null).OrderByDescending(s => s.Created).FirstOrDefault() is { } s
+                ? new MeasuredGame(game, s.Created, s.Limiter!.Value, s.Summary, Metric(s.After ?? s.Baseline, PerformanceMetrics.FpsAverage), Metric(s.After ?? s.Baseline, PerformanceMetrics.FpsLow1))
+                : null)
+            .OfType<MeasuredGame>().OrderByDescending(m => m.At).ToArray();
     }
 
     /// <summary>Waits for the game's window. Returns null when it doesn't appear in time.</summary>

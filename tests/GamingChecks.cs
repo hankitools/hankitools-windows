@@ -6,7 +6,7 @@ internal static class GamingChecks
     private static void Check(bool ok, string text) => DiagnosticChecks.Check(ok, text);
     private static bool Throws(Action action) { try { action(); return false; } catch (IOException) { return true; } }
     private static readonly DateTimeOffset Now = new(2026, 9, 24, 12, 0, 0, TimeSpan.Zero);
-    internal static void Run() { Facts(); Health(); Profiles(); NvidiaGlobal(); WindowsGaming(); Tune(); TuneSteps(); Radeon(); Background(); Launch(); Library(); GpuConnection(); Live(); }
+    internal static void Run() { Facts(); Health(); Profiles(); NvidiaGlobal(); WindowsGaming(); Tune(); TuneSteps(); TuneMore(); TuneHelpers(); Radeon(); Background(); Launch(); Library(); GpuConnection(); Live(); }
 
     private static GpuAdapter Gpu(GpuVendor vendor, string name, ulong memory, int rank, long luid) =>
         new(name, vendor, 0, 0, luid, memory, 8 * GraphicsFacts.GiB, rank, "32.0.16.1692", new DateTime(2026, 9, 4), GraphicsFacts.LikelyIntegrated(vendor, memory));
@@ -261,8 +261,8 @@ internal static class GamingChecks
             "profiles: Balanced offers the Windows opportunities and leaves mouse acceleration alone");
         Check(GamingProfiles.Propose(GamingGoal.Competitive, graphics, findings, null).Single(c => c.Target == "mouse-acceleration") is { After: "0,0,0", Optional: true },
             "profiles: Competitive offers to turn mouse acceleration off");
-        Check(balanced.All(c => Guardrails.Allowed(c)) && PerformanceSettings.WindowsGamingTargets.SetEquals(["game-mode", "background-recording", "windowed-optimizations", "variable-refresh", "mouse-acceleration", "power-mode"]),
-            "settings: only the six Windows gaming settings can be changed");
+        Check(balanced.All(c => Guardrails.Allowed(c)) && PerformanceSettings.WindowsGamingTargets.SetEquals(["game-mode", "background-recording", "windowed-optimizations", "variable-refresh", "auto-hdr", "mouse-acceleration", "power-mode"]),
+            "settings: only the seven Windows gaming settings can be changed");
     }
 
     private static DiagnosticResult Finding(string module, string id, FindingSeverity severity, string recommendation) =>
@@ -381,6 +381,169 @@ internal static class GamingChecks
         var byGoal = GamingProfiles.Propose(GamingGoal.Competitive, desktop, [], games[0]);
         Check(byGoal.Single(c => c.Id == $"nvidia-{NvidiaSettings.PowerManagementId:X8}") is { Kind: "NVIDIA setting", Optional: false } && GamingProfiles.Propose(GamingGoal.Competitive, desktop, [], games[1]).All(c => c.Id != $"nvidia-{NvidiaSettings.PowerManagementId:X8}"),
             "profiles: Optimize this game still sets full clocks the same way");
+    }
+
+    // Auto HDR, laptop graphics mode, driver age, network and hardware findings (Tune my PC, 0.19).
+    private static void TuneMore()
+    {
+        const string Wg = "Windows gaming setting";
+        var rtx = Gpu(GpuVendor.Nvidia, "NVIDIA GeForce RTX 4070", 12 * GraphicsFacts.GiB, 0, 1);
+        var tuned = Windows() with { WindowedOptimizations = true, Mouse = [0, 0, 0] };
+        TunePlan Plan(TuneScenario scenario, GraphicsInventory graphics, WindowsGamingSettings? w = null, IReadOnlyList<DiagnosticResult>? findings = null, IReadOnlyList<LinkAdapter>? links = null, DateTimeOffset? now = null) =>
+            TunePlanner.Plan(scenario, AdaptiveSync.No, new TuneInputs(graphics, w ?? tuned, Defaults(), findings ?? [], Links: links, Now: now));
+        ProposedChange? Item(TunePlan plan, string id) => plan.Changes.SingleOrDefault(c => c.Id == id);
+        TuneArea? Area(TunePlan plan, string id) => plan.Items.SingleOrDefault(i => i.Change.Id == id)?.Area;
+
+        // Auto HDR: only for Gaming + Quality with HDR on.
+        var hdr = Desktop(Display(165, 1, 165) with { HdrSupported = true, HdrEnabled = true }, rtx);
+        Check(Item(Plan(TuneScenario.GamingQuality, hdr), "tune-auto-hdr") is { Kind: Wg, Target: "auto-hdr", After: "on", Current: "Windows default", Optional: true } autoHdr && Guardrails.Allowed(autoHdr)
+            && Plan(TuneScenario.GamingQuality, hdr, tuned with { AutoHdr = true }).AlreadyGood.Any(g => g.Setting == "Auto HDR")
+            && Item(Plan(TuneScenario.GamingPerformance, hdr), "tune-auto-hdr") is null && Item(Plan(TuneScenario.GamingQuality, Desktop(Display(165, 1, 165), rtx)), "tune-auto-hdr") is null,
+            "auto hdr: offered for Gaming + Quality with HDR on, as a Recovery-backed change");
+
+        // Laptop graphics mode: the screen on the integrated GPU while gaming; on the graphics card while saving battery.
+        var iris = Gpu(GpuVendor.Intel, "Intel Iris Xe Graphics", 128 * 1024 * 1024, 1, 2);
+        GraphicsInventory Laptop(long screen) => new([rtx, iris], [Display(165, screen, 165)], true, true, true, false, []);
+        Check(Item(Plan(TuneScenario.GamingPerformance, Laptop(2)), "tune-gpu-mode") is { Kind: null, Optional: true, Manual: not null } && Area(Plan(TuneScenario.GamingPerformance, Laptop(2)), "tune-gpu-mode") == TuneArea.Hardware
+            && Item(Plan(TuneScenario.GamingPerformance, Laptop(1)), "tune-gpu-mode") is null && Item(Plan(TuneScenario.LowPower, Laptop(1)), "tune-gpu-mode") is { Recommended: "Hybrid", Optional: false }
+            && Item(Plan(TuneScenario.LowPower, Laptop(2)), "tune-gpu-mode") is null && Item(Plan(TuneScenario.GamingPerformance, Desktop(Display(165, 2, 165), rtx, iris)), "tune-gpu-mode") is null,
+            "laptop graphics mode: dedicated GPU for games, hybrid for battery, never on a desktop");
+
+        // Driver age: judged only when the scan time is known.
+        GraphicsInventory Driver(DateTime date) => Desktop(Display(165, 1, 165), rtx with { DriverDate = date });
+        Check(Item(Plan(TuneScenario.GamingPerformance, Driver(new(2026, 1, 10)), now: Now), "tune-driver-age") is { Optional: true, Source: ChangeSource.Nvidia } eight && eight.Current.Contains("8 months") && eight.Manual!.Contains("Game Ready")
+            && Item(Plan(TuneScenario.GamingQuality, Driver(new(2025, 6, 1)), now: Now), "tune-driver-age") is { Optional: false }
+            && Plan(TuneScenario.GamingPerformance, Driver(new(2026, 8, 1)), now: Now).AlreadyGood.Any(g => g.Setting == "Graphics driver age")
+            && Item(Plan(TuneScenario.GamingPerformance, Driver(new(2025, 6, 1))), "tune-driver-age") is null && Item(Plan(TuneScenario.Creative, Driver(new(2025, 6, 1)), now: Now), "tune-driver-age") is null,
+            "driver age: a step at six months, required after a year; not judged without the scan time or outside gaming");
+
+        // Network: Gaming + Performance only.
+        LinkAdapter Wired(double bps, bool? duplex = true) => new("Ethernet", "Intel Ethernet Controller I225-V", "802.3", bps, duplex);
+        var wifi = new LinkAdapter("Wi-Fi", "Intel Wi-Fi 6E AX211", "Native 802.11", 1.2e9, null);
+        var desktop = Desktop(Display(165, 1, 165), rtx);
+        TunePlan Net(params LinkAdapter[] links) => Plan(TuneScenario.GamingPerformance, desktop, links: links);
+        Check(Item(Net(Wired(100e6)), "tune-link-speed") is { Current: "100 Mbps", Optional: true } && Item(Net(Wired(10e6)), "tune-link-speed") is { Optional: false }
+            && Item(Net(Wired(1e9, false)), "tune-link-speed") is { Current: "1 Gbps, half duplex", Optional: false } && Area(Net(Wired(100e6)), "tune-link-speed") == TuneArea.Network,
+            "network: a slow or half-duplex wired link is a cable step");
+        Check(Net(Wired(1e9), wifi) is var good && good.AlreadyGood.Any(g => g.Area == TuneArea.Network && g.Current == "1 Gbps") && Item(good, "tune-wired") is null && Item(good, "tune-downloads") is { Optional: true, SettingsUri: not null }
+            && Item(Net(wifi), "tune-wired") is { Current: "Wi-Fi", Optional: true } && Item(Net(), "tune-downloads") is null && Item(Net(Wired(0)), "tune-downloads") is null
+            && !Plan(TuneScenario.GamingQuality, desktop, links: [wifi]).Items.Any(i => i.Area == TuneArea.Network) && !Plan(TuneScenario.GamingPerformance, desktop).Items.Any(i => i.Area == TuneArea.Network),
+            "network: a cable suggested over Wi-Fi, downloads while playing, nothing without a connection or outside competitive gaming");
+
+        // The gaming check's hardware findings and memory that ran short earlier.
+        DiagnosticResult Found(string module, string id, FindingSeverity severity) => Finding(module, id, severity, "Fixture recommendation.");
+        DiagnosticResult[] hardware = [Found("gaming", "gpu-lanes-2786", FindingSeverity.Warning), Found("gaming", "resizable-bar-2786", FindingSeverity.Informational),
+            Found("gaming", "gpu-lanes-2704", FindingSeverity.Informational), Found("perf-memory", "commit", FindingSeverity.Informational)];
+        var gamingPlan = Plan(TuneScenario.GamingPerformance, desktop, findings: hardware);
+        var creativePlan = Plan(TuneScenario.Creative, desktop, findings: hardware);
+        Check(Item(gamingPlan, "gpu-lanes-2786") is { Optional: false } && Area(gamingPlan, "gpu-lanes-2786") == TuneArea.Hardware && Item(gamingPlan, "resizable-bar-2786") is { Optional: true }
+            && Item(gamingPlan, "gpu-lanes-2704") is null && Item(gamingPlan, "commit") is { Optional: true } && Area(gamingPlan, "commit") == TuneArea.Memory,
+            "hardware: fewer PCIe lanes is a step, Resizable BAR and memory that ran short are optional while gaming");
+        Check(Item(creativePlan, "gpu-lanes-2786") is not null && Item(creativePlan, "resizable-bar-2786") is null && Item(creativePlan, "commit") is null
+            && !Plan(TuneScenario.LowPower, desktop, findings: hardware).Items.Any(i => i.Area == TuneArea.Hardware),
+            "hardware: observations stay out of other choices, and hardware steps out of Low power");
+    }
+
+    // Battery, processor helpers, color, OBS and per-game advice (Tune my PC, 0.19).
+    private static void TuneHelpers()
+    {
+        const string Wg = "Windows gaming setting", Balanced = "381b4222-f694-41f0-9685-ff5bb260df2e";
+        var rtx = Gpu(GpuVendor.Nvidia, "NVIDIA GeForce RTX 4070", 12 * GraphicsFacts.GiB, 0, 1);
+        var desktop = Desktop(Display(165, 1, 165), rtx);
+        var tuned = Windows() with { WindowedOptimizations = true, Mouse = [0, 0, 0] };
+        TunePlan Plan(TuneScenario scenario, GraphicsInventory? graphics = null, WindowsGamingSettings? w = null, CpuFacts? cpu = null, bool? vcache = null, bool? intel = null,
+            IReadOnlyList<ObsEncoder>? obs = null, IReadOnlyList<MeasuredGame>? measured = null) =>
+            TunePlanner.Plan(scenario, AdaptiveSync.No, new TuneInputs(graphics ?? desktop, w ?? tuned, Defaults(), [], Now: Now, Cpu: cpu, VCacheOptimizer: vcache, IntelTuning: intel, Obs: obs, Measured: measured));
+        ProposedChange? Item(TunePlan plan, string id) => plan.Changes.SingleOrDefault(c => c.Id == id);
+        TuneArea? Area(TunePlan plan, string id) => plan.Items.SingleOrDefault(i => i.Change.Id == id)?.Area;
+
+        // Low power on a laptop: power mode on battery and when Energy saver starts.
+        GraphicsInventory Laptop(bool onAc) => new([rtx], [Display(165, 1, 60, 165)], true, onAc, true, false, []);
+        var battery = Plan(TuneScenario.LowPower, Laptop(false), tuned with { EnergySaverThreshold = 20 });
+        Check(Item(battery, "tune-power-mode") is { Kind: Wg, After: "Best power efficiency" } mode && mode.Why.Contains("battery")
+            && Item(battery, "tune-energy-saver") is { Kind: "Energy saver", Target: Balanced + "|dc", Current: "20% battery", After: "50", Optional: true } saver && Guardrails.Allowed(saver)
+            && Item(battery, "tune-plug-in") is null && PerformanceSettings.Handles("Energy saver") && Navigation.IsPerformanceChange("Energy saver"),
+            "low power: on battery the power mode is set too, and Energy saver can start at half charge");
+        Check(Item(Plan(TuneScenario.LowPower, Laptop(false), tuned with { EnergySaverThreshold = 0 }), "tune-energy-saver")?.Current == "Never"
+            && Plan(TuneScenario.LowPower, Laptop(true), tuned with { EnergySaverThreshold = 50 }).AlreadyGood.Any(g => g.Setting == "Energy saver turns on at" && g.Current == "50% battery")
+            && Item(Plan(TuneScenario.LowPower, desktop, tuned with { EnergySaverThreshold = 20 }), "tune-energy-saver") is null
+            && Item(Plan(TuneScenario.GamingPerformance, Laptop(false), tuned with { EnergySaverThreshold = 20 }), "tune-energy-saver") is null
+            && Item(Plan(TuneScenario.GamingPerformance, Laptop(false)), "tune-plug-in") is not null,
+            "low power: Energy saver only for laptops choosing Low power; gaming on battery still asks to plug in");
+
+        // AMD 3D V-Cache and Intel APO.
+        CpuFacts Cpu(string name) => new(name, 16, 32, 4200);
+        Check(TunePlanner.DualCacheRyzen().IsMatch("AMD Ryzen 9 7950X3D 16-Core Processor") && TunePlanner.DualCacheRyzen().IsMatch("AMD Ryzen 9 7945HX3D with Radeon Graphics")
+            && !TunePlanner.DualCacheRyzen().IsMatch("AMD Ryzen 7 9800X3D 8-Core Processor") && !TunePlanner.DualCacheRyzen().IsMatch("AMD Ryzen 9 9950X 16-Core Processor"),
+            "x3d: only Ryzen 9 X3D processors with two core groups");
+        var x3d = Cpu("AMD Ryzen 9 7950X3D 16-Core Processor");
+        var highPlan = tuned with { PowerPlan = Guid.Parse("8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c"), PowerPlanName = "High performance" };
+        Check(Item(Plan(TuneScenario.GamingPerformance, cpu: x3d, vcache: false), "tune-x3d") is { Optional: false, Manual: not null }
+            && Plan(TuneScenario.GamingPerformance, cpu: x3d, vcache: true).AlreadyGood.Any(g => g.Setting == "AMD 3D V-Cache Performance Optimizer")
+            && Item(Plan(TuneScenario.GamingPerformance, w: highPlan, cpu: x3d, vcache: true), "tune-x3d-plan") is { Current: "High performance", Recommended: "Balanced" }
+            && Item(Plan(TuneScenario.GamingPerformance, cpu: x3d, vcache: true), "tune-x3d-plan") is null
+            && Item(Plan(TuneScenario.GamingPerformance, cpu: Cpu("AMD Ryzen 7 7800X3D 8-Core Processor"), vcache: false), "tune-x3d") is null
+            && Item(Plan(TuneScenario.Creative, cpu: x3d, vcache: false), "tune-x3d") is null,
+            "x3d: AMD's optimizer and the Balanced plan while gaming");
+        Check(new[] { "Intel(R) Core(TM) i7-14700K", "Intel(R) Core(TM) i9-14900KS", "Intel(R) Core(TM) i5-14600KF", "Intel(R) Core(TM) i9-14900HX", "Intel(R) Core(TM) Ultra 9 285K", "Intel(R) Core(TM) Ultra 7 265KF", "Intel(R) Core(TM) Ultra 7 255HX" }
+                .All(n => TunePlanner.IntelApoProcessor().IsMatch(n))
+            && !new[] { "Intel(R) Core(TM) i7-14700F", "Intel(R) Core(TM) i5-14400F", "Intel(R) Core(TM) i7-13700K", "Intel(R) Core(TM) Ultra 7 155H" }.Any(n => TunePlanner.IntelApoProcessor().IsMatch(n)),
+            "apo: only processors Intel lists with full support");
+        var apo = Cpu("Intel(R) Core(TM) i7-14700K");
+        Check(Item(Plan(TuneScenario.GamingQuality, cpu: apo, intel: false), "tune-apo") is { Optional: true } && Area(Plan(TuneScenario.GamingQuality, cpu: apo, intel: false), "tune-apo") == TuneArea.Processor
+            && Plan(TuneScenario.GamingQuality, cpu: apo, intel: true).AlreadyGood.Any(g => g.Setting == "Intel Dynamic Tuning (APO)")
+            && Item(Plan(TuneScenario.GamingQuality, cpu: apo), "tune-apo") is null,
+            "apo: an optional step without Intel Dynamic Tuning, nothing when Hanki couldn't tell");
+
+        // Color for creative work.
+        GraphicsInventory Screen(DisplayInfo d) => Desktop(d, rtx);
+        var base165 = Display(165, 1, 165);
+        Check(Item(Plan(TuneScenario.Creative, Screen(base165 with { Encoding = 2, BitsPerColor = 8 })), "tune-color-format-1") is { Current: "YCbCr 4:2:2", Recommended: "RGB", Optional: false } format && format.Manual!.Contains("NVIDIA Control Panel")
+            && Item(Plan(TuneScenario.Creative, Screen(base165 with { Encoding = 0, BitsPerColor = 6 })), "tune-color-depth-1") is { Current: "6 bits per color" }
+            && Item(Plan(TuneScenario.Creative, Screen(base165 with { Encoding = 0, BitsPerColor = 6, Connection = "Built-in (DisplayPort)" })), "tune-color-depth-1") is null
+            && Plan(TuneScenario.Creative, Screen(base165 with { Encoding = 0, BitsPerColor = 10 })).AlreadyGood.Any(g => g.Current == "RGB, 10 bits per color")
+            && Item(Plan(TuneScenario.GamingPerformance, Screen(base165 with { Encoding = 2 })), "tune-color-format-1") is null,
+            "color: chroma subsampling and 6-bit external signals are steps for creative work");
+        Check(Item(Plan(TuneScenario.Creative, Screen(base165 with { AutoColorSupported = true, AutoColorOn = false })), "tune-auto-color-1") is { Optional: true, SettingsUri: "ms-settings:display-advanced" }
+            && Item(Plan(TuneScenario.Creative, Screen(base165 with { AutoColorSupported = true, AutoColorOn = false, HdrEnabled = true })), "tune-auto-color-1") is null
+            && Item(Plan(TuneScenario.Creative, Screen(base165 with { AutoColorSupported = false, AutoColorOn = false })), "tune-auto-color-1") is null
+            && Plan(TuneScenario.Creative, Screen(base165 with { AutoColorSupported = true, AutoColorOn = true })).AlreadyGood.Any(g => g.Setting.StartsWith("Automatic color management", StringComparison.Ordinal)),
+            "color: automatic color management suggested on displays that support it, in SDR");
+
+        // OBS encoders.
+        Check(ObsSettings.Parse("Twitch", "[General]\r\nName=Twitch\r\n[Output]\r\nMode=Simple\r\n[SimpleOutput]\r\nStreamEncoder=x264\r\nRecQuality=Stream\r\nRecEncoder=nvenc\r\n") is [{ Use: "streaming", Encoder: "x264" }]
+            && ObsSettings.Parse("Rec", "[Output]\nMode=Advanced\n[AdvOut]\nEncoder=jim_nvenc\nRecEncoder=obs_x264\n") is [{ Use: "streaming", Encoder: "jim_nvenc" }, { Use: "recording", Encoder: "obs_x264" }]
+            && ObsSettings.Parse("A", "[Output]\nMode=Advanced\n[AdvOut]\nEncoder=obs_qsv11_v2\nRecEncoder=none\n") is [{ Use: "streaming" }] && ObsSettings.Parse("Empty", "").Count == 0,
+            "obs: encoders read from Simple and Advanced output settings");
+        Check(ObsSettings.Software("obs_x264") == true && ObsSettings.Software("x264_lowcpu") == true && ObsSettings.Software("ffmpeg_svt_av1") == true
+            && ObsSettings.Software("jim_nvenc") == false && ObsSettings.Software("h264_texture_amf") == false && ObsSettings.Software("amd_hevc") == false && ObsSettings.Software("obs_qsv11") == false
+            && ObsSettings.Software("apple_h264") is null, "obs: processor and hardware encoders told apart");
+        var streaming = Plan(TuneScenario.GamingPerformance, obs: [new("Twitch", "streaming", "x264"), new("Twitch", "recording", "obs_x264"), new("YouTube", "streaming", "jim_nvenc")]);
+        Check(Item(streaming, "tune-obs:twitch") is { Recommended: "NVIDIA NVENC", Optional: true } twitch && twitch.Current.Contains("streaming and recording") && Area(streaming, "tune-obs:twitch") == TuneArea.Streaming
+            && Item(streaming, "tune-obs:youtube") is null && Plan(TuneScenario.Creative, obs: [new("YouTube", "streaming", "jim_nvenc")]).AlreadyGood.Any(g => g.Setting == "OBS encoder")
+            && !Plan(TuneScenario.Creative).Items.Any(i => i.Area == TuneArea.Streaming),
+            "obs: a hardware encoder suggested for profiles on x264, nothing without OBS");
+
+        // Per-game advice from Launch & measure.
+        MeasuredGame Measured(Limiter limiter, int daysAgo = 2) => new("Cyberpunk 2077", Now.AddDays(-daysAgo), limiter, "Likely limited by something.", 58, 31);
+        TunePlan Game(TuneScenario scenario, Limiter limiter, int daysAgo = 2) => Plan(scenario, measured: [Measured(limiter, daysAgo)]);
+        const string Cp = "tune-measured:cyberpunk 2077";
+        Check(Item(Game(TuneScenario.GamingPerformance, Limiter.Vram), Cp) is { Optional: false, Source: ChangeSource.Game } vram && vram.Current.Contains("58 FPS (1% low 31)") && vram.Manual!.Contains("texture")
+            && Area(Game(TuneScenario.GamingPerformance, Limiter.Vram), Cp) == TuneArea.Games
+            && Item(Game(TuneScenario.GamingPerformance, Limiter.Cpu), Cp)?.Recommended == "Lighter processor settings" && Item(Game(TuneScenario.GamingQuality, Limiter.Cpu), Cp)?.Recommended == "Higher graphics settings"
+            && Item(Game(TuneScenario.GamingPerformance, Limiter.Gpu), Cp)?.Recommended == "Upscaling or lighter graphics",
+            "measured: the latest run's limit becomes advice for that game, different for performance and quality");
+        Check(Game(TuneScenario.GamingPerformance, Limiter.None).AlreadyGood.Any(g => g.Setting == "Measured: Cyberpunk 2077") && Item(Game(TuneScenario.GamingPerformance, Limiter.Mixed), Cp) is null
+            && Item(Game(TuneScenario.GamingPerformance, Limiter.Vram, daysAgo: 120), Cp) is null && Item(Game(TuneScenario.Creative, Limiter.Vram), Cp) is null,
+            "measured: nothing for mixed results, runs older than 90 days or non-gaming choices");
+        PerformanceSession Run(string game, int minutes, Limiter? limiter) => new(Guid.NewGuid(), LaunchMeasure.SessionName(game), Now.AddMinutes(minutes),
+            new(Now, Now, new Dictionary<string, double> { [PerformanceMetrics.FpsAverage] = 90 }, "test"), [], null, SessionOutcome.Measured, "Likely CPU-limited.", limiter);
+        var latest = LaunchMeasure.Latest([Run("A", 0, Limiter.Gpu), Run("A", 5, Limiter.Cpu), Run("B", 3, null), Run("C", 1, Limiter.Vram)], ["A", "B", "C", "A"]);
+        var json = System.Text.Json.JsonSerializer.Serialize(Run("A", 0, Limiter.Vram));
+        Check(latest is [{ Game: "A", Limiter: Limiter.Cpu, AverageFps: 90, Low1Fps: null }, { Game: "C" }]
+            && System.Text.Json.JsonSerializer.Deserialize<PerformanceSession>(json)!.Limiter == Limiter.Vram
+            && System.Text.Json.JsonSerializer.Deserialize<PerformanceSession>(json.Replace(",\"Limiter\":" + (int)Limiter.Vram, ""))!.Limiter is null,
+            "measured: each game's newest analyzed run; sessions saved before 0.19 still load");
     }
 
     private static void Radeon()

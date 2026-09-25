@@ -22,10 +22,23 @@ comes from the sources at the end. "No change" is a valid answer.
 | Power management (NVIDIA global) | Normal; full clocks per game (Gaming → Games) | Normal | Normal | Normal (never "Prefer maximum" globally) |
 | Game Mode | On | On | – | – |
 | Optimizations for windowed games | On | On | – | – |
+| Auto HDR | – | On with HDR on (optional) | – | – |
+| Laptop graphics mode (MUX / Advanced Optimus) | Screen on the graphics card (optional step) | same | – | Hybrid (step) |
+| Graphics driver age | Step at 6 months (optional), a year (required) | same | – | – |
+| Network | Wired at 1 Gbps; cable over Wi-Fi (optional); pause downloads while playing (optional) | – | – | – |
+| PCIe lanes, Resizable BAR | Steps from the Gaming check; Resizable BAR optional | same | Lanes only | – |
+| Color signal | – | – | Steps: RGB instead of YCbCr 4:2:2/4:2:0; 8 bits or more on external displays | – |
+| Automatic color management | – | – | On, in SDR (optional step) | – |
+| OBS encoder | Hardware encoder instead of x264 (optional step) | same | same | same |
+| Your measured games | Advice from each game's latest Launch & measure run | same, quality-minded | – | – |
 | Variable refresh rate (Windows) | On with an adaptive-sync display | On with an adaptive-sync display | – | – |
 | Game Bar background recording | Off | Off (optional) | Off (optional) | Off |
 | Mouse acceleration | Off | Off | – | – |
 | Windows power mode (plugged in) | Best performance (optional) | Balanced or better | Best performance (optional) | Best power efficiency |
+| Windows power mode on battery (laptop) | – | – | – | Best power efficiency |
+| Energy saver starts at (laptop) | – | – | – | 50% battery (optional) |
+| AMD Ryzen 9 X3D with two core groups | Step: AMD's 3D V-Cache optimizer; Balanced power plan | same | – | – |
+| Intel APO (processors Intel lists) | Step: Intel Dynamic Tuning Technology (optional) | same | – | – |
 | Maximum processor state (plugged in) | 100% | 100% | 100% | unchanged |
 | Hardware-accelerated GPU scheduling | On only for RTX 40/50 (DLSS Frame Generation needs it) | same | – | – |
 | Memory at rated speed (XMP/EXPO) | Step: enable in BIOS | Step | Step | – |
@@ -95,7 +108,74 @@ Settings → System → Power does, on the Balanced power plan (the only plan it
 with another plan it stays a step.
 
 **Memory speed (XMP/EXPO).** Memory running below its rated speed costs roughly 4–10% FPS
-in processor-limited games; enabling the profile is a BIOS step [15].
+in processor-limited games; enabling the profile is a BIOS step [15]. When memory ran short
+earlier (the commit peak is above today's limit, so the pagefile grew), the gaming choices
+add an optional step to close programs before playing.
+
+**Auto HDR.** Adds HDR to DirectX 11 and 12 games made for SDR, and needs HDR switched on
+[18]. Offered only for Gaming + Quality with HDR on, and optional, since some games look
+better without it. Hanki sets the same `AutoHDREnable` flag Settings uses.
+
+**Laptop graphics mode.** On most gaming laptops the screen is wired through the integrated
+graphics, so every frame is copied across. A MUX switch, or NVIDIA Advanced Optimus,
+connects the screen straight to the graphics card; ASUS measured about 9% more frames on
+average, over 30% in some games, while hybrid mode can more than double battery life [19].
+The switch lives in the maker's app or NVIDIA Control Panel, so it's a step: optional for
+gaming when the screen is on the integrated GPU, and "back to hybrid" for Low power when
+it's on the graphics card.
+
+**Graphics driver age.** NVIDIA, AMD and Intel release game fixes and optimizations about
+monthly. At six months old the driver is an optional step, after a year a required one.
+Only judged when Hanki knows the scan time.
+
+**Network (Gaming + Performance).** A wired link below 1 Gbps, or in half duplex, usually
+means a bad cable or port (the Network connection speed check explains it). Wi-Fi's
+latency varies far more than a cable's, and other devices on the network make it worse
+[20], so a cable is an optional step. Game launchers and Windows Update downloading in the
+background fill the connection; Steam can pause downloads during gameplay, and Delivery
+Optimization can limit Windows' background bandwidth [21].
+
+**PCIe lanes and Resizable BAR.** The Gaming check's hardware findings join the plan: a
+card on x4 or fewer of its lanes is a step (move it to the top slot); Resizable BAR off is
+optional for gaming, since only some games gain a few percent [22].
+
+**Power on battery and Energy saver.** Windows keeps one power mode for plugged in and one
+for battery, and Hanki sets the one for the current power source, so Low power on battery
+now sets the battery mode. Energy saver dims the screen and pauses background apps, sync
+and non-critical updates on battery [25]; Low power offers to start it at 50% instead of
+the default 20–30%. Hanki changes the plan's battery setting (`ESBATTTHRESHOLD`) and
+records the old level in Recovery; it never switches the active plan.
+
+**AMD Ryzen 9 X3D.** The 7900X3D, 7950X3D, 9900X3D, 9950X3D and the HX3D laptop chips
+have two core groups, and only one has 3D V-Cache. AMD's chipset driver (the 3D V-Cache
+Performance Optimizer) parks the other group while a game runs, which needs the Balanced
+power plan and Game Bar [23]. Hanki checks that the driver is installed and the plan is
+Balanced. Single-group X3D chips (7800X3D, 9800X3D) don't need it.
+
+**Intel APO.** Application Optimization steers the threads of games on Intel's list across
+performance and efficiency cores. Intel lists full support for 14th-gen K and HX, and Core
+Ultra 200S K, 200HX and 300H processors; it runs inside Intel Dynamic Tuning Technology
+from the motherboard or laptop maker [24]. Hanki suggests it (optional) on those processors
+when Dynamic Tuning isn't installed; others need Intel's Advanced Mode, so Hanki stays quiet.
+
+**Color for creative work.** Windows reports the signal's color encoding and depth.
+YCbCr 4:2:2 or 4:2:0 carries color at a lower resolution than brightness, so colored text
+and fine edges blur; 6 bits per color shows banding. Both usually come from cable
+bandwidth, and the driver's RGB / 8 bpc settings fix them. On Windows 11 24H2 Hanki also
+reads automatic color management, which maps every app's colors to a wide-gamut display so
+sRGB content isn't oversaturated [26]; it's an optional step in SDR.
+
+**OBS encoder.** x264 encodes on the processor and takes time from the game or the edit;
+NVENC, AMF and Quick Sync run on a separate video engine [27]. Hanki reads OBS's profiles
+(Simple and Advanced output) and suggests the hardware encoder for any profile on x264.
+Nothing is changed in OBS.
+
+**Your measured games.** Launch & measure now saves what limited each run. The gaming
+choices turn each game's latest run (last 90 days) into advice for that game: textures one
+step lower when video memory was full; upscaling or lighter graphics when the graphics card
+was the limit; lighter processor settings, or for Gaming + Quality higher graphics
+settings for free, when the processor was; and cooling, SSD or background steps for the
+rest. Mixed results give no advice.
 
 **AMD Radeon.** Anti-Lag on and Chill off for competitive play, FreeSync with a frame-rate
 target just under the refresh rate rather than Enhanced Sync, Chill for low power [16].
@@ -132,3 +212,13 @@ driver default, which is already large [17].
 15. NZXT, How to enable XMP or EXPO (and whether you should). https://nzxt.com/en-intl/blogs/news/how-to-enable-xmp-expo
 16. Tier1Settings, Best AMD Radeon settings for gaming. https://tier1settings.com/best-amd-adrenalin-settings-for-gaming/
 17. SmoothFPS, NVIDIA shader cache size. https://smoothfps.com/solutions/nvidia-shader-cache
+18. Microsoft Support, Use Auto HDR for better gaming in Windows. https://support.microsoft.com/en-us/windows/hardware/display-graphics/use-auto-hdr-for-better-gaming-in-windows
+19. ASUS ROG, How to maximize your ROG laptop's performance with the MUX Switch. https://rog.asus.com/articles/rog-gaming-laptops/maximize-your-rog-laptops-performance-with-a-mux-switch/
+20. jitter.is, Ethernet vs Wi-Fi: the jitter difference. https://jitter.is/blog/ethernet-vs-wifi-jitter/
+21. Microsoft Support, Delivery Optimization in Windows. https://support.microsoft.com/en-us/windows/deployment/updates-lifecycle/delivery-optimization-in-windows
+22. Intel Support, What Is Resizable BAR and How Do I Enable It? https://www.intel.com/content/www/us/en/support/articles/000090831/graphics.html
+23. Hardware Busters, AMD Ryzen 9 7950X3D core parking problem and solution. https://hwbusters.com/cpu/amd-ryzen-9-7950x3d-core-parking-problem-solution/
+24. Intel Support, Intel Application Optimization overview. https://www.intel.com/content/www/us/en/support/articles/000095419/processors.html
+25. Microsoft Learn, Energy Saver. https://learn.microsoft.com/en-us/windows-hardware/design/component-guidelines/energy-saver
+26. DirectX Developer Blog, Advancing the state of color management in Windows. https://devblogs.microsoft.com/directx/auto-color-management/
+27. NVIDIA, NVIDIA NVENC OBS Guide. https://www.nvidia.com/en-us/geforce/guides/broadcasting-guide/

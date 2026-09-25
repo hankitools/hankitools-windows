@@ -11,8 +11,13 @@ public sealed record GpuAdapter(string Name, GpuVendor Vendor, uint VendorId, ui
 public sealed record DisplayMode(int Width, int Height, double RefreshHz);
 
 /// <param name="Device">GDI name such as \\.\DISPLAY1, used to read and change display modes.</param>
+/// <param name="Encoding">The signal's color encoding as Windows reports it (DISPLAYCONFIG_COLOR_ENCODING): 0 RGB, 1 YCbCr 4:4:4, 2 YCbCr 4:2:2, 3 YCbCr 4:2:0.</param>
+/// <param name="BitsPerColor">Bits per color channel of the signal (6, 8, 10, 12).</param>
+/// <param name="AutoColorSupported">Automatic color management (ACM) is available for this display: Windows 11 24H2 and later.</param>
+/// <param name="AutoColorOn">“Automatically manage color for apps” is on.</param>
 public sealed record DisplayInfo(string Name, string Device, long AdapterLuid, DisplayMode Current, IReadOnlyList<DisplayMode> Supported,
-    bool? HdrSupported, bool? HdrEnabled, bool Primary, string Connection);
+    bool? HdrSupported, bool? HdrEnabled, bool Primary, string Connection,
+    int? Encoding = null, int? BitsPerColor = null, bool? AutoColorSupported = null, bool? AutoColorOn = null);
 
 /// <param name="Portable">A battery is present (laptop or tablet). Null when Windows doesn't say.</param>
 public sealed record GraphicsInventory(IReadOnlyList<GpuAdapter> Adapters, IReadOnlyList<DisplayInfo> Displays, bool? Portable, bool OnAcPower,
@@ -96,10 +101,11 @@ public sealed record AppGpuPreference(string Application, GpuPreference Preferen
 /// <param name="BackgroundRecording">Game Bar's “Record what happened” (HistoricalCaptureEnabled); null when never changed.</param>
 /// <param name="AppCapture">Game Bar captures allowed at all (AppCaptureEnabled); null when never changed.</param>
 /// <param name="Mouse">SPI_GETMOUSE: two thresholds and the acceleration flag (“Enhance pointer precision”).</param>
+/// <param name="EnergySaverThreshold">Battery level (%) at which Energy saver turns on by itself, in the active plan (ESBATTTHRESHOLD); 0 never, 100 always.</param>
 public sealed record WindowsGamingSettings(bool? GameMode, bool? HardwareScheduling, IReadOnlyList<AppGpuPreference> GpuPreferences,
     bool? WindowedOptimizations, bool? AutoHdr, string? PowerMode, Guid? PowerPlan, string? PowerPlanName,
     int? ProcessorMaximumAc, int? ProcessorMaximumDc, int? ProcessorMinimumAc,
-    bool? VariableRefresh = null, bool? BackgroundRecording = null, bool? AppCapture = null, IReadOnlyList<int>? Mouse = null)
+    bool? VariableRefresh = null, bool? BackgroundRecording = null, bool? AppCapture = null, IReadOnlyList<int>? Mouse = null, int? EnergySaverThreshold = null)
 {
     public bool? MouseAcceleration => Mouse is { Count: 3 } m ? m[2] != 0 : null;
     /// <summary>Background recording only runs when captures are allowed.</summary>

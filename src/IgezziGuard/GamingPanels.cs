@@ -254,7 +254,8 @@ public sealed class GamesPanel : ToolPage
             try { previous = LaunchMeasure.Previous(store.Read(), game.Name); } catch (IOException) { }
             IReadOnlyList<SettingChange> changes = [];
             try { changes = WindowsSettings.Journal().Read(); } catch (Exception ex) when (ex is IOException or System.Text.Json.JsonException) { }
-            var session = LaunchMeasure.Session(game.Name, BottleneckEngine.Measurement(run), previous, changes, BottleneckEngine.Analyze(run).Diagnosis);
+            var bottleneck = BottleneckEngine.Analyze(run);
+            var session = LaunchMeasure.Session(game.Name, BottleneckEngine.Measurement(run), previous, changes, bottleneck.Diagnosis, bottleneck.Limiter);
             try { store.Add(session); } catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException) { }
             if (session.After is null)
                 return summary with { Report = "First measured run of this game; your next run is compared with it. Saved to History → Performance sessions.\r\n\r\n" + summary.Report };

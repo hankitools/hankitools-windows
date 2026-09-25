@@ -24,6 +24,7 @@
     <Compile Include="../src/IgezziGuard/Performance/TunePlanner.cs" Link="Performance/TunePlanner.cs" />
     <Compile Include="../src/IgezziGuard/Performance/GamingBackground.cs" Link="Performance/GamingBackground.cs" />
     <Compile Include="../src/IgezziGuard/Performance/LaunchMeasure.cs" Link="Performance/LaunchMeasure.cs" />
+    <Compile Include="../src/IgezziGuard/Performance/ObsSettings.cs" Link="Performance/ObsSettings.cs" />
     <Compile Include="../src/IgezziGuard/Performance/Nvidia.cs" Link="Performance/Nvidia.cs" />
     <Compile Include="../src/IgezziGuard/Performance/AmdModel.cs" Link="Performance/AmdModel.cs" />
     <Compile Include="../src/IgezziGuard/Performance/Amd.cs" Link="Performance/Amd.cs" />

@@ -8,22 +8,24 @@ namespace IgezziGuard;
 ///   Display mode:    target \\.\DISPLAY1,           value "1920x1080@165"
 ///   GPU preference:  target the executable's path,   value "GpuPreference=2;" or "" (Windows decides)
 ///   Processor power: target "{plan guid}|ac",        value "100"
+///   Energy saver:    target "{plan guid}|dc",        value "50" (battery % at which Energy saver turns on; 0 never, 100 always)
 ///   NVIDIA setting:  target "game.exe|0x1057EB71",   value "0x00000001", "predefined:0x…" (NVIDIA's own value) or "default"
 ///   NVIDIA global setting: target "0x1057EB71",      value as for NVIDIA setting, in the global profile (all games)
-///   Windows gaming setting: target "game-mode", "background-recording", "windowed-optimizations" or "variable-refresh", value
+///   Windows gaming setting: target "game-mode", "background-recording", "windowed-optimizations", "variable-refresh" or "auto-hdr", value
 ///                    "on", "off" or "default" (never changed); target "mouse-acceleration", value "6,10,1"; target "power-mode",
 ///                    value "Best power efficiency", "Balanced" or "Best performance"
 ///   AMD setting:     target "{gpu}|AntiLag",          value "on", "off:144", "on:30-60" or "mode:1" (see AmdSettings)
 /// </summary>
 internal static class PerformanceSettings
 {
-    internal const string WindowsGamingKind = "Windows gaming setting";
-    internal static bool Handles(string kind) => kind is "Display mode" or "GPU preference" or "Processor power" or "NVIDIA setting" or NvidiaPresets.ChangeKind or WindowsGamingKind or AmdSettings.ChangeKind;
+    internal const string WindowsGamingKind = "Windows gaming setting", EnergySaverKind = "Energy saver";
+    internal static bool Handles(string kind) => kind is "Display mode" or "GPU preference" or "Processor power" or EnergySaverKind or "NVIDIA setting" or NvidiaPresets.ChangeKind or WindowsGamingKind or AmdSettings.ChangeKind;
 
     internal static string Read(string kind, string target) => kind switch {
         "Display mode" => DisplayMode(target),
         "GPU preference" => GpuPreference(target),
         "Processor power" => Processor(target).ToString(),
+        EnergySaverKind => EnergySaver(target).ToString(),
         "NVIDIA setting" => NvidiaSetting(target),
         NvidiaPresets.ChangeKind => Nvidia.ReadProfileSetting(null, ParseNvidiaGlobalTarget(target)),
         WindowsGamingKind => WindowsGaming(target),
@@ -36,6 +38,7 @@ internal static class PerformanceSettings
             case "Display mode": SetDisplayMode(target, value); break;
             case "GPU preference": SetGpuPreference(target, value); break;
             case "Processor power": SetProcessor(target, value); break;
+            case EnergySaverKind: SetEnergySaver(target, value); break;
             case "NVIDIA setting": SetNvidiaSetting(target, value); break;
             case WindowsGamingKind: SetWindowsGaming(target, value); break;
             case AmdSettings.ChangeKind:
@@ -121,9 +124,29 @@ internal static class PerformanceSettings
         PowerSetActiveScheme(IntPtr.Zero, ref plan); // Re-applies the plan so the new value takes effect now.
     }
 
+    // ---- Energy saver: the battery level at which it turns on, in a plan's battery settings ------------------------
+    [DllImport("powrprof.dll")] private static extern uint PowerReadDCValueIndex(IntPtr root, ref Guid scheme, ref Guid group, ref Guid setting, out uint value);
+    [DllImport("powrprof.dll")] private static extern uint PowerWriteDCValueIndex(IntPtr root, ref Guid scheme, ref Guid group, ref Guid setting, uint value);
+    private static Guid BatteryPlan(string target) => target.EndsWith("|dc", StringComparison.Ordinal) && Guid.TryParse(target[..^3], out var plan) ? plan : throw new IOException("Invalid energy saver target.");
+    private static uint EnergySaver(string target)
+    {
+        var plan = BatteryPlan(target); var group = WindowsGamingProbe.EnergySaverGroup; var setting = WindowsGamingProbe.EnergySaverThreshold;
+        uint status = PowerReadDCValueIndex(IntPtr.Zero, ref plan, ref group, ref setting, out var value);
+        return status == 0 ? value : throw new IOException($"The power plan couldn't be read (error {status}).");
+    }
+    private static void SetEnergySaver(string target, string value)
+    {
+        if (!uint.TryParse(value, out var percent) || percent > 100) throw new IOException("Invalid energy saver level.");
+        var plan = BatteryPlan(target); var group = WindowsGamingProbe.EnergySaverGroup; var setting = WindowsGamingProbe.EnergySaverThreshold;
+        uint status = PowerWriteDCValueIndex(IntPtr.Zero, ref plan, ref group, ref setting, percent);
+        if (status != 0) throw new IOException($"Windows didn't accept the change (error {status}).");
+        // Re-applies the plan so the new level takes effect now, but never switches to a plan that isn't active.
+        if (WindowsGamingProbe.ActivePlan() == plan) PowerSetActiveScheme(IntPtr.Zero, ref plan);
+    }
+
     // ---- Windows gaming settings: Game Bar background recording, DirectX options and mouse acceleration -------------
-    internal static readonly IReadOnlySet<string> WindowsGamingTargets = new HashSet<string>(StringComparer.Ordinal) { "game-mode", "background-recording", "windowed-optimizations", "variable-refresh", "mouse-acceleration", "power-mode" };
-    private static string DirectXFlag(string target) => target == "windowed-optimizations" ? "SwapEffectUpgradeEnable" : "VRROptimizeEnable";
+    internal static readonly IReadOnlySet<string> WindowsGamingTargets = new HashSet<string>(StringComparer.Ordinal) { "game-mode", "background-recording", "windowed-optimizations", "variable-refresh", "auto-hdr", "mouse-acceleration", "power-mode" };
+    private static string DirectXFlag(string target) => target switch { "windowed-optimizations" => "SwapEffectUpgradeEnable", "auto-hdr" => "AutoHDREnable", _ => "VRROptimizeEnable" };
     private static string WindowsGaming(string target)
     {
         if (!WindowsGamingTargets.Contains(target)) throw new IOException("Invalid Windows gaming setting.");

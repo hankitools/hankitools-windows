@@ -12,6 +12,8 @@ internal static class WindowsGamingProbe
         GameDvrKey = @"Software\Microsoft\Windows\CurrentVersion\GameDVR", GameBarKey = @"Software\Microsoft\GameBar";
     private static readonly Guid ProcessorGroup = new("54533251-82be-4824-96c1-47b60b740d00"), ProcessorMaximum = new("bc5038f7-23e0-4960-96da-33abaf5935ec"),
         ProcessorMinimum = new("893dee8e-2bef-41e0-89c6-b55d0929964c");
+    // SUB_ENERGYSAVER / ESBATTTHRESHOLD: the battery level at which Energy saver (battery saver) turns on.
+    internal static readonly Guid EnergySaverGroup = new("de830923-a562-41af-a086-e3a2c6bad2da"), EnergySaverThreshold = new("e69653ca-cf7f-4f05-aa73-cb833fa90ad4");
 
     internal static WindowsGamingSettings Collect()
     {
@@ -41,7 +43,7 @@ internal static class WindowsGamingProbe
             WindowsGamingParsing.Flag(global, "SwapEffectUpgradeEnable"), WindowsGamingParsing.Flag(global, "AutoHDREnable"),
             PowerMode(), plan, plan is { } p ? PlanName(p) : null,
             plan is { } a1 ? Read(a1, ProcessorMaximum, ac: true) : null, plan is { } b ? Read(b, ProcessorMaximum, ac: false) : null, plan is { } c ? Read(c, ProcessorMinimum, ac: true) : null,
-            WindowsGamingParsing.Flag(global, "VRROptimizeEnable"), history, capture, Mouse());
+            WindowsGamingParsing.Flag(global, "VRROptimizeEnable"), history, capture, Mouse(), plan is { } d ? Read(d, EnergySaverThreshold, ac: false, EnergySaverGroup) : null);
     }
 
     [DllImport("user32.dll", SetLastError = true)] private static extern bool SystemParametersInfoW(uint action, uint parameter, int[] values, uint flags);
@@ -86,7 +88,7 @@ internal static class WindowsGamingProbe
         catch (EntryPointNotFoundException) { throw new IOException("This version of Windows doesn't let apps change the power mode."); }
         if (status != 0) throw new IOException($"Windows didn't accept the power mode (error {status}).");
     }
-    private static Guid? ActivePlan()
+    internal static Guid? ActivePlan()
     {
         if (PowerGetActiveScheme(IntPtr.Zero, out var pointer) != 0 || pointer == IntPtr.Zero) return null;
         try { return Marshal.PtrToStructure<Guid>(pointer); } finally { LocalFree(pointer); }
@@ -99,9 +101,9 @@ internal static class WindowsGamingProbe
         try { return PowerReadFriendlyName(IntPtr.Zero, ref plan, IntPtr.Zero, IntPtr.Zero, buffer, ref size) == 0 ? Marshal.PtrToStringUni(buffer) : null; }
         finally { Marshal.FreeHGlobal(buffer); }
     }
-    private static int? Read(Guid plan, Guid setting, bool ac)
+    private static int? Read(Guid plan, Guid setting, bool ac, Guid? subgroup = null)
     {
-        var group = ProcessorGroup;
+        var group = subgroup ?? ProcessorGroup;
         uint status = ac ? PowerReadACValueIndex(IntPtr.Zero, ref plan, ref group, ref setting, out var value) : PowerReadDCValueIndex(IntPtr.Zero, ref plan, ref group, ref setting, out value);
         return status == 0 && value <= 100 ? (int)value : null;
     }
