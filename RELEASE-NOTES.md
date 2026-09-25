@@ -11,6 +11,7 @@ An unsigned preview for testing. Tune my PC checks more of your PC and turns mor
 - **Creative work: color.** A YCbCr 4:2:2 or 4:2:0 signal, or 6-bit color on an external display, is a step. On Windows 11 24H2, automatic color management is suggested for wide-gamut displays.
 - **Streaming.** OBS profiles that encode with x264 on the processor get a step to use NVENC, AMF or Quick Sync instead.
 - **Your measured games.** Launch and measure now saves what limited each run. Tune my PC turns each game's latest run into advice for that game: for example, lower textures when video memory was full, or raise graphics settings for free when the processor was the limit.
+- **Display scaling.** On displays set to 125%, 150% or more, such as 2K and 4K laptops, boxes, buttons, tiles and spacing now grow with the text instead of staying at their 100% size. Hanki's window also fits the screen. Scaling follows Windows' setting when you signed in: after changing it, sign out and back in.
 
 Testing: 737 automated checks and a UI smoke test. Reading the new facts was checked on a Windows 11 desktop, and the Energy saver change was written, read back and restored on a throwaway copy of a power plan. Not yet tried on a laptop, an X3D or APO processor, or with OBS installed.
 
