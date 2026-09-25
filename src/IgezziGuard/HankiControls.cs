@@ -57,8 +57,12 @@ public sealed class HankiButton : Button
         if (Appearance == HankiButtonStyle.Icon) return MinimumSize;
         var size = base.GetPreferredSize(proposedSize);
         float scale = Dpi.Factor;
-        if (IconKind is not null) size.Width += (int)(26 * scale);
-        if (Hint is not null) size.Width += TextRenderer.MeasureText(Hint, Font).Width + (int)(12 * scale);
+        // At least what OnPaint draws: the text inside its inset on both sides, then the icon and the hint.
+        bool leading = Appearance is HankiButtonStyle.Navigation or HankiButtonStyle.Quiet or HankiButtonStyle.Field;
+        int needed = TextRenderer.MeasureText(Text, Font, Size.Empty, TextFormatFlags.NoPrefix).Width + 2 * (int)((leading ? 12 : 10) * scale);
+        if (IconKind is not null) { size.Width += (int)(26 * scale); needed += (int)(28 * scale); }
+        if (Hint is not null) { int hint = TextRenderer.MeasureText(Hint, Font).Width; size.Width += hint + (int)(12 * scale); needed += hint + (int)(8 * scale); }
+        size.Width = Math.Max(size.Width, needed);
         return size;
     }
     protected override void OnPaint(PaintEventArgs e)
