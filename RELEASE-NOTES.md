@@ -1,3 +1,24 @@
+# Hanki Tools 0.18.0 — Fix my PC and Tune my PC
+
+Hanki Tools 0.18 is the first full release of the 0.18 series. It is not code-signed yet: signing is pending, so Windows SmartScreen warns before the first run. Compare the published SHA-256 checksum before running it.
+
+What's new in 0.18:
+
+- **Two ways in.** Fix my PC finds what's wrong and fixes it safely; Tune my PC sets your PC up for gaming, creative work or low power. Five areas in the sidebar replace about 20 items. Home searches in everyday words ("laggy", "bsod", "fps") and shows your PC at a glance and your recent activity.
+- **Tune my PC.** Choose Gaming + Performance, Gaming + Quality, Creative work or Low power. Hanki reads your display, Windows, mouse, graphics driver, processor, memory and storage settings and shows a plan: each change before and after, and the steps only you can take. Nothing changes until you apply, and every change is saved in Recovery first.
+- **Gaming.** A read-only gaming check (refresh rate, which GPU games use, Game Mode, power, overlays and busy background apps, PCIe lanes, Resizable BAR), your games from Steam, Epic, GOG and other launchers, Launch and measure, NVIDIA per-game and global settings with presets, and AMD Radeon settings.
+- **GPU, CPU, Memory, Storage and Performance Lab.** Graphics hardware and displays, processor limits and power plans, memory speed and headroom, drive types, TRIM and DirectStorage readiness. The Lab measures every second, with frame rates for DirectX games when Hanki runs as administrator; the Bottleneck Analyzer and Stutter Diagnostics show their evidence, including downloads during a run, and before-and-after comparisons are kept as Performance sessions.
+- **Fix my PC** adds checks for apps that keep crashing, network link speed and clock sync, and points out significant gaming configuration problems without changing them.
+- **Maintain** deletes files (to the Recycle Bin by default, or permanently after you confirm), uninstalls apps with their own uninstaller, and removes leftover app entries after saving a .reg backup.
+- **History** keeps System actions and Performance sessions apart; Recovery undoes changes from both areas.
+- **Built on .NET 10**, supported until November 2028. The portable ZIP is smaller, about 45 MB.
+
+Since 0.18.0-rc.8: Home and Recent activity say how far a cancelled scan got instead of "nothing needs attention", older names were replaced throughout, and clock-sync evidence names the time server without its IP address.
+
+Testing: 717 automated checks and a UI smoke test pass on GitHub Actions for this build. Pre-release testing on Windows 11 is recorded in VALIDATION-v0.18.md. Not yet tried by a person on real hardware: applying Tune my PC changes, NVIDIA and AMD global presets, Launch and measure, uninstalling apps, permanent deletion, and 150% and 200% display scaling. Every change is reviewed first and can be undone in Recovery; please report anything that looks wrong.
+
+Notes from the release candidates follow.
+
 # Hanki Tools 0.18.0-rc.8 — built on .NET 10
 
 An unsigned preview for testing. Hanki now runs on .NET 10, the long-term support release that Microsoft supports until November 2028; .NET 8 support ends on 10 November 2026. The portable package still includes everything it needs, so there is nothing extra to install. Features and behavior are the same as in 0.18.0-rc.7.

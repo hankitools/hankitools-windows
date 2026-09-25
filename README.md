@@ -4,7 +4,7 @@
 
 A Windows toolkit for understanding your PC, reviewing maintenance and investigating problems. Hanki diagnoses common Windows problems, explains results in plain language and offers reviewed, reversible fixes. It is not a vulnerability scanner.
 
-**Status: 0.17.0, not code-signed yet.** GitHub Actions builds every commit on Windows, runs the automated checks and a UI smoke test. Pre-release testing on Windows 11 is recorded in [VALIDATION-v0.17.md](VALIDATION-v0.17.md). Code signing through the SignPath Foundation program is pending; until then Windows SmartScreen warns before the first run.
+**Status: 0.18.0, not code-signed yet.** GitHub Actions builds every commit on Windows, runs the automated checks and a UI smoke test. Pre-release testing on Windows 11 is recorded in [VALIDATION-v0.18.md](VALIDATION-v0.18.md) (and, for 0.17, [VALIDATION-v0.17.md](VALIDATION-v0.17.md)). Code signing through the SignPath Foundation program is pending; until then Windows SmartScreen warns before the first run.
 
 ## Download
 
@@ -79,9 +79,9 @@ Hanki targets .NET 10, a long-term support release supported until 10 November 2
 
 The project namespace/data directory retains the original IgezziGuard name for compatibility. Previous UX/version notes describe history, not current release validation. MIT license; see LICENSE.
 
-## Diagnostics in 0.17
+## Diagnostics and editions
 
-Full System Scan, Windows Activation and Diagnostic history are Community tools.
+Fix my PC scans, Tune my PC, Windows Activation and scan history are Community tools.
 New automation is additive; Release currently stays Community until production
 licensing is connected. Existing manual tools and recovery remain available.
 
