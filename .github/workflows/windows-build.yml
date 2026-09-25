@@ -62,6 +62,32 @@ jobs:
         if: always()
         shell: pwsh
         run: |
+          # 1920x1080 at 150% is a common laptop setup (1280x720 at 100%).
+          Add-Type -TypeDefinition @'
+          using System; using System.Runtime.InteropServices;
+          public static class Res {
+            [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
+            public struct DEVMODE {
+              [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 32)] public string dmDeviceName;
+              public short dmSpecVersion, dmDriverVersion, dmSize, dmDriverExtra; public int dmFields;
+              public int dmPositionX, dmPositionY, dmDisplayOrientation, dmDisplayFixedOutput;
+              public short dmColor, dmDuplex, dmYResolution, dmTTOption, dmCollate;
+              [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 32)] public string dmFormName;
+              public short dmLogPixels; public int dmBitsPerPel, dmPelsWidth, dmPelsHeight, dmDisplayFlags, dmDisplayFrequency,
+                dmICMMethod, dmICMIntent, dmMediaType, dmDitherType, dmReserved1, dmReserved2, dmPanningWidth, dmPanningHeight;
+            }
+            [DllImport("user32.dll", CharSet = CharSet.Ansi)] static extern bool EnumDisplaySettings(string dev, int mode, ref DEVMODE dm);
+            [DllImport("user32.dll", CharSet = CharSet.Ansi)] static extern int ChangeDisplaySettings(ref DEVMODE dm, int flags);
+            public static int Set(int w, int h) {
+              var dm = new DEVMODE(); dm.dmSize = (short)Marshal.SizeOf(typeof(DEVMODE));
+              EnumDisplaySettings(null, -1, ref dm); dm.dmPelsWidth = w; dm.dmPelsHeight = h; dm.dmFields = 0x80000 | 0x100000;
+              return ChangeDisplaySettings(ref dm, 0);
+            }
+          }
+          '@
+          "ChangeDisplaySettings: $([Res]::Set(1920, 1080))"
+          Add-Type -AssemblyName System.Windows.Forms
+          "Screen: $([System.Windows.Forms.Screen]::PrimaryScreen.Bounds)"
           $exe = Get-ChildItem dist -Recurse -Filter HankiTools.exe | Select-Object -First 1
           $out = Join-Path $PWD 'dist\ui-screenshots-150'
           $report = Join-Path $PWD 'dist\ui-smoke-150.json'
