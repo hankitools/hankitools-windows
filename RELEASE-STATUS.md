@@ -1,4 +1,4 @@
-> **Historical:** this describes 0.16.0-rc.3. For the current release, see README.md, RELEASE-NOTES.md and VALIDATION-v0.17.md.
+> **Historical:** this describes 0.16.0-rc.3. For the current release, see README.md, RELEASE-NOTES.md and VALIDATION-v0.18.md.
 
 # Release status • 0.16.0-rc.3
 

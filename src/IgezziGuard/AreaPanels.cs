@@ -119,6 +119,8 @@ internal sealed class HomePanel : UserControl
     {
         int count = scan.Results.Count(r => r.Severity is FindingSeverity.Warning or FindingSeverity.Critical);
         string when = scan.Ended.ToLocalTime().ToString("g");
+        if (!HomeActivity.Finished(scan))
+            return $"Last scan {when}: {char.ToLowerInvariant(HomeActivity.ScanSummary(scan)[0])}{HomeActivity.ScanSummary(scan)[1..]}. Scan again for a complete picture.";
         return count == 0 ? $"Last scan {when}: nothing needs attention." : $"{count} system {(count == 1 ? "recommendation" : "recommendations")} from your last scan ({when}).";
     }
 }
@@ -181,7 +183,7 @@ internal sealed class PlannedPanel : UserControl
 public sealed class SystemActionsPanel : ToolPage
 {
     protected override bool ReadOnlyTool => true;
-    public SystemActionsPanel() : base("Everything Hanki System has done on this PC: Full System Scans, repairs and recorded Windows changes, newest first. Undo supported changes in Recovery. Performance tests are listed separately under Performance sessions.")
+    public SystemActionsPanel() : base("Everything Fix my PC has done on this PC: scans, repairs, removals and recorded Windows changes, newest first. Undo supported changes in Recovery. Performance tests are listed separately under Performance sessions.")
     {
         Button("Refresh", ShowTimeline);
         VisibleChanged += (_, _) => { if (Visible && !IsBusy) ShowTimeline(); };

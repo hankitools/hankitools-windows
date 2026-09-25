@@ -28,6 +28,6 @@ internal sealed class GamingDiagnostic : IDiagnosticModule
         if (significant.Length > 0) return significant;
         var now = findings.Count > 0 ? findings[0].Ended : DateTimeOffset.UtcNow;
         return [new DiagnosticResult(GamingHealth.ModuleId, "summary", DiagnosticCategory.Performance, CollectionOutcome.Completed, FindingSeverity.Healthy, "Gaming configuration",
-            "No significant gaming configuration problems. Performance → Gaming has the full check and optimization goals.", now, now, confidence: FindingConfidence.Confirmed)];
+            "No significant gaming configuration problems. Tune my PC → Gaming has the full check and optimization goals.", now, now, confidence: FindingConfidence.Confirmed)];
     }
 }

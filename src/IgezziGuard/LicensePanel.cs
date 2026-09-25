@@ -43,7 +43,7 @@ internal sealed class LicensePanel : UserControl
 
         var compareTitle = new Label { Text = "What Pro and Technician add", AutoSize = true, Dock = DockStyle.Top, Font = new Font("Segoe UI", 14, FontStyle.Bold), Margin = new Padding(0, 0, 0, 10) };
         var compare = new Label { AutoSize = true, Dock = DockStyle.Top, Tag = "intro", Margin = new Padding(0, 0, 0, 14), Text =
-            "Hanki Community, free: every tool in the app, Full System Scan, saved history, guided checks and Quick Assist. They stay free.\r\n\r\n" +
+            "Hanki Community, free: every tool in the app, Fix my PC scans, saved history, guided checks and Quick Assist. They stay free.\r\n\r\n" +
             "Hanki Pro, one-time purchase: scheduled checks that run while you're away, and automatic repairs for the Windows component store (DISM), protected system files (SFC) and the DNS cache. You review every repair before it runs, and Hanki checks afterwards whether it worked.\r\n\r\n" +
             "Hanki Technician, yearly per technician: everything in Pro, plus customer reports you can print or save as PDF for the people whose PCs you fix.\r\n\r\n" +
             "Buying either one supports the free edition." };

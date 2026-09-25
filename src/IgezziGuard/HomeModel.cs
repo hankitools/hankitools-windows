@@ -123,15 +123,25 @@ public sealed record ActivityItem(DateTimeOffset At, string Title, string Detail
 
 public static class HomeActivity
 {
+    private static int ToReview(DiagnosticScan s) => s.Results.Count(r => r.Severity is FindingSeverity.Warning or FindingSeverity.Critical);
+    /// <summary>Whether every check of the scan ran; checks that need administrator rights still count as run.</summary>
+    public static bool Finished(DiagnosticScan scan) => !scan.Cancelled && scan.CompletedModules >= scan.PlannedModules;
+    /// <summary>How a scan went, in a few words. A cancelled or stopped scan never reads as "nothing needed attention".</summary>
+    public static string ScanSummary(DiagnosticScan scan)
+    {
+        int n = ToReview(scan);
+        string found = $"{n} {(n == 1 ? "recommendation" : "recommendations")} to review";
+        if (!Finished(scan))
+            return $"{(scan.Cancelled ? "Cancelled" : "Stopped")} after {scan.CompletedModules} of {scan.PlannedModules} checks" + (n > 0 ? "; " + found : "");
+        return n == 0 ? "Nothing needed attention" : found;
+    }
+
     /// <summary>The latest scan, the latest Performance check and recent changes, newest first.</summary>
     public static IReadOnlyList<ActivityItem> Build(DiagnosticScan? scan, DiagnosticScan? performance, IEnumerable<SettingChange> changes, int limit = 5)
     {
-        static int ToReview(DiagnosticScan s) => s.Results.Count(r => r.Severity is FindingSeverity.Warning or FindingSeverity.Critical);
         var items = new List<ActivityItem>();
-        if (scan is not null) {
-            int n = ToReview(scan);
-            items.Add(new(scan.Ended, "Fix my PC scan", n == 0 ? "Nothing needed attention" : $"{n} {(n == 1 ? "recommendation" : "recommendations")} to review", "View results", "Fix My PC"));
-        }
+        if (scan is not null)
+            items.Add(new(scan.Ended, "Fix my PC scan", ScanSummary(scan), "View results", "Fix My PC"));
         if (performance is not null) {
             int n = ToReview(performance);
             items.Add(new(performance.Ended, "Performance check", n == 0 ? "No optimization opportunities" : $"{n} {(n == 1 ? "opportunity" : "opportunities")} found", "Open Tune my PC", "Performance overview"));

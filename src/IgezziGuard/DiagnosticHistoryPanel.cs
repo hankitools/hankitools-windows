@@ -42,7 +42,7 @@ public sealed class DiagnosticHistoryPanel : ToolPage
             // Saved history keeps titles and results only; the report says so and suggests a new scan for full explanations.
             if(CustomerReportFlow.Create(this,scan,repairs) is { } status)Output.Text=status;
         });
-        More("Clear scan history",()=>{if(!Review("Remove saved Full System Scan summaries? Repair audit, recovery backups and legacy scanner history will remain available."))return;try{history.Clear();RefreshHistory();}catch{Output.Text="History could not be cleared.";}});
+        More("Clear scan history",()=>{if(!Review("Remove saved scan summaries? Repair audit, recovery backups and legacy scanner history will remain available."))return;try{history.Clear();RefreshHistory();}catch{Output.Text="History could not be cleared.";}});
         more.Controls.Add(scheduleStatus);
         Controls.Add(more);Controls.SetChildIndex(more,1);
         // Saved scans load when the page opens: newest first, compared with the one before it.

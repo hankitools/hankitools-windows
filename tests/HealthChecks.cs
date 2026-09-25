@@ -123,7 +123,8 @@ internal static class HealthChecks
 
         TimeSyncFacts Time(int? syncedDaysAgo = 2, int failures = 0, string type = "NTP", string start = "Manual", string notes = "") =>
             new(syncedDaysAgo is { } d ? Now.AddDays(-d) : null, "time.windows.com,0x9 (ntp.m|0x9|0.0.0.0:123->104.40.149.189:123)", failures, failures > 0 ? Now.AddDays(-1) : null, type, start, notes);
-        Check(TimeSync.Evaluate(Time(), Now).Single() is { Status: CardStatus.Good } synced && synced.Body.Contains("from time.windows.com 2 days ago"), "clock sync: a recent sync names the server and when");
+        Check(TimeSync.Evaluate(Time(), Now).Single() is { Status: CardStatus.Good } synced && synced.Body.Contains("from time.windows.com 2 days ago") && !synced.Evidence.Contains("104.40"),
+            "clock sync: a recent sync names the server and when, without the server's IP address");
         Check(TimeSync.Evaluate(Time(null, failures: 4), Now).Single() is { Status: CardStatus.Review } blocked && blocked.Title == "Windows can't reach its time server" && blocked.Body.Contains("UDP port 123"),
             "clock sync: repeated failed syncs point to blocked time requests");
         Check(TimeSync.Evaluate(Time(type: "NoSync"), Now).Single().Title == "Automatic time is off" && TimeSync.Evaluate(Time(start: "Disabled"), Now).Single().Status == CardStatus.Review,

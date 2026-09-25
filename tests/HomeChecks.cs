@@ -67,6 +67,14 @@ internal static class HomeChecks
         Check(items.Select(i => i.Title).SequenceEqual(["Power mode", "Performance check", "Power management mode (all games)", "Fix my PC scan", "Radeon Anti-Lag"])
             && items[3].Detail == "1 recommendation to review" && items[1].Detail == "No optimization opportunities" && items[2].Detail == "Changed, then undone",
             "activity: scans, checks and changes, newest first; changes that were never applied aren't listed");
+        // 0.18 acceptance: a cancelled scan had read "Nothing needed attention" on Home.
+        var cancelled = new DiagnosticScan(Guid.NewGuid(), Now, Now, 15, 5, true, [Finding(FindingSeverity.Healthy)]);
+        var stopped = new DiagnosticScan(Guid.NewGuid(), Now, Now, 15, 14, false, [Finding(FindingSeverity.Warning)]);
+        var adminOnlySkipped = new DiagnosticScan(Guid.NewGuid(), Now, Now, 15, 15, false,
+            [Finding(FindingSeverity.Healthy), new("sfc", "integrity", DiagnosticCategory.Windows, CollectionOutcome.Unavailable, FindingSeverity.Unknown, "SFC", "Needs administrator rights.", Now, Now)]);
+        Check(HomeActivity.ScanSummary(cancelled) == "Cancelled after 5 of 15 checks" && HomeActivity.ScanSummary(stopped) == "Stopped after 14 of 15 checks; 1 recommendation to review"
+            && HomeActivity.ScanSummary(adminOnlySkipped) == "Nothing needed attention" && !HomeActivity.Finished(cancelled) && HomeActivity.Finished(adminOnlySkipped),
+            "activity: a cancelled or stopped scan says how far it got instead of 'nothing needed attention'; checks skipped for administrator rights don't count as unfinished");
         Check(items.Where(i => i.Title is "Power mode" or "Radeon Anti-Lag").All(i => i.Target == "Recovery") && items.Single(i => i.Title == "Fix my PC scan").Target == "Fix My PC"
             && HomeActivity.Build(null, null, []).Count == 0 && HomeActivity.Build(scan, check, changes, limit: 2).Count == 2, "activity: each item opens where it can be reviewed or undone");
         Check(HomeActivity.ChangeLabel(Change("NVIDIA setting", "cs2.exe|0x1057EB71", "Applied", 1)) == "Power management mode for cs2"

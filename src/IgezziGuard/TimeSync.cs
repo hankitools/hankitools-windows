@@ -33,7 +33,8 @@ internal static class TimeSync
     internal static IReadOnlyList<HealthItem> Evaluate(TimeSyncFacts facts, DateTimeOffset now)
     {
         const string Id = "time", Title = "Clock sync";
-        string evidence = $"Last sync {facts.LastSync?.ToString("o") ?? "none in 30 days"} ({facts.Source ?? "?"}); {facts.Failures} Time Service warnings in 14 days; Type {facts.Type ?? "?"}; W32Time {facts.StartType ?? "?"}";
+        // The server's name only: the raw source also carries IP addresses, which reports leave out.
+        string evidence = $"Last sync {facts.LastSync?.ToString("o") ?? "none in 30 days"} ({(facts.Source is null ? "?" : Server(facts.Source))}); {facts.Failures} Time Service warnings in 14 days; Type {facts.Type ?? "?"}; W32Time {facts.StartType ?? "?"}";
         if (string.Equals(facts.Type, "NoSync", StringComparison.OrdinalIgnoreCase))
             return [new(Id, "Automatic time is off", CardStatus.Review,
                 $"Set time automatically is turned off, so Windows never corrects its clock. A clock that's a few minutes off can break sign-ins, secure websites and updates. Turn it on in {Settings}.", evidence)];

@@ -15,7 +15,7 @@ public static class SystemActions
         foreach (var scan in scans) {
             int attention = scan.Results.Count(r => r.Severity == FindingSeverity.Critical), review = scan.Results.Count(r => r.Severity == FindingSeverity.Warning);
             string state = scan.Cancelled ? " Cancelled before it finished." : scan.Complete ? "" : " Some checks were unavailable.";
-            entries.Add(new(scan.Ended, "Scan", "Full System Scan",
+            entries.Add(new(scan.Ended, "Scan", "Fix my PC scan",
                 attention + review == 0 ? $"{scan.Results.Count} results, nothing needs attention.{state}" : $"{attention} need attention, {review} worth reviewing.{state}"));
         }
         // The audit records each attempt as Pending before it runs, then again with its result; show the latest record of each.

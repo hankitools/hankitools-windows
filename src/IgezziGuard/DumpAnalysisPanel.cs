@@ -53,7 +53,7 @@ public sealed class TroubleshootingPanel : ToolPage
         ("My PC restarted by itself or showed a blue screen", [
             new("Check what Windows recorded", "Looks for unexpected restarts, blue screens and disk or hardware errors in the last 7 days.", "Diagnose  /  Recent Event Logs", "Open Event logs"),
             new("See what happened just before", "Builds a timeline of events around the restart so you can spot a failing driver, disk or device.", "Diagnose  /  Crash timeline", "Open Crash timeline"),
-            new("Run a full system scan", "Checks storage, devices, Windows files and security in one pass.", "Fix My PC", "Open Fix My PC"),
+            new("Run a full scan", "Checks storage, devices, Windows files and security in one pass.", "Fix My PC", "Open Full scan"),
             new("Look inside the crash dump (advanced)", "If Windows saved a dump, Microsoft's debugger can name the module involved.", "Diagnose  /  Dump analysis", "Open Dump analysis"),
             new("Think about recent changes", "New drivers, hardware, updates or overclocking are the most common causes. Undo one change at a time and note what you did."),
         ]),
