@@ -57,4 +57,4 @@ path before the existing live event-log checks.
 
 The separate Home redesign, fuzzy/error-code search, unified undo timeline,
 operation-specific elevation and broader responsive layout work remain future
-increments. This change does not publish a new release.
+increments. Included in the 0.19.0-rc.4 preview.

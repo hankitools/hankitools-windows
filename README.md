@@ -4,7 +4,7 @@
 
 A Windows toolkit for understanding your PC, reviewing maintenance and investigating problems. Hanki diagnoses common Windows problems, explains results in plain language and offers reviewed, reversible fixes. It is not a vulnerability scanner.
 
-**Status: 0.18.0, not code-signed yet.** GitHub Actions builds every commit on Windows, runs the automated checks and a UI smoke test. Pre-release testing on Windows 11 is recorded in [VALIDATION-v0.18.md](VALIDATION-v0.18.md) (and, for 0.17, [VALIDATION-v0.17.md](VALIDATION-v0.17.md)). Code signing through the SignPath Foundation program is pending; until then Windows SmartScreen warns before the first run.
+**Status: 0.19.0-rc.4 preview, not code-signed yet.** GitHub Actions builds every commit on Windows, runs the automated checks and a UI smoke test. Pre-release testing on Windows 11 is recorded in [VALIDATION-v0.18.md](VALIDATION-v0.18.md) (and, for 0.17, [VALIDATION-v0.17.md](VALIDATION-v0.17.md)). Code signing through the SignPath Foundation program is pending; until then Windows SmartScreen warns before the first run.
 
 ## Download
 
