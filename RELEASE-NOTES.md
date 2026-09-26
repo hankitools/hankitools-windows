@@ -1,3 +1,14 @@
+# Hanki Tools 0.19.0-rc.5 — A cleaner Home at high DPI
+
+An unsigned preview with a simpler Home screen and a fix for clipped PC-at-a-glance tiles.
+
+- **Less clutter on Home.** Recent actions no longer repeat scans, checks and changes already available in History. The scan and Tune my PC status stay with their main actions.
+- **Clearer first view.** The two main actions use less vertical space, with shorter headings and more room for the PC overview.
+- **Scaling fix.** PC-at-a-glance tiles now scale their height and grid density with Windows display DPI, so usage bars no longer cross values and details remain visible at higher scaling.
+- **More legible navigation.** The sidebar now scales with Windows display DPI, keeps the brand and destinations inside the panel, and uses consistent text sizing and row spacing.
+
+Validation includes the automated home/localization checks and the UI smoke test at the current 150% display scaling. The smoke test checks tile heights and sidebar sizing at 100%, 150% and 200%; manually inspect those settings on Windows before public distribution.
+
 # Hanki Tools 0.19.0-rc.4 — Clearer results and guided troubleshooting
 
 An unsigned preview with simpler scan results and a guided internet troubleshooting flow.

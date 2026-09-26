@@ -54,6 +54,8 @@ public sealed class HankiForm : Form
     /// <summary>Every navigable tool, as listed in Find a tool.</summary>
     internal IReadOnlyList<ToolLauncher.Route> Routes { get; private set; } = [];
     private ToolPage[] ExtraPages => [activation, updateHealth, batteryStartup, diagnosticHistory, systemActions, performanceSessions, gamingOverview, gamesPanel, nvidiaPanel, amdPanel, gpuPanel, bottleneck, stutter, cpuPanel, memoryHealth, storagePanel, fullScan, internetGuide, duplicates, startupFolders, longPerformance, tuning, networkTools, defenderTools, dumps, guidance, recovery, scanner];
+    internal static int ScaleSidebarDimension(int logical, int dpi) => (int)Math.Round(logical * dpi / 96f);
+    internal static int SidebarWidthAtDpi(int dpi) => 192 + ScaleSidebarDimension(64, dpi);
 
     public HankiForm()
     {
@@ -153,37 +155,41 @@ public sealed class HankiForm : Form
         performance.PrepareRequested += Prepare;
         connection.PrepareRequested += Prepare;
         // Sidebar: brand and the five areas at the top; quick access, About and the version quietly at the bottom.
-        var sidebarHost = new Panel { Tag = "pine", Dock = DockStyle.Left, Width = 240 };
+        var sidebarHost = new Panel { Tag = "pine", Dock = DockStyle.Left, Width = 256 };
         var sidebar = new FlowLayoutPanel { Tag = "pine", Dock = DockStyle.Fill, FlowDirection = FlowDirection.TopDown,
-            AutoScroll = true, WrapContents = false, Padding = new Padding(12, 6, 12, 12) };
+            AutoScroll = true, WrapContents = false, Padding = new Padding(12, 8, 12, 12) };
         var sidebarFooter = new FlowLayoutPanel { Tag = "pine", Dock = DockStyle.Bottom, AutoSize = true, FlowDirection = FlowDirection.TopDown, WrapContents = false, Padding = new Padding(12, 0, 12, 12) };
         sidebarHost.Controls.Add(sidebar); sidebarHost.Controls.Add(sidebarFooter);
-        sidebar.Controls.Add(new BrandHeader { Margin = new Padding(0, 0, 0, 14) });
+        var brand = new BrandHeader { Margin = new Padding(0, 0, 0, 14) };
+        sidebar.Controls.Add(brand);
         // Five destinations (HANKI-UX-300): each area's landing page opens its other pages as tiles. The item of the
         // current area stays selected on those pages too, so you always know where you are.
         var navigation = new List<(HankiButton Button, ProductArea Area)>();
+        var navigationButtons = new List<HankiButton>();
         foreach (var pageId in Navigation.Sidebar) {
             var item = Navigation.Find(pageId)!;
             var page = At(item.Page);
-            var button = new HankiButton { Text = Localizer.T(item.Label), Width = 214, Height = 46, Margin = new Padding(0, 2, 0, 2), AccessibleName = Localizer.Format("Open {0}", Localizer.T(item.Label)),
-                IconKind = item.Icon, AreaAccent = HankiTheme.AreaAccent(item.Area), Appearance = HankiButtonStyle.Navigation, Font = new Font("Segoe UI Semibold", 12f) };
+            var button = new HankiButton { Text = Localizer.T(item.Label), Width = 232, Height = 44, Margin = new Padding(0, 3, 0, 3), AccessibleName = Localizer.Format("Open {0}", Localizer.T(item.Label)),
+                IconKind = item.Icon, AreaAccent = HankiTheme.AreaAccent(item.Area), Appearance = HankiButtonStyle.Navigation, Font = new Font("Segoe UI Semibold", 11.5f) };
             button.Click += (_, _) => tabs.SelectedTab = page;
-            navigation.Add((button, item.Area)); sidebar.Controls.Add(button);
+            navigation.Add((button, item.Area)); navigationButtons.Add(button); sidebar.Controls.Add(button);
         }
         var quick = new FlowLayoutPanel { AutoSize = true, FlowDirection = FlowDirection.TopDown, WrapContents = false, Visible = false, Margin = Padding.Empty };
-        var quickToggle = new HankiButton { Text = "›  " + Localizer.T("Quick access"), Width = 214, Height = 34, Appearance = HankiButtonStyle.Navigation,
-            Margin = new Padding(0, 0, 0, 2), AccessibleName = Localizer.T("Expand quick access"), Font = new Font("Segoe UI", 9.75f) };
+        var quickToggle = new HankiButton { Text = "›  " + Localizer.T("Quick access"), Width = 232, Height = 36, Appearance = HankiButtonStyle.Navigation,
+            Margin = new Padding(0, 0, 0, 4), AccessibleName = Localizer.T("Expand quick access"), Font = new Font("Segoe UI", 10.5f) };
         quickToggle.Click += (_, _) => {
             quick.Visible = !quick.Visible; quickToggle.Text = (quick.Visible ? "⌄  " : "›  ") + Localizer.T("Quick access");
             quickToggle.AccessibleName = Localizer.T(quick.Visible ? "Collapse quick access" : "Expand quick access");
         };
         sidebarFooter.Controls.Add(quick); sidebarFooter.Controls.Add(quickToggle);
+        var shortcutButtons = new List<HankiButton>();
         foreach (var item in new[] { ("PowerShell (Admin)", "powershell"), ("CMD (Admin)", "cmd"), ("File Explorer", "explorer"), ("Task Manager", "task-manager"), ("Windows Settings", "settings"), ("Event Viewer", "event-viewer") }) {
-            var shortcut = new HankiButton { Text = Localizer.T(item.Item1), Width = 204, Height = 30, Appearance = HankiButtonStyle.Navigation, Font = new Font("Segoe UI", 9.25f), Margin = new Padding(10, 0, 0, 0) };
-            shortcut.Click += (_, _) => DesktopShortcuts.Open(this, item.Item2); quick.Controls.Add(shortcut);
+            var shortcut = new HankiButton { Text = Localizer.T(item.Item1), Width = 218, Height = 32, Appearance = HankiButtonStyle.Navigation, Font = new Font("Segoe UI", 10f), Margin = new Padding(10, 0, 0, 0) };
+            shortcut.Click += (_, _) => DesktopShortcuts.Open(this, item.Item2); shortcutButtons.Add(shortcut); quick.Controls.Add(shortcut);
         }
-        quick.Controls.Add(new Label { Text = Localizer.T("Admin shortcuts use Windows UAC."), AutoSize = true, Tag = "intro", Font = new Font("Segoe UI", 8.25f), Margin = new Padding(20, 4, 0, 4) });
-        var about = new HankiButton { Text = Localizer.T("About & privacy"), Appearance = HankiButtonStyle.Navigation, Width = 214, Height = 34, Font = new Font("Segoe UI", 9.75f), Margin = new Padding(0, 1, 0, 1) };
+        var shortcutHint = new Label { Text = Localizer.T("Admin shortcuts use Windows UAC."), AutoSize = true, Tag = "intro", Font = new Font("Segoe UI", 8.25f), Margin = new Padding(20, 4, 0, 4) };
+        quick.Controls.Add(shortcutHint);
+        var about = new HankiButton { Text = Localizer.T("About & privacy"), Appearance = HankiButtonStyle.Navigation, Width = 232, Height = 36, Font = new Font("Segoe UI", 10.5f), Margin = new Padding(0, 2, 0, 2) };
         about.Click += (_, _) => {
             using var dialog = new Form { Text = Localizer.T("About Hanki Tools"), Size = new Size(720, 520), MinimumSize = new Size(500, 350), StartPosition = FormStartPosition.CenterParent, Font = Font, Padding = new Padding(20) };
             var body = Report();
@@ -197,10 +203,34 @@ public sealed class HankiForm : Form
             dialog.Controls.Add(body); dialog.Controls.Add(close); dialog.CancelButton = close; HankiTheme.Apply(dialog); dialog.ShowDialog(this);
         };
         sidebarFooter.Controls.Add(about);
-        var languageButton = new HankiButton { Text = Localizer.CurrentLanguage == "en" ? "Language" : Localizer.T("Language") + " / Language", AutoSize = true, MaximumSize = new Size(214, 0), Appearance = HankiButtonStyle.Navigation, Font = new Font("Segoe UI", 9.75f), Margin = new Padding(0, 1, 0, 1) };
+        var languageButton = new HankiButton { Text = Localizer.CurrentLanguage == "en" ? "Language" : Localizer.T("Language") + " / Language", AutoSize = true, MaximumSize = new Size(232, 0), Appearance = HankiButtonStyle.Navigation, Font = new Font("Segoe UI", 10.5f), Margin = new Padding(0, 2, 0, 2) };
         languageButton.Click += (_, _) => { using var dialog = new LanguageDialog(); dialog.ShowDialog(this); };
         sidebarFooter.Controls.Add(languageButton);
-        sidebarFooter.Controls.Add(new Label { Text = "v" + AppInfo.Version + "  ·  hanki.tools", AutoSize = true, Tag = "intro", Font = new Font("Segoe UI", 8.25f), Margin = new Padding(14, 6, 0, 0) });
+        var versionLabel = new Label { Text = "v" + AppInfo.Version + "  ·  hanki.tools", AutoSize = true, Tag = "intro", Font = new Font("Segoe UI", 8.25f), Margin = new Padding(12, 8, 0, 0) };
+        sidebarFooter.Controls.Add(versionLabel);
+        void FitSidebar()
+        {
+            int Scale(int value) => ScaleSidebarDimension(value, DeviceDpi);
+            int padding = Scale(12), itemWidth = SidebarWidthAtDpi(DeviceDpi) - padding * 2;
+            sidebarHost.Width = SidebarWidthAtDpi(DeviceDpi);
+            sidebar.Padding = new Padding(padding, 8, padding, 12);
+            sidebarFooter.Padding = new Padding(padding, 0, padding, 12);
+            brand.Width = itemWidth; brand.Margin = new Padding(0, 0, 0, 14);
+            foreach (var button in navigationButtons) {
+                button.Width = itemWidth; button.Height = 44; button.Margin = new Padding(0, 3, 0, 3);
+            }
+            quickToggle.Width = itemWidth; quickToggle.Height = 36; quickToggle.Margin = new Padding(0, 0, 0, 4);
+            foreach (var shortcut in shortcutButtons) {
+                shortcut.Width = itemWidth - Scale(10); shortcut.Height = 32; shortcut.Margin = new Padding(Scale(10), 0, 0, 0);
+            }
+            shortcutHint.Margin = new Padding(Scale(20), 4, 0, 4);
+            about.Width = itemWidth; about.Height = 36; about.Margin = new Padding(0, 2, 0, 2);
+            languageButton.MaximumSize = new Size(itemWidth, 0); languageButton.Margin = new Padding(0, 2, 0, 2);
+            versionLabel.Margin = new Padding(Scale(12), 8, 0, 0);
+        }
+        HandleCreated += (_, _) => FitSidebar();
+        DpiChanged += (_, _) => FitSidebar();
+        FitSidebar();
         var title = new Label { Text = Localizer.T("Overview"), Dock = DockStyle.Top, Height = 58, Font = new Font("Segoe UI Semibold", 21f), Padding = new Padding(22, 16, 0, 0), AutoEllipsis = true };
         var routes = new List<ToolLauncher.Route>();
         Action updateNavigation = () => { };
