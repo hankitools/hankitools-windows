@@ -17,6 +17,8 @@ internal static class HankiMenu
     }
     /// <summary>Opens the menu under a button, aligned to its left edge.</summary>
     internal static void ShowBelow(Control anchor, ContextMenuStrip menu) => menu.Show(anchor, new Point(0, anchor.Height + (int)(4 * anchor.DeviceDpi / 96f)));
+    /// <summary>Opens the menu above a button, aligned to its left edge.</summary>
+    internal static void ShowAbove(Control anchor, ContextMenuStrip menu) => menu.Show(anchor, Point.Empty, ToolStripDropDownDirection.AboveRight);
 
     private sealed class Renderer() : ToolStripProfessionalRenderer(new Palette())
     {

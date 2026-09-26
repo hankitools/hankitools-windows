@@ -7,7 +7,7 @@ internal static partial class UiSmokeTest
     /// <summary>Pages saved as screenshots for review (file name, route), when a screenshot folder is given.</summary>
     internal static readonly IReadOnlyList<(string File, string Route)> Screens = [
         ("scan-results", "Fix My PC"), ("internet-guide", "Connect  /  Guided troubleshooting"),
-        ("home", "Home"), ("home-search", "Home"), ("home-glance", "Home"), ("fix-my-pc", "System overview"), ("tune-my-pc", "Performance overview"), ("gaming", "Gaming  /  Overview"),
+        ("home", "Home"), ("home-glance", "Home"), ("fix-my-pc", "System overview"), ("tune-my-pc", "Performance overview"), ("gaming", "Gaming  /  Overview"),
         ("games", "Gaming  /  Games"), ("nvidia", "Gaming  /  NVIDIA"), ("amd", "Gaming  /  AMD Radeon"), ("diagnose", "Diagnose"), ("maintain", "Maintain"), ("apps", "Maintain  /  Apps & storage"), ("connect", "Connect"), ("recovery", "Recovery"), ("history", "History"), ("help", "Help"), ("tune-plan", "Performance overview")];
 
     /// <summary>An example Tune my PC plan from fixed data (an untuned desktop with an RTX 4070), for the plan screenshot.</summary>
@@ -98,9 +98,7 @@ internal static partial class UiSmokeTest
                             Note("screenshot " + route);
                             open.Open(); form.PerformLayout(); Application.DoEvents();
                             if (file == "tune-plan") { Find<TunePanel>(form)?.Preview(ExamplePlan()); form.PerformLayout(); Application.DoEvents(); }
-                            if (file == "home-search") { Find<HomeSearchBox>(form)?.Query(Localizer.T("slow")); form.PerformLayout(); Application.DoEvents(); }
                             if (file == "home-glance" && Find<HomePanel>(form) is { } home) {
-                                Find<HomeSearchBox>(form)?.Query("");
                                 var heading = home.Controls.OfType<Label>().Single(l => l.Text == Localizer.T("Your PC at a glance"));
                                 home.AutoScrollPosition = new Point(0, heading.Top); Application.DoEvents();
                             }

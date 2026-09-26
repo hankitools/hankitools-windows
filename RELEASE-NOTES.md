@@ -1,3 +1,10 @@
+# Hanki Tools 0.19.0-rc.6 — Home search and Quick access
+
+An unsigned preview removing duplicate search UI and fixing the sidebar shortcuts menu.
+
+- **One search entry point.** Removed the extra search box from Home; Find a tool in the header remains available.
+- **Quick access menu.** Replaced the expanding shortcut list with a compact popup that opens above its sidebar button, preserving all six shortcuts and the Windows UAC note.
+
 # Hanki Tools 0.19.0-rc.5 — A cleaner Home at high DPI
 
 An unsigned preview with a simpler Home screen and a fix for clipped PC-at-a-glance tiles.

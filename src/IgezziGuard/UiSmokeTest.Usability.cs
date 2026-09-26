@@ -52,6 +52,7 @@ internal static partial class UiSmokeTest
         Open("Home");
         var home = Find<HomePanel>(form)!;
         Require(!Descendants(home).OfType<Label>().Any(l => l.Text == Localizer.T("Recent activity")), "Home must not repeat recent actions.");
+        Require(!Descendants(home).OfType<SearchField>().Any(), "Home must not repeat Find a tool as a separate search box.");
         Require(GlanceTile.HeightAtDpi(96) == 124 && GlanceTile.HeightAtDpi(144) == 186 && GlanceTile.HeightAtDpi(192) == 248
             && HomePanel.ColumnsForWidth(1100, 96) == 3 && HomePanel.ColumnsForWidth(1100, 144) == 2 && HomePanel.ColumnsForWidth(1100, 192) == 2,
             "Glance tile height and column count must adapt at 100%, 150% and 200%.");
@@ -61,6 +62,17 @@ internal static partial class UiSmokeTest
         var sidebar = brandHeader.Parent!;
         var navLabels = Navigation.Sidebar.Select(id => Localizer.T(Navigation.Find(id)!.Label)).ToHashSet(StringComparer.Ordinal);
         var navButtons = sidebar.Controls.OfType<HankiButton>().Where(button => navLabels.Contains(button.Text)).ToArray();
+        var quickToggle = Descendants(form).OfType<HankiButton>().Single(button => button.AccessibleName == Localizer.T("Quick access"));
+        var quickMenu = quickToggle.ContextMenuStrip!;
+        var shortcutNames = quickMenu.Items.OfType<ToolStripMenuItem>().Where(item => item.Enabled).Select(item => item.Text).ToArray();
+        Require(shortcutNames.SequenceEqual(new[] { "PowerShell (Admin)", "CMD (Admin)", "File Explorer", "Task Manager", "Windows Settings", "Event Viewer" }.Select(Localizer.T))
+            && quickMenu.Items.OfType<ToolStripMenuItem>().Any(item => !item.Enabled && item.Text == Localizer.T("Admin shortcuts use Windows UAC.")),
+            "Quick access must show all six shortcuts and the UAC note.");
+        quickToggle.Invoke(); Application.DoEvents();
+        var quickButtonTop = quickToggle.PointToScreen(Point.Empty).Y;
+        Require(quickMenu.Visible && quickMenu.Bounds.Bottom <= quickButtonTop,
+            "Quick access must open above its sidebar button without being clipped.");
+        quickMenu.Close();
         Require(HankiForm.SidebarWidthAtDpi(96) == 256 && HankiForm.SidebarWidthAtDpi(144) == 288 && HankiForm.SidebarWidthAtDpi(192) == 320,
             "Sidebar width must scale consistently at 100%, 150% and 200%.");
         Require(navButtons.Length == Navigation.Sidebar.Count,
