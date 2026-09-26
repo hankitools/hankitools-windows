@@ -99,7 +99,11 @@ internal static partial class UiSmokeTest
                             open.Open(); form.PerformLayout(); Application.DoEvents();
                             if (file == "tune-plan") { Find<TunePanel>(form)?.Preview(ExamplePlan()); form.PerformLayout(); Application.DoEvents(); }
                             if (file == "home-search") { Find<HomeSearchBox>(form)?.Query(Localizer.T("slow")); form.PerformLayout(); Application.DoEvents(); }
-                            if (file == "home-glance" && Find<HomePanel>(form) is { } home) { Find<HomeSearchBox>(form)?.Query(""); home.AutoScrollPosition = new Point(0, 460); Application.DoEvents(); }
+                            if (file == "home-glance" && Find<HomePanel>(form) is { } home) {
+                                Find<HomeSearchBox>(form)?.Query("");
+                                var heading = home.Controls.OfType<Label>().Single(l => l.Text == Localizer.T("Your PC at a glance"));
+                                home.AutoScrollPosition = new Point(0, heading.Top); Application.DoEvents();
+                            }
                             using var bitmap = new Bitmap(form.Width, form.Height);
                             form.DrawToBitmap(bitmap, new Rectangle(Point.Empty, form.Size));
                             var path = Path.Combine(screenshotFolder, file + ".png");

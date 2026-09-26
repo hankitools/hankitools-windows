@@ -262,6 +262,7 @@ internal sealed class WorkspacePages : TabControl
 
 internal sealed class BrandHeader : Control
 {
+    private const int BaseWidth = 220;
     private readonly Image brandImage = LoadBrandImage();
     private static Image LoadBrandImage()
     {
@@ -278,29 +279,30 @@ internal sealed class BrandHeader : Control
     }
     public BrandHeader()
     {
-        Height = 82; Width = 204; AccessibleName = "Hanki Tools"; AccessibleDescription = AppInfo.Tagline;
+        Height = 82; Width = BaseWidth; AccessibleName = "Hanki Tools"; AccessibleDescription = AppInfo.Tagline;
         SetStyle(ControlStyles.UserPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.AllPaintingInWmPaint, true);
         meaning.SetToolTip(this, AppInfo.TaglineMeaning);
     }
     // Painting is DPI-scaled; keep the tagline row inside the control at higher scaling.
     protected override void OnHandleCreated(EventArgs e) { base.OnHandleCreated(e); Height = (int)Math.Ceiling(82 * DeviceDpi / 96f); }
+    protected override void OnDpiChangedAfterParent(EventArgs e) { base.OnDpiChangedAfterParent(e); Height = (int)Math.Ceiling(82 * DeviceDpi / 96f); }
     protected override void OnPaint(PaintEventArgs e) {
         base.OnPaint(e); var g = e.Graphics; g.SmoothingMode = SmoothingMode.AntiAlias; g.InterpolationMode = InterpolationMode.HighQualityBicubic;
-        float s = DeviceDpi / 96f;
+        float s = DeviceDpi / 96f, x = Width / (float)BaseWidth;
         // App-icon tile: the mark's dark backdrop is clipped to a rounded square.
-        var state = g.Save(); g.ScaleTransform(s, s);
+        var state = g.Save(); g.ScaleTransform(x, s);
         using (var tile = HankiButton.Rounded(new RectangleF(10, 14, 36, 36), 9)) {
             var clip = g.Save(); g.SetClip(tile); g.DrawImage(brandImage, new Rectangle(10, 14, 36, 36)); g.Restore(clip);
             if (!SystemInformation.HighContrast) { using var edge = new Pen(HankiTheme.Border); g.DrawPath(edge, tile); }
         }
         g.Restore(state);
         // TextRenderer ignores the scale transform, so text geometry is scaled explicitly.
-        Rectangle At(float x, float y, float w, float h) => Rectangle.Round(new RectangleF(x * s, y * s, w * s, h * s));
+        Rectangle At(float left, float top, float width, float height) => Rectangle.Round(new RectangleF(left * x, top * s, width * x, height * s));
         const TextFormatFlags flags = TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix | TextFormatFlags.NoPadding;
         using var title = new Font("Segoe UI Semibold", 17 * s, FontStyle.Regular, GraphicsUnit.Pixel);
         TextRenderer.DrawText(g, "Hanki Tools", title, At(56, 14, 148, 36), ForeColor, flags);
         // Brand line, as on hanki.tools: "+ A LITTLE SISU FOR YOUR PC".
-        using var tagline = new Font("Segoe UI", 10.5f * s, FontStyle.Bold, GraphicsUnit.Pixel);
+        using var tagline = new Font("Segoe UI", 10.5f * x, FontStyle.Bold, GraphicsUnit.Pixel);
         var accent = SystemInformation.HighContrast ? ForeColor : HankiTheme.Accent;
         TextRenderer.DrawText(g, "+", tagline, At(11, 58, 12, 16), accent, flags);
         TextRenderer.DrawText(g, AppInfo.Tagline.ToUpperInvariant(), tagline, At(24, 58, 180, 16), accent, flags | TextFormatFlags.EndEllipsis);

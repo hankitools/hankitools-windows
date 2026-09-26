@@ -117,62 +117,8 @@ public static class PcGlance
     };
 }
 
-/// <summary>One line of Home's recent activity. Target is the page its action opens.</summary>
-public sealed record ActivityItem(DateTimeOffset At, string Title, string Detail, string ActionLabel, string Target);
-
-public static class HomeActivity
+public static class HomeScanStatus
 {
-    private static int ToReview(DiagnosticScan s) => s.Results.Count(r => r.Severity is FindingSeverity.Warning or FindingSeverity.Critical);
     /// <summary>Whether every check of the scan ran; checks that need administrator rights still count as run.</summary>
     public static bool Finished(DiagnosticScan scan) => !scan.Cancelled && scan.CompletedModules >= scan.PlannedModules;
-    /// <summary>How a scan went, in a few words. A cancelled or stopped scan never reads as "nothing needed attention".</summary>
-    public static string ScanSummary(DiagnosticScan scan)
-    {
-        int n = ToReview(scan);
-        string found = $"{n} {(n == 1 ? "recommendation" : "recommendations")} to review";
-        if (!Finished(scan))
-            return $"{(scan.Cancelled ? "Cancelled" : "Stopped")} after {scan.CompletedModules} of {scan.PlannedModules} checks" + (n > 0 ? "; " + found : "");
-        return n == 0 ? "Nothing needed attention" : found;
-    }
-
-    /// <summary>The latest scan, the latest Performance check and recent changes, newest first.</summary>
-    public static IReadOnlyList<ActivityItem> Build(DiagnosticScan? scan, DiagnosticScan? performance, IEnumerable<SettingChange> changes, int limit = 5)
-    {
-        var items = new List<ActivityItem>();
-        if (scan is not null)
-            items.Add(new(scan.Ended, "Fix my PC scan", ScanSummary(scan), "View results", "Fix My PC"));
-        if (performance is not null) {
-            int n = ToReview(performance);
-            items.Add(new(performance.Ended, "Performance check", n == 0 ? "No optimization opportunities" : $"{n} {(n == 1 ? "opportunity" : "opportunities")} found", "Open Tune my PC", "Performance overview"));
-        }
-        foreach (var c in changes.Where(c => c.Status is "Applied" or "Undone"))
-            items.Add(new(c.At, ChangeLabel(c), c.Status == "Undone" ? "Changed, then undone" : "Changed by Hanki · can be undone", "Review in Recovery", "Recovery"));
-        return items.OrderByDescending(i => i.At).Take(limit).ToArray();
-    }
-
-    /// <summary>A change's setting in plain words.</summary>
-    public static string ChangeLabel(SettingChange c)
-    {
-        static string? Nvidia(string hex) => hex.StartsWith("0x", StringComparison.OrdinalIgnoreCase) && uint.TryParse(hex[2..], NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var id)
-            ? NvidiaSettings.Catalog.FirstOrDefault(s => s.Id == id)?.Name : null;
-        switch (c.Kind) {
-            case "Windows gaming setting":
-                return c.Target switch {
-                    "game-mode" => "Game Mode", "background-recording" => "Game Bar background recording", "windowed-optimizations" => "Optimizations for windowed games",
-                    "variable-refresh" => "Variable refresh rate", "auto-hdr" => "Auto HDR", "mouse-acceleration" => "Mouse acceleration", "power-mode" => "Power mode", _ => "Windows gaming setting"
-                };
-            case "NVIDIA global setting": return (Nvidia(c.Target) ?? "NVIDIA setting") + " (all games)";
-            case "NVIDIA setting": {
-                var parts = c.Target.Split('|');
-                return (parts.Length == 2 ? Nvidia(parts[1]) : null) is { } name ? $"{name} for {Path.GetFileNameWithoutExtension(parts[0])}" : "NVIDIA game setting";
-            }
-            case "AMD setting":
-                var kind = c.Target.Split('|').LastOrDefault();
-                return Enum.TryParse<AmdSettingKind>(kind, out var k) && k.ToString() == kind ? AmdSettings.Name(k) : "Radeon setting";
-            case "Display mode": return "Display mode";
-            case "Processor power": return "Maximum processor state";
-            case "GPU preference": return "GPU for " + Path.GetFileNameWithoutExtension(c.Target.Replace('\\', '/').Split('/').Last());
-            default: return c.Kind;
-        }
-    }
 }

@@ -121,18 +121,22 @@ internal sealed class SearchResultRow : Control
 /// <summary>A "Your PC at a glance" tile: icon, what it is, the value, a line of context and, for usage, a thin bar.</summary>
 internal sealed class GlanceTile : Control
 {
+    private const int BaseHeight = 124;
     private GlanceTileModel model;
     private readonly Font labelFont = new("Segoe UI", 9.5f), valueFont = new("Segoe UI Semibold", 13f), detailFont = new("Segoe UI", 9.25f);
     private bool hover;
     internal event Action<string>? Opened;
     public GlanceTile(GlanceTileModel model)
     {
-        this.model = model; TabStop = true; Cursor = Cursors.Hand; Height = 124; AccessibleRole = AccessibleRole.PushButton;
+        this.model = model; TabStop = true; Cursor = Cursors.Hand; Height = BaseHeight; AccessibleRole = AccessibleRole.PushButton;
         SetStyle(ControlStyles.UserPaint | ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.ResizeRedraw | ControlStyles.Selectable, true);
         Click += (_, _) => Opened?.Invoke(this.model.Target);
         KeyDown += (_, e) => { if (e.KeyCode is Keys.Enter or Keys.Space) { Opened?.Invoke(this.model.Target); e.Handled = true; } };
         Set(model);
     }
+    internal static int HeightAtDpi(int dpi) => (int)(BaseHeight * dpi / 96f);
+    protected override void OnHandleCreated(EventArgs e) { base.OnHandleCreated(e); Height = HeightAtDpi(DeviceDpi); }
+    protected override void OnDpiChangedAfterParent(EventArgs e) { base.OnDpiChangedAfterParent(e); Height = HeightAtDpi(DeviceDpi); }
     internal void Set(GlanceTileModel value)
     {
         model = value; Text = value.Label; AccessibleName = Localizer.T(value.Label);
@@ -171,44 +175,5 @@ internal sealed class GlanceTile : Control
             using var bar = new SolidBrush(model.Status is CardStatus.Good or CardStatus.Info ? HankiTheme.Accent : color);
             g.FillRectangle(bar, pad, y, width * Math.Clamp(percent, 0, 100) / 100f, 3 * s);
         }
-    }
-}
-
-/// <summary>Recent activity: the latest scans and Hanki's latest changes, each with a way to review it.</summary>
-internal sealed class RecentActivityView : RoundedPanel
-{
-    private readonly TableLayoutPanel rows = new() { Dock = DockStyle.Top, AutoSize = true, ColumnCount = 3, Tag = "card", Margin = Padding.Empty };
-    private readonly Action<string> navigate;
-    public RecentActivityView(Action<string> navigate)
-    {
-        this.navigate = navigate;
-        Dock = DockStyle.Top; AutoSize = true; AutoSizeMode = AutoSizeMode.GrowAndShrink; Padding = new Padding(22, 14, 18, 14);
-        rows.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100)); rows.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize)); rows.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
-        Controls.Add(rows);
-    }
-    internal void Show(IReadOnlyList<ActivityItem> items)
-    {
-        rows.SuspendLayout();
-        foreach (Control old in rows.Controls.Cast<Control>().ToArray()) old.Dispose();
-        rows.RowStyles.Clear(); rows.RowCount = Math.Max(1, items.Count);
-        if (items.Count == 0)
-            rows.Controls.Add(new Label { Text = Localizer.T("Nothing yet. Scans, checks and the changes Hanki makes will show up here, newest first."), AutoSize = true, Tag = "intro", Margin = new Padding(0, 6, 0, 6) }, 0, 0);
-        for (int i = 0; i < items.Count; i++) {
-            var item = items[i];
-            var text = new FlowLayoutPanel { AutoSize = true, FlowDirection = FlowDirection.TopDown, WrapContents = false, Tag = "card", Margin = new Padding(0, 6, 12, 6) };
-            text.Controls.Add(new Label { Text = item.Title, AutoSize = true, Font = new Font("Segoe UI Semibold", 11f), Margin = Padding.Empty, UseMnemonic = false });
-            text.Controls.Add(new Label { Text = item.Detail, AutoSize = true, Tag = "intro", Margin = new Padding(0, 2, 0, 0), UseMnemonic = false });
-            var when = new Label { Text = When(item.At), AutoSize = true, Tag = "intro", Anchor = AnchorStyles.Right, Margin = new Padding(12, 0, 12, 0) };
-            var action = new HankiButton { Text = item.ActionLabel, AutoSize = true, Appearance = HankiButtonStyle.Quiet, Anchor = AnchorStyles.Right, AccessibleName = item.ActionLabel + ": " + item.Title };
-            action.Click += (_, _) => navigate(item.Target);
-            rows.Controls.Add(text, 0, i); rows.Controls.Add(when, 1, i); rows.Controls.Add(action, 2, i);
-        }
-        HankiTheme.Apply(this);
-        rows.ResumeLayout();
-    }
-    private static string When(DateTimeOffset at)
-    {
-        var local = at.ToLocalTime();
-        return local.Date == DateTime.Today ? Localizer.Format("Today {0}", local.ToString("t")) : local.Date == DateTime.Today.AddDays(-1) ? Localizer.Format("Yesterday {0}", local.ToString("t")) : local.ToString("g");
     }
 }

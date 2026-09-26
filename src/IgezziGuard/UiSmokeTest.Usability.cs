@@ -48,5 +48,26 @@ internal static partial class UiSmokeTest
         Require(!Descendants(internet).OfType<HankiButton>().Single(b => b.Text == Localizer.T("It works now")).Wanted, "Resolution must be an explicit terminal state.");
         internet.Preview(sample);
         Note("usability: summary, coverage, next step, contextual actions and Back passed with fixed fixtures");
+
+        Open("Home");
+        var home = Find<HomePanel>(form)!;
+        Require(!Descendants(home).OfType<Label>().Any(l => l.Text == Localizer.T("Recent activity")), "Home must not repeat recent actions.");
+        Require(GlanceTile.HeightAtDpi(96) == 124 && GlanceTile.HeightAtDpi(144) == 186 && GlanceTile.HeightAtDpi(192) == 248
+            && HomePanel.ColumnsForWidth(1100, 96) == 3 && HomePanel.ColumnsForWidth(1100, 144) == 2 && HomePanel.ColumnsForWidth(1100, 192) == 2,
+            "Glance tile height and column count must adapt at 100%, 150% and 200%.");
+        Require(Descendants(home).OfType<GlanceTile>().All(tile => tile.Height >= GlanceTile.HeightAtDpi(form.DeviceDpi)),
+            "Glance tile content must fit the current display scaling.");
+        var brandHeader = Find<BrandHeader>(form)!;
+        var sidebar = brandHeader.Parent!;
+        var navLabels = Navigation.Sidebar.Select(id => Localizer.T(Navigation.Find(id)!.Label)).ToHashSet(StringComparer.Ordinal);
+        var navButtons = sidebar.Controls.OfType<HankiButton>().Where(button => navLabels.Contains(button.Text)).ToArray();
+        Require(HankiForm.SidebarWidthAtDpi(96) == 256 && HankiForm.SidebarWidthAtDpi(144) == 288 && HankiForm.SidebarWidthAtDpi(192) == 320,
+            "Sidebar width must scale consistently at 100%, 150% and 200%.");
+        Require(navButtons.Length == Navigation.Sidebar.Count,
+            $"Expected {Navigation.Sidebar.Count} sidebar destinations, found {navButtons.Length}.");
+        int menuWidth = HankiForm.SidebarWidthAtDpi(form.DeviceDpi) - 2 * HankiForm.ScaleSidebarDimension(12, form.DeviceDpi);
+        Require(brandHeader.Width == menuWidth && navButtons.All(button => button.Width == menuWidth),
+            $"Brand and navigation rows must share the available sidebar width at {form.DeviceDpi} DPI.");
+        Note($"usability: Home activity removed; glance and sidebar fit at {form.DeviceDpi} DPI");
     }
 }
