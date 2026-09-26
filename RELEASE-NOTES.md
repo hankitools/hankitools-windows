@@ -1,3 +1,9 @@
+# Hanki Tools 0.19.0-rc.7 — Help tiles at high DPI
+
+An unsigned preview fixing clipped Help cards at increased Windows display scaling.
+
+- **Readable Help cards.** Cards now scale vertically with display DPI, and their columns and spacing adapt to the available scaled width so headings and descriptions have room to wrap.
+
 # Hanki Tools 0.19.0-rc.6 — Home search and Quick access
 
 An unsigned preview removing duplicate search UI and fixing the sidebar shortcuts menu.

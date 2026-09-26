@@ -7,16 +7,29 @@ internal static class ToolTiles
     internal static void Add(Control page, string heading, IEnumerable<(string Icon, string Title, string Text, Action Open)> tiles, Color accent)
     {
         var cards = new FlowLayoutPanel { Dock = DockStyle.Top, AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink, Margin = Padding.Empty };
-        foreach (var (icon, title, text, open) in tiles) cards.Controls.Add(new HankiCard(icon, title, text, open, accent) { Margin = new Padding(0, 0, 14, 14) });
+        foreach (var (icon, title, text, open) in tiles) cards.Controls.Add(new HankiCard(icon, title, text, open, accent));
         void Fit() {
             int width = Math.Max(260, page.ClientSize.Width - page.Padding.Horizontal - SystemInformation.VerticalScrollBarWidth);
-            int columns = width >= 900 ? 3 : width >= 560 ? 2 : 1;
-            foreach (Control card in cards.Controls) card.Width = Math.Max(220, (width - 14 * columns) / columns);
+            int dpi = page.DeviceDpi;
+            int gap = HankiForm.ScaleSidebarDimension(14, dpi);
+            int columns = ColumnsForWidth(width, dpi);
+            int minimumCardWidth = HankiForm.ScaleSidebarDimension(220, dpi);
+            foreach (Control card in cards.Controls) {
+                card.Margin = new Padding(0, 0, gap, gap);
+                int availableCardWidth = Math.Max(1, (width - gap * columns) / columns);
+                card.Width = Math.Max(Math.Min(minimumCardWidth, Math.Max(1, width - gap)), availableCardWidth);
+            }
         }
         page.SizeChanged += (_, _) => Fit();
+        page.DpiChangedAfterParent += (_, _) => Fit();
         page.Controls.Add(cards);
         page.Controls.Add(Heading(heading));
         Fit();
+    }
+    internal static int ColumnsForWidth(int width, int dpi)
+    {
+        float scale = dpi / 96f;
+        return width >= 900 * scale ? 3 : width >= 560 * scale ? 2 : 1;
     }
     internal static IEnumerable<(string, string, string, Action)> For(ProductArea area, Action<string> navigate) =>
         Navigation.Tools(area).Select(i => (i.Icon, Navigation.Title(i), i.Introduction, (Action)(() => navigate(i.Page))));

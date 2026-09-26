@@ -312,6 +312,7 @@ internal sealed class BrandHeader : Control
 /// <summary>Keyboard-accessible tool card: the whole surface opens its module.</summary>
 internal sealed class HankiCard : Control
 {
+    private const int BaseHeight = 148;
     private readonly string kind, title, description;
     private readonly Color accent;
     private readonly Font titleFont = new("Segoe UI Semibold", 13f), bodyFont = new("Segoe UI", 10.5f);
@@ -321,11 +322,14 @@ internal sealed class HankiCard : Control
         title = Localizer.T(title); description = Localizer.T(description);
         this.kind = kind; this.title = title; this.description = description; this.accent = accent ?? HankiTheme.Accent;
         Text = title; AccessibleName = title; AccessibleDescription = description; AccessibleRole = AccessibleRole.PushButton;
-        TabStop = true; Cursor = Cursors.Hand; Height = 148;
+        TabStop = true; Cursor = Cursors.Hand; Height = BaseHeight;
         SetStyle(ControlStyles.UserPaint | ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.ResizeRedraw | ControlStyles.Selectable, true);
         Click += (_, _) => open();
         KeyDown += (_, e) => { if (e.KeyCode is Keys.Enter or Keys.Space) { open(); e.Handled = true; } };
     }
+    internal static int HeightAtDpi(int dpi) => (int)Math.Ceiling(BaseHeight * dpi / 96f);
+    protected override void OnHandleCreated(EventArgs e) { base.OnHandleCreated(e); Height = HeightAtDpi(DeviceDpi); }
+    protected override void OnDpiChangedAfterParent(EventArgs e) { base.OnDpiChangedAfterParent(e); Height = HeightAtDpi(DeviceDpi); }
     protected override void Dispose(bool disposing) { if (disposing) { titleFont.Dispose(); bodyFont.Dispose(); } base.Dispose(disposing); }
     protected override void OnMouseEnter(EventArgs e) { hover = true; Invalidate(); base.OnMouseEnter(e); }
     protected override void OnMouseLeave(EventArgs e) { hover = false; Invalidate(); base.OnMouseLeave(e); }

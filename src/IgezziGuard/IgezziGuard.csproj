@@ -7,7 +7,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <AssemblyName>HankiTools</AssemblyName>
     <RootNamespace>IgezziGuard</RootNamespace>
-    <Version>0.19.0-rc.6</Version>
+    <Version>0.19.0-rc.7</Version>
     <AssemblyVersion>0.19.0.0</AssemblyVersion>
     <FileVersion>0.19.0.0</FileVersion>
     <Product>Hanki Tools</Product>
