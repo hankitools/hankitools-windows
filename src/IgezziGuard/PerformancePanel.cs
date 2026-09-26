@@ -41,7 +41,7 @@ public sealed class PerformancePanel : UserControl
             using var dialog = new Form { Text = "Pagefile explained", Size = new Size(800, 620), MinimumSize = new Size(500, 400),
                 StartPosition = FormStartPosition.CenterParent, Font = Font, Padding = new Padding(20) };
             var guide = TextArea(); guide.Text = guideText;
-            var close = new HankiButton { Text = "Close", Dock = DockStyle.Bottom, Height = 40, DialogResult = DialogResult.Cancel };
+            var close = new HankiButton { Text = Localizer.T("Close"), Dock = DockStyle.Bottom, Height = 40, DialogResult = DialogResult.Cancel };
             dialog.Controls.Add(guide); dialog.Controls.Add(close); dialog.CancelButton = close;
             HankiTheme.Apply(dialog); dialog.ShowDialog(this);
         };

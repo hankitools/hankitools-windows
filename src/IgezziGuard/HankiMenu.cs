@@ -11,7 +11,7 @@ internal static class HankiMenu
     }
     internal static ToolStripMenuItem Item(string text, Action click, bool enabled = true)
     {
-        var item = new ToolStripMenuItem(text) { Enabled = enabled, Padding = new Padding(4, 6, 12, 6) };
+        var item = new ToolStripMenuItem(Localizer.T(text)) { Enabled = enabled, Padding = new Padding(4, 6, 12, 6) };
         item.Click += (_, _) => click();
         return item;
     }
@@ -65,7 +65,7 @@ internal static class Overflow
     internal static HankiButton Attach(FlowLayoutPanel row, Func<HankiButton, bool> foldable, Func<HankiButton, bool>? pinned = null, string label = "More",
         HankiButtonStyle style = HankiButtonStyle.Tab, Font? font = null, int maxRows = 1, int keepVisible = 0)
     {
-        var more = new HankiButton { Text = label + "  ▾", AutoSize = true, Appearance = style, AccessibleName = label, Folded = true, Margin = new Padding(0, 0, 8, 0) };
+        var more = new HankiButton { Text = Localizer.T(label) + "  ▾", AutoSize = true, Appearance = style, AccessibleName = Localizer.T(label), Folded = true, Margin = new Padding(0, 0, 8, 0) };
         if (font is not null) more.Font = font;
         more.Click += (_, _) => {
             var menu = HankiMenu.Create();

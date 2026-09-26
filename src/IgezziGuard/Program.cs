@@ -10,6 +10,7 @@ internal static class Program
             return;
         }
         ApplicationConfiguration.Initialize();
+        Localizer.Initialize();
         Application.SetUnhandledExceptionMode(UnhandledExceptionMode.CatchException);
         Application.ThreadException += (_, args) => ShowFatal(args.Exception);
         AppDomain.CurrentDomain.UnhandledException += (_, args) =>
@@ -17,6 +18,10 @@ internal static class Program
 
         if (args.Length is 2 or 3 && args[0] == "--ui-smoke-test") {
             UiSmokeTest.Run(args[1], args.Length == 3 ? args[2] : null); return;
+        }
+        if (args.Length is 3 or 4 && args[0] == "--ui-smoke-test-localized") {
+            Localizer.SetLanguage(args[1]);
+            UiSmokeTest.Run(args[2], args.Length == 4 ? args[3] : null); return;
         }
         try { SecurityPaths.EnsureCreated(); }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { MessageBox.Show("Hanki cannot open its local data folder.\n\n" + ex.Message, "Startup unavailable"); return; }

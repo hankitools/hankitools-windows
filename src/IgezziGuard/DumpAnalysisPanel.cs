@@ -40,12 +40,12 @@ public sealed record GuideStep(string Title, string Why, string? Route = null, s
 
 public sealed class TroubleshootingPanel : ToolPage
 {
-    private readonly ComboBox symptom = new() { Width = 380, DropDownStyle = ComboBoxStyle.DropDownList, AccessibleName = "What's happening?", Margin = new Padding(0, 6, 8, 0) };
+    private readonly ComboBox symptom = new() { Width = 380, DropDownStyle = ComboBoxStyle.DropDownList, AccessibleName = Localizer.T("What's happening?"), Margin = new Padding(0, 6, 8, 0) };
     /// <summary>Raised with a tool route name, for example "Diagnose  /  Crash timeline".</summary>
     public event Action<string>? OpenRequested;
     public TroubleshootingPanel() : base("Pick what's happening to get a short, ordered plan. Each step explains why it helps and opens the right tool. Steps only read information unless you choose a change yourself, and every supported change can be undone in Recovery.") {
-        Bar.Controls.Add(new Label { Text = "What's happening?", AutoSize = true, Margin = new Padding(0, 10, 8, 0) });
-        symptom.Items.AddRange(Guides.Select(g => g.Symptom).ToArray()); Bar.Controls.Add(symptom);
+        Bar.Controls.Add(new Label { Text = Localizer.T("What's happening?"), AutoSize = true, Margin = new Padding(0, 10, 8, 0) });
+        symptom.Items.AddRange(Guides.Select(g => Localizer.T(g.Symptom)).ToArray()); Bar.Controls.Add(symptom);
         symptom.SelectedIndexChanged += (_, _) => ShowGuide();
         symptom.SelectedIndex = 0;
     }

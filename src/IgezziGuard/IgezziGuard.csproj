@@ -24,6 +24,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <EmbeddedResource Include="Localization/Catalogs/*.json" LogicalName="Hanki.Localization.%(Filename).json" />
     <EmbeddedResource Include="Brand/hanki.ico" />
     <EmbeddedResource Include="Brand/hanki-smile.png" />
     <Content Include="Data\signatures.txt">

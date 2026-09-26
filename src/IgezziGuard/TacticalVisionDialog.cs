@@ -22,8 +22,8 @@ internal sealed class TacticalVisionDialog : Form
         strength = new NumericUpDown { Minimum = 51, Maximum = 100, Value = game.TacticalVision is >= 51 and <= 100 ? game.TacticalVision : 70, Width = 100, AccessibleName = "Digital Vibrance percentage", Enabled = enabled.Checked, Margin = new Padding(0, 0, 0, 18) };
         enabled.CheckedChanged += (_, _) => strength.Enabled = enabled.Checked;
         var buttons = new FlowLayoutPanel { AutoSize = true, WrapContents = false, Margin = Padding.Empty };
-        var save = new HankiButton { Text = "Save", Primary = true, AutoSize = true, DialogResult = DialogResult.OK };
-        var cancel = new HankiButton { Text = "Cancel", AutoSize = true, DialogResult = DialogResult.Cancel };
+        var save = new HankiButton { Text = Localizer.T("Save"), Primary = true, AutoSize = true, DialogResult = DialogResult.OK };
+        var cancel = new HankiButton { Text = Localizer.T("Cancel"), AutoSize = true, DialogResult = DialogResult.Cancel };
         buttons.Controls.AddRange([save, cancel]);
         layout.Controls.AddRange([description, enabled, label, strength, buttons]);
         Controls.Add(layout);

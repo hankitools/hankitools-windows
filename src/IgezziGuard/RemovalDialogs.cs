@@ -11,7 +11,7 @@ internal static class RemovalDialogs
         body.Controls.Add(new Label { Text = title, AutoSize = true, Font = new Font("Segoe UI Semibold", 15f), MaximumSize = new Size(600, 0), UseMnemonic = false, Margin = new Padding(0, 0, 0, 8) });
         body.Controls.Add(new Label { Text = message, AutoSize = true, MaximumSize = new Size(600, 0), UseMnemonic = false, Tag = "intro", Margin = new Padding(0, 0, 0, 12) });
         var confirmButton = new HankiButton { Text = confirm, Primary = true, AutoSize = true, DialogResult = DialogResult.OK, Margin = new Padding(8, 0, 0, 0) };
-        var cancel = new HankiButton { Text = "Cancel", AutoSize = true, DialogResult = DialogResult.Cancel, Margin = Padding.Empty };
+        var cancel = new HankiButton { Text = Localizer.T("Cancel"), AutoSize = true, DialogResult = DialogResult.Cancel, Margin = Padding.Empty };
         var buttons = new FlowLayoutPanel { AutoSize = true, FlowDirection = FlowDirection.RightToLeft, WrapContents = false, Anchor = AnchorStyles.Right, Margin = new Padding(0, 16, 0, 0) };
         buttons.Controls.AddRange([confirmButton, cancel]);
         body.Controls.Add(buttons);

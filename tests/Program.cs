@@ -1,4 +1,10 @@
 using IgezziGuard;
+if (args is ["--localization-checks"]) {
+    var localizationRoot = Path.Combine(Path.GetTempPath(), "HankiLocalizationChecks-" + Guid.NewGuid().ToString("N"));
+    try { LocalizationChecks.Run(localizationRoot); HomeChecks.Run(); Console.WriteLine("All localization and home checks passed."); }
+    finally { if (Directory.Exists(localizationRoot)) Directory.Delete(localizationRoot, recursive: true); }
+    return;
+}
 if (args is ["--gaming-checks"]) {
     GamingChecks.Run();
     Console.WriteLine("All gaming checks passed.");
@@ -19,6 +25,8 @@ var root = Path.Combine(Path.GetTempPath(), "HankiChecks-" + Guid.NewGuid().ToSt
 Directory.CreateDirectory(root);
 try
 {
+    LocalizationChecks.Run(Path.Combine(root, "localization"));
+    Directory.Delete(Path.Combine(root, "localization"), recursive: true);
     DiagnosticChecks.Models();
     DiagnosticChecks.Recommendations();
     await DiagnosticChecks.Modules();

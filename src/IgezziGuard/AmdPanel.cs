@@ -76,7 +76,7 @@ internal static class ChoiceEditorDialog
         scroll.Controls.Add(table);
         var buttons = new FlowLayoutPanel { AutoSize = true, Margin = new Padding(0, 14, 0, 0) };
         var review = new HankiButton { Text = "Review changes", Primary = true, AutoSize = true, DialogResult = DialogResult.OK };
-        var cancel = new HankiButton { Text = "Cancel", AutoSize = true, DialogResult = DialogResult.Cancel };
+        var cancel = new HankiButton { Text = Localizer.T("Cancel"), AutoSize = true, DialogResult = DialogResult.Cancel };
         buttons.Controls.AddRange([review, cancel]);
         outer.Controls.AddRange([scroll, buttons]);
         dialog.Controls.Add(outer); dialog.AcceptButton = review; dialog.CancelButton = cancel;

@@ -56,7 +56,7 @@ internal static class RepairReviewDialog
         layout.Controls.Add(problem);
         var buttons = new FlowLayoutPanel { AutoSize = true, Margin = new Padding(0, 12, 0, 0) };
         var approve = new HankiButton { Text = "Repair selected", Primary = true, AutoSize = true, DialogResult = DialogResult.OK };
-        var cancel = new HankiButton { Text = "Cancel", AutoSize = true, DialogResult = DialogResult.Cancel };
+        var cancel = new HankiButton { Text = Localizer.T("Cancel"), AutoSize = true, DialogResult = DialogResult.Cancel };
         buttons.Controls.AddRange([approve, cancel]); layout.Controls.Add(buttons);
         dialog.Controls.Add(layout); dialog.CancelButton = cancel;
         HankiTheme.Apply(dialog);

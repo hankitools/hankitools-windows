@@ -30,6 +30,10 @@ Only release builds produced by this repository's GitHub Actions workflow from t
 
 Privacy policy: this program will not transfer any information to other networked systems unless specifically requested by the user or the person installing or operating it. Each optional network feature (connection checks, speed test, DNS comparison, Defender definition updates and the optional OpenAI chat) and the third parties it contacts are described in [PRIVACY.md](PRIVACY.md). Hanki shows a review before any change to system configuration and records supported changes for undo.
 
+## Languages
+
+The interface supports the 12 website article languages. Choose **Language / Language** in the sidebar; the preference applies on the next launch. Navigation, home screens and common tool controls are translated; detailed reports and some secondary screens still fall back to English. See [localization coverage and contributor instructions](docs/LOCALIZATION.md).
+
 ## Build and try
 
 On Windows, install the current .NET 10 SDK, close any running Hanki instance, extract the source ZIP and run `BUILD-WINDOWS.cmd`. Internet is required for Microsoft runtime metadata and package restore. The script runs the logic checks, publishes a self-contained Windows x64 candidate and runs a structural UI smoke check. Launch `HankiTools.exe` from the new timestamped `dist` folder. End users of the portable package do not need the SDK.

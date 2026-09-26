@@ -20,7 +20,7 @@ internal static class ToolTiles
     }
     internal static IEnumerable<(string, string, string, Action)> For(ProductArea area, Action<string> navigate) =>
         Navigation.Tools(area).Select(i => (i.Icon, Navigation.Title(i), i.Introduction, (Action)(() => navigate(i.Page))));
-    internal static Label Heading(string text) => new() { Text = text, Dock = DockStyle.Top, AutoSize = false, Height = 56,
+    internal static Label Heading(string text) => new() { Text = Localizer.T(text), Dock = DockStyle.Top, AutoSize = false, Height = 56,
         Font = new Font("Segoe UI Semibold", 13f), TextAlign = ContentAlignment.BottomLeft, Padding = new Padding(2, 0, 0, 12) };
 
     /// <summary>
