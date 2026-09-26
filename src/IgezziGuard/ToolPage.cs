@@ -5,13 +5,13 @@ public class ToolPage : UserControl
     /// <summary>The page's actions on one row: the first is primary; what doesn't fit moves into "More".</summary>
     protected readonly FlowLayoutPanel Bar = new() { Dock = DockStyle.Fill, AutoSize = true, WrapContents = false, Margin = Padding.Empty };
     protected readonly TextBox Output = new() { Dock = DockStyle.Fill, Multiline = true, ReadOnly = true, BorderStyle = BorderStyle.None, ScrollBars = ScrollBars.Both, HideSelection = false };
-    private readonly HankiButton stop = new() { Text = "Cancel", AutoSize = true, Enabled = false, Visible = false, Appearance = HankiButtonStyle.Quiet, Margin = new Padding(0, 0, 0, 0) };
-    private readonly Label state = new() { Text = "Ready when you are", AutoSize = true, Tag = "intro", Margin = new Padding(0, 8, 12, 0), Font = new Font("Segoe UI Semibold", 10f) };
+    private readonly HankiButton stop = new() { Text = Localizer.T("Cancel"), AutoSize = true, Enabled = false, Visible = false, Appearance = HankiButtonStyle.Quiet, Margin = new Padding(0, 0, 0, 0) };
+    private readonly Label state = new() { Text = Localizer.T("Ready when you are"), AutoSize = true, Tag = "intro", Margin = new Padding(0, 8, 12, 0), Font = new Font("Segoe UI Semibold", 10f) };
     private readonly SearchField find = new("Find in report  (Ctrl+F)", 240) { Margin = new Padding(8, 0, 0, 0) };
     private readonly Label matches = new() { AutoSize = true, Tag = "intro", Margin = new Padding(8, 8, 0, 0) };
     private readonly SummaryView summary = new() { Visible = false };
-    private readonly HankiButton details = new() { Text = "Technical details", Appearance = HankiButtonStyle.Quiet, AutoSize = true, Visible = false, Margin = new Padding(0, 1, 4, 0), AccessibleName = "View technical details" };
-    private readonly HankiButton options = new() { Text = "⋯", Appearance = HankiButtonStyle.Icon, AccessibleName = "Report options", Margin = new Padding(0, 1, 0, 0), Font = new Font("Segoe UI Semibold", 13f) };
+    private readonly HankiButton details = new() { Text = Localizer.T("Technical details"), Appearance = HankiButtonStyle.Quiet, AutoSize = true, Visible = false, Margin = new Padding(0, 1, 4, 0), AccessibleName = Localizer.T("View technical details") };
+    private readonly HankiButton options = new() { Text = "⋯", Appearance = HankiButtonStyle.Icon, AccessibleName = Localizer.T("Report options"), Margin = new Padding(0, 1, 0, 0), Font = new Font("Segoe UI Semibold", 13f) };
     private readonly HankiButton barMore;
     private readonly ProgressLine progress = new() { Dock = DockStyle.Top };
     private readonly ToolTip tips = new();
@@ -29,7 +29,7 @@ public class ToolPage : UserControl
 
     public ToolPage(string disclosure)
     {
-        Dock = DockStyle.Fill; Padding = new Padding(0, 4, 0, 0); Output.Text = disclosure;
+        Dock = DockStyle.Fill; Padding = new Padding(0, 4, 0, 0); Output.Text = Localizer.T(disclosure);
         // Top row: actions on the left; the summary/details switch and report options on the right.
         var side = new FlowLayoutPanel { AutoSize = true, WrapContents = false, Margin = Padding.Empty, Anchor = AnchorStyles.Top | AnchorStyles.Right };
         side.Controls.AddRange([details, options]);
@@ -59,7 +59,7 @@ public class ToolPage : UserControl
         // TextBox selects everything when focus arrives (for example when action buttons are disabled); a read-only report should not look selected.
         Output.Select(0, 0);
         Output.GotFocus += (_, _) => BeginInvoke(() => { if (Output.TextLength > 0 && Output.SelectionLength == Output.TextLength) Output.Select(0, 0); });
-        stop.Click += (_, _) => { Cancel(); state.Text = "Cancelling…"; stop.Enabled = false; };
+        stop.Click += (_, _) => { Cancel(); state.Text = Localizer.T("Cancelling…"); stop.Enabled = false; };
         find.Box.TextChanged += (_, _) => { Output.Select(0, 0); FindNext(); };
         find.Box.KeyDown += (_, e) => {
             if (e.KeyCode == Keys.Enter) { FindNext(); e.SuppressKeyPress = true; }
@@ -68,7 +68,7 @@ public class ToolPage : UserControl
         Output.TextChanged += (_, _) => {
             matches.Text = "";
             if (IsBusy) return;
-            state.Text = "Report updated · " + DateTime.Now.ToString("t");
+            state.Text = Localizer.Format("Report updated · {0}", DateTime.Now.ToString("t"));
             // A direct message (outside a run) replaces the previous result, so its summary no longer applies.
             hasSummary = details.Visible = false; SetSummaryVisible(false);
         };
@@ -113,33 +113,33 @@ public class ToolPage : UserControl
         int index = Output.Text.IndexOf(text, start, StringComparison.OrdinalIgnoreCase);
         bool wrapped = index < 0 && start > 0;
         if (wrapped) index = Output.Text.IndexOf(text, StringComparison.OrdinalIgnoreCase);
-        if (index < 0) { matches.Text = "No matches"; return; }
+        if (index < 0) { matches.Text = Localizer.T("No matches"); return; }
         Output.Select(index, text.Length); Output.ScrollToCaret();
-        matches.Text = wrapped ? "Back to first match" : "Match found";
+        matches.Text = Localizer.T(wrapped ? "Back to first match" : "Match found");
     }
 
     private void ReviewReport()
     {
-        using var review = new Form { Text = "Review before sharing", Size = new Size(900, 650), MinimumSize = new Size(500, 350), StartPosition = FormStartPosition.CenterParent };
-        var hint = new Label { Text = "Remove names, paths, keys and other private details before copying or saving.", Dock = DockStyle.Top, AutoSize = true, Padding = new Padding(12), Tag = "intro" };
+        using var review = new Form { Text = Localizer.T("Review before sharing"), Size = new Size(900, 650), MinimumSize = new Size(500, 350), StartPosition = FormStartPosition.CenterParent };
+        var hint = new Label { Text = Localizer.T("Remove names, paths, keys and other private details before copying or saving."), Dock = DockStyle.Top, AutoSize = true, Padding = new Padding(12), Tag = "intro" };
         var body = new TextBox { Dock = DockStyle.Fill, Multiline = true, ScrollBars = ScrollBars.Both, Text = Output.Text, AccessibleName = "Editable report for review" };
         var actions = new FlowLayoutPanel { Dock = DockStyle.Bottom, AutoSize = true, Padding = new Padding(8) };
-        var save = new HankiButton { Text = "Save reviewed text", AutoSize = true, Primary = true };
-        var copy = new HankiButton { Text = "Copy reviewed text", AutoSize = true };
-        var close = new HankiButton { Text = "Close", AutoSize = true, Appearance = HankiButtonStyle.Quiet, DialogResult = DialogResult.Cancel };
+        var save = new HankiButton { Text = Localizer.T("Save reviewed text"), AutoSize = true, Primary = true };
+        var copy = new HankiButton { Text = Localizer.T("Copy reviewed text"), AutoSize = true };
+        var close = new HankiButton { Text = Localizer.T("Close"), AutoSize = true, Appearance = HankiButtonStyle.Quiet, DialogResult = DialogResult.Cancel };
         var feedback = new Label { AutoSize = true, Margin = new Padding(8, 12, 0, 0) };
         actions.Controls.AddRange([save, copy, close, feedback]);
         review.SizeChanged += (_, _) => hint.MaximumSize = new Size(review.ClientSize.Width, 0);
         hint.MaximumSize = new Size(review.ClientSize.Width, 0);
         review.Controls.Add(body); review.Controls.Add(hint); review.Controls.Add(actions); review.CancelButton = close;
         copy.Click += (_, _) => {
-            try { if (body.Text.Length == 0) { feedback.Text = "Nothing to copy"; return; } Clipboard.SetText(body.Text); feedback.Text = "Reviewed text copied"; }
+            try { if (body.Text.Length == 0) { feedback.Text = Localizer.T("Nothing to copy"); return; } Clipboard.SetText(body.Text); feedback.Text = Localizer.T("Reviewed text copied"); }
             catch (Exception ex) { MessageBox.Show(review, ex.Message, "Could not copy report"); }
         };
         save.Click += (_, _) => {
             using var picker = new SaveFileDialog { Filter = "Text report|*.txt", FileName = "Hanki-report-" + DateTime.Now.ToString("yyyyMMdd-HHmm") + ".txt", OverwritePrompt = true };
             if (picker.ShowDialog(review) != DialogResult.OK) return;
-            try { File.WriteAllText(picker.FileName, body.Text); feedback.Text = "Report saved"; }
+            try { File.WriteAllText(picker.FileName, body.Text); feedback.Text = Localizer.T("Report saved"); }
             catch (Exception ex) { MessageBox.Show(review, ex.Message, "Could not save report"); }
         };
         HankiTheme.Apply(review); review.ShowDialog(this);
@@ -147,7 +147,7 @@ public class ToolPage : UserControl
 
     protected HankiButton Button(string text, Action action)
     {
-        var b = new HankiButton { Text = text, AutoSize = true, Primary = !Bar.Controls.OfType<HankiButton>().Any(x => x != barMore) };
+        var b = new HankiButton { Text = Localizer.T(text), AutoSize = true, Primary = !Bar.Controls.OfType<HankiButton>().Any(x => x != barMore) };
         b.Click += (_, _) => { if (!IsBusy) action(); }; Bar.Controls.Add(b); return b;
     }
     protected bool Review(string text) => MessageBox.Show(this, text, "Review action", MessageBoxButtons.OKCancel, MessageBoxIcon.Information, MessageBoxDefaultButton.Button2) == DialogResult.OK;
@@ -164,7 +164,7 @@ public class ToolPage : UserControl
         // A field, not details.Visible: Visible reads false whenever this page's tab is not shown.
         visible &= hasSummary;
         summary.Visible = visible; report.Visible = !visible;
-        details.Text = visible ? "Technical details" : "Back to summary";
+        details.Text = Localizer.T(visible ? "Technical details" : "Back to summary");
         details.Invalidate();
     }
     /// <summary>Runs structured work: the report fills the technical view and the summary is shown first.</summary>
@@ -183,10 +183,10 @@ public class ToolPage : UserControl
         using var cts = new CancellationTokenSource(); pending = cts;
         var elapsed = System.Diagnostics.Stopwatch.StartNew();
         using var timer = new System.Windows.Forms.Timer { Interval = 1000 };
-        timer.Tick += (_, _) => state.Text = (cts.IsCancellationRequested ? "Cancelling" : "Working") + $" · {elapsed.Elapsed:mm\\:ss}";
+        timer.Tick += (_, _) => state.Text = Localizer.T(cts.IsCancellationRequested ? "Cancelling" : "Working") + $" · {elapsed.Elapsed:mm\\:ss}";
         timer.Start();
         Bar.Enabled = reportActions = false; progress.Busy = true;
-        stop.Visible = stop.Enabled = true; state.Text = "Working…"; Output.Text = "Collecting results. Your previous report remains available after this operation.";
+        stop.Visible = stop.Enabled = true; state.Text = Localizer.T("Working…"); Output.Text = "Collecting results. Your previous report remains available after this operation.";
         string outcome = "Report ready";
         try {
             string result = await Task.Run(() => work(cts.Token), cts.Token);
@@ -206,7 +206,7 @@ public class ToolPage : UserControl
             if (!IsDisposed) {
                 Bar.Enabled = reportActions = true; progress.Busy = false;
                 stop.Enabled = stop.Visible = false;
-                state.Text = outcome + $" · {elapsed.Elapsed:mm\\:ss} · " + DateTime.Now.ToString("t");
+                state.Text = Localizer.T(outcome) + $" · {elapsed.Elapsed:mm\\:ss} · " + DateTime.Now.ToString("t");
             }
         }
     }

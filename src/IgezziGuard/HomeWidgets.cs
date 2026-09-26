@@ -17,11 +17,11 @@ internal sealed class HomeSearchBox : UserControl
     {
         this.entries = entries; this.open = open;
         Dock = DockStyle.Top; AutoSize = true; AutoSizeMode = AutoSizeMode.GrowAndShrink; Padding = new Padding(0, 0, 0, 18);
-        field.Box.Font = new Font("Segoe UI", 12.5f); field.Box.AccessibleName = "Search for a problem or a tool";
-        tryRow.Controls.Add(new Label { Text = "Try", AutoSize = true, Tag = "intro", Margin = new Padding(2, 7, 6, 0) });
+        field.Box.Font = new Font("Segoe UI", 12.5f); field.Box.AccessibleName = Localizer.T("Search for a problem or a tool");
+        tryRow.Controls.Add(new Label { Text = Localizer.T("Try"), AutoSize = true, Tag = "intro", Margin = new Padding(2, 7, 6, 0) });
         foreach (var suggestion in HomeSearch.Suggestions) {
-            var chip = new HankiButton { Text = suggestion, AutoSize = true, Appearance = HankiButtonStyle.Tab, Margin = new Padding(0, 0, 4, 0), AccessibleName = "Search for " + suggestion };
-            chip.Click += (_, _) => { field.Box.Text = suggestion; field.Box.Focus(); field.Box.SelectionStart = field.Box.TextLength; };
+            var chip = new HankiButton { Text = Localizer.T(suggestion), AutoSize = true, Appearance = HankiButtonStyle.Tab, Margin = new Padding(0, 0, 4, 0), AccessibleName = Localizer.T(suggestion) };
+            chip.Click += (_, _) => { field.Box.Text = Localizer.T(suggestion); field.Box.Focus(); field.Box.SelectionStart = field.Box.TextLength; };
             tryRow.Controls.Add(chip);
         }
         Controls.Add(results); Controls.Add(tryRow); Controls.Add(field);
@@ -42,7 +42,7 @@ internal sealed class HomeSearchBox : UserControl
         bool query = field.Box.Text.Trim().Length > 0;
         tryRow.Visible = !query;
         if (query && found.Count == 0)
-            results.Controls.Add(new Label { Text = "Nothing matched. Try a broader word, such as network, storage or games, or press Ctrl+K to list every tool.",
+            results.Controls.Add(new Label { Text = Localizer.T("Nothing matched. Try a broader word, such as network, storage or games, or press Ctrl+K to list every tool."),
                 Dock = DockStyle.Top, Height = 40, Tag = "intro", TextAlign = ContentAlignment.MiddleLeft, Padding = new Padding(4, 0, 0, 0) });
         // Docked to the top in reverse, so the best match is first.
         foreach (var entry in found.Reverse()) {
@@ -78,7 +78,7 @@ internal sealed class SearchResultRow : Control
     private bool hover;
     public SearchResultRow(SearchEntry entry)
     {
-        Entry = entry; Text = entry.Title; AccessibleName = entry.Title; AccessibleDescription = (entry.GuidedFix ? "Guided fix. " : "Tool. ") + entry.Detail;
+        Entry = entry; Text = entry.Title; AccessibleName = Localizer.Route(entry.Title); AccessibleDescription = Localizer.T(entry.GuidedFix ? "Guided fix" : "Tool") + ". " + entry.Detail;
         AccessibleRole = AccessibleRole.PushButton; TabStop = true; Cursor = Cursors.Hand; Height = 58;
         SetStyle(ControlStyles.UserPaint | ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.ResizeRedraw | ControlStyles.Selectable, true);
         Click += (_, _) => Opened?.Invoke();
@@ -107,12 +107,13 @@ internal sealed class SearchResultRow : Control
         var tile = new RectangleF(12 * s, (Height - 34 * s) / 2, 34 * s, 34 * s);
         using (var tilePath = HankiButton.Rounded(tile, 8 * s)) { using var tint = new SolidBrush(Color.FromArgb(hc ? 0 : 30, accent)); g.FillPath(tint, tilePath); }
         ToolIcon.Draw(g, RectangleF.Inflate(tile, -9 * s, -9 * s), Entry.GuidedFix ? "Help" : "Overview", accent);
-        int left = (int)(58 * s), right = (int)(120 * s);
-        TextRenderer.DrawText(g, Entry.Title, titleFont, new Rectangle(left, (int)(8 * s), Width - left - right, (int)(24 * s)), text,
+        string actionLabel = Localizer.T(Entry.GuidedFix ? "Guided fix" : "Open") + "  →";
+        int left = (int)(58 * s), right = Math.Max((int)(120 * s), TextRenderer.MeasureText(actionLabel, detailFont).Width + (int)(28 * s));
+        TextRenderer.DrawText(g, Localizer.Route(Entry.Title), titleFont, new Rectangle(left, (int)(8 * s), Width - left - right, (int)(24 * s)), text,
             TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis | TextFormatFlags.NoPrefix | TextFormatFlags.SingleLine);
-        TextRenderer.DrawText(g, Entry.Detail, detailFont, new Rectangle(left, (int)(30 * s), Width - left - right, (int)(20 * s)), muted,
+        TextRenderer.DrawText(g, Localizer.Route(Entry.Detail), detailFont, new Rectangle(left, (int)(30 * s), Width - left - right, (int)(20 * s)), muted,
             TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis | TextFormatFlags.NoPrefix | TextFormatFlags.SingleLine);
-        TextRenderer.DrawText(g, (Entry.GuidedFix ? "Guided fix" : "Open") + "  →", detailFont, new Rectangle(Width - right, 0, right - (int)(14 * s), Height), active ? accent : muted,
+        TextRenderer.DrawText(g, actionLabel, detailFont, new Rectangle(Width - right, 0, right - (int)(14 * s), Height), active ? accent : muted,
             TextFormatFlags.Right | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix | TextFormatFlags.SingleLine);
     }
 }
@@ -134,8 +135,8 @@ internal sealed class GlanceTile : Control
     }
     internal void Set(GlanceTileModel value)
     {
-        model = value; Text = value.Label; AccessibleName = value.Label;
-        AccessibleDescription = value.Value + (value.Detail.Length > 0 ? ". " + value.Detail : "") + (SummaryView.StatusText(value.Status) is { Length: > 0 } status ? ". " + status : "");
+        model = value; Text = value.Label; AccessibleName = Localizer.T(value.Label);
+        AccessibleDescription = Localizer.T(value.Value) + (value.Detail.Length > 0 ? ". " + Localizer.T(value.Detail) : "") + (SummaryView.StatusText(value.Status) is { Length: > 0 } status ? ". " + Localizer.T(status) : "");
         Invalidate();
     }
     protected override void Dispose(bool disposing) { if (disposing) { labelFont.Dispose(); valueFont.Dispose(); detailFont.Dispose(); } base.Dispose(disposing); }
@@ -161,9 +162,9 @@ internal sealed class GlanceTile : Control
         ToolIcon.Draw(g, RectangleF.Inflate(tile, -7 * s, -7 * s), model.Icon, color);
         const TextFormatFlags line = TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis | TextFormatFlags.NoPrefix | TextFormatFlags.SingleLine;
         int textLeft = pad + (int)(40 * s);
-        TextRenderer.DrawText(g, model.Label, labelFont, new Rectangle(textLeft, pad, Width - textLeft - pad, (int)(30 * s)), muted, line);
-        TextRenderer.DrawText(g, model.Value, valueFont, new Rectangle(pad, pad + (int)(38 * s), Width - pad * 2, (int)(28 * s)), text, line);
-        TextRenderer.DrawText(g, model.Detail, detailFont, new Rectangle(pad, pad + (int)(66 * s), Width - pad * 2, (int)(20 * s)), muted, line);
+        TextRenderer.DrawText(g, Localizer.T(model.Label), labelFont, new Rectangle(textLeft, pad, Width - textLeft - pad, (int)(30 * s)), muted, line);
+        TextRenderer.DrawText(g, Localizer.T(model.Value), valueFont, new Rectangle(pad, pad + (int)(38 * s), Width - pad * 2, (int)(28 * s)), text, line);
+        TextRenderer.DrawText(g, Localizer.T(model.Detail), detailFont, new Rectangle(pad, pad + (int)(66 * s), Width - pad * 2, (int)(20 * s)), muted, line);
         if (model.Percent is { } percent && !hc) {
             float y = Height - pad * 0.75f, width = Width - pad * 2;
             using var track = new SolidBrush(HankiTheme.Raised); g.FillRectangle(track, pad, y, width, 3 * s);
@@ -191,7 +192,7 @@ internal sealed class RecentActivityView : RoundedPanel
         foreach (Control old in rows.Controls.Cast<Control>().ToArray()) old.Dispose();
         rows.RowStyles.Clear(); rows.RowCount = Math.Max(1, items.Count);
         if (items.Count == 0)
-            rows.Controls.Add(new Label { Text = "Nothing yet. Scans, checks and the changes Hanki makes will show up here, newest first.", AutoSize = true, Tag = "intro", Margin = new Padding(0, 6, 0, 6) }, 0, 0);
+            rows.Controls.Add(new Label { Text = Localizer.T("Nothing yet. Scans, checks and the changes Hanki makes will show up here, newest first."), AutoSize = true, Tag = "intro", Margin = new Padding(0, 6, 0, 6) }, 0, 0);
         for (int i = 0; i < items.Count; i++) {
             var item = items[i];
             var text = new FlowLayoutPanel { AutoSize = true, FlowDirection = FlowDirection.TopDown, WrapContents = false, Tag = "card", Margin = new Padding(0, 6, 12, 6) };
@@ -208,6 +209,6 @@ internal sealed class RecentActivityView : RoundedPanel
     private static string When(DateTimeOffset at)
     {
         var local = at.ToLocalTime();
-        return local.Date == DateTime.Today ? "Today " + local.ToString("t") : local.Date == DateTime.Today.AddDays(-1) ? "Yesterday " + local.ToString("t") : local.ToString("g");
+        return local.Date == DateTime.Today ? Localizer.Format("Today {0}", local.ToString("t")) : local.Date == DateTime.Today.AddDays(-1) ? Localizer.Format("Yesterday {0}", local.ToString("t")) : local.ToString("g");
     }
 }

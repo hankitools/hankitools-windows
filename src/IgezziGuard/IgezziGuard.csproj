@@ -7,7 +7,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <AssemblyName>HankiTools</AssemblyName>
     <RootNamespace>IgezziGuard</RootNamespace>
-    <Version>0.19.0-rc.2</Version>
+    <Version>0.19.0-rc.3</Version>
     <AssemblyVersion>0.19.0.0</AssemblyVersion>
     <FileVersion>0.19.0.0</FileVersion>
     <Product>Hanki Tools</Product>
@@ -24,6 +24,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <EmbeddedResource Include="Localization/Catalogs/*.json" LogicalName="Hanki.Localization.%(Filename).json" />
     <EmbeddedResource Include="Brand/hanki.ico" />
     <EmbeddedResource Include="Brand/hanki-smile.png" />
     <Content Include="Data\signatures.txt">

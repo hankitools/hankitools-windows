@@ -66,7 +66,7 @@ internal sealed class SupportPanel : UserControl
         var bar = new FlowLayoutPanel { Dock = DockStyle.Bottom, AutoSize = true, Padding = new Padding(0, 12, 0, 0) };
         var copy = new HankiButton { Text = "Copy reviewed draft", AutoSize = true, Primary = true };
         var open = new HankiButton { Text = "Open new GitHub issue ↗", AutoSize = true };
-        var close = new HankiButton { Text = "Close", AutoSize = true, Appearance = HankiButtonStyle.Quiet, DialogResult = DialogResult.Cancel };
+        var close = new HankiButton { Text = Localizer.T("Close"), AutoSize = true, Appearance = HankiButtonStyle.Quiet, DialogResult = DialogResult.Cancel };
         copy.Click += (_, _) => { if (!string.IsNullOrWhiteSpace(report.Text)) Copy(report.Text); };
         open.Click += (_, _) => OpenLink(Repository + "/issues/new");
         bar.Controls.AddRange([copy, open, close]); dialog.Controls.Add(report); dialog.Controls.Add(bar); dialog.CancelButton = close;

@@ -26,8 +26,8 @@ public sealed class DiagnosticPanel : UserControl
         // One row: the check and (while it runs) Cancel on the left, report options (⋯) on the right.
         var bar = new FlowLayoutPanel { Dock = DockStyle.Fill, AutoSize = true, WrapContents = false, Margin = Padding.Empty };
         var run = new HankiButton { Text = label, AutoSize = true, Primary = true };
-        var stop = new HankiButton { Text = "Cancel", AutoSize = true, Appearance = HankiButtonStyle.Quiet, Visible = false };
-        var options = new HankiButton { Text = "⋯", Appearance = HankiButtonStyle.Icon, AccessibleName = "Report options", Margin = new Padding(0, 1, 0, 0), Font = new Font("Segoe UI Semibold", 13f) };
+        var stop = new HankiButton { Text = Localizer.T("Cancel"), AutoSize = true, Appearance = HankiButtonStyle.Quiet, Visible = false };
+        var options = new HankiButton { Text = "⋯", Appearance = HankiButtonStyle.Icon, AccessibleName = Localizer.T("Report options"), Margin = new Padding(0, 1, 0, 0), Font = new Font("Segoe UI Semibold", 13f) };
         var side = new FlowLayoutPanel { AutoSize = true, WrapContents = false, Margin = Padding.Empty, Anchor = AnchorStyles.Top | AnchorStyles.Right };
         bool reportReady = false;
         var activity = new Label { Text = "Ready • Start the check to see results", Dock = DockStyle.Top, Height = 34, Padding = new Padding(2, 8, 2, 6), Tag = "intro", AccessibleRole = AccessibleRole.StatusBar };

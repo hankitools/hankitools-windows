@@ -10,7 +10,7 @@ internal sealed class TunePanel : UserControl
     private readonly FlowLayoutPanel scenarios = new() { AutoSize = true, WrapContents = true, Margin = new Padding(0, 4, 0, 6), Tag = "card" };
     private readonly FlowLayoutPanel syncRow = new() { AutoSize = true, WrapContents = true, Margin = new Padding(0, 6, 0, 0), Tag = "card", Visible = false };
     private readonly FlowLayoutPanel syncChoices = new() { AutoSize = true, WrapContents = false, Margin = Padding.Empty, Tag = "card" };
-    private readonly HankiButton scan = new() { Text = "Scan and suggest changes", Primary = true, AutoSize = true, Margin = new Padding(0, 14, 0, 0), Font = new Font("Segoe UI Semibold", 11f) };
+    private readonly HankiButton scan = new() { Text = Localizer.T("Scan and suggest changes"), Primary = true, AutoSize = true, Margin = new Padding(0, 14, 0, 0), Font = new Font("Segoe UI Semibold", 11f) };
     private readonly Label status = new() { AutoSize = true, Tag = "intro", Margin = new Padding(0, 10, 0, 0), Font = new Font("Segoe UI", 10.5f) };
     private readonly RoundedPanel result = new() { Dock = DockStyle.Top, AutoSize = true, Padding = new Padding(26, 20, 26, 22), Visible = false };
     private readonly FlowLayoutPanel resultStack = new() { Dock = DockStyle.Fill, AutoSize = true, FlowDirection = FlowDirection.TopDown, WrapContents = false, Tag = "card" };
@@ -24,23 +24,23 @@ internal sealed class TunePanel : UserControl
         Dock = DockStyle.Top; AutoSize = true; AutoSizeMode = AutoSizeMode.GrowAndShrink; Padding = Padding.Empty;
         var hero = new RoundedPanel { Dock = DockStyle.Top, AutoSize = true, Padding = new Padding(26, 22, 26, 22) };
         var stack = new FlowLayoutPanel { Dock = DockStyle.Fill, AutoSize = true, FlowDirection = FlowDirection.TopDown, WrapContents = false, Tag = "card" };
-        var eyebrow = new Label { Text = "TUNE MY PC", AutoSize = true, Font = new Font("Segoe UI", 9f, FontStyle.Bold), Tag = "accent-performance", Margin = new Padding(0, 0, 0, 6) };
-        var headline = new Label { Text = "How do you want to tune your PC today?", AutoSize = true, Font = new Font("Segoe UI Semibold", 20f), Margin = new Padding(0, 0, 0, 10) };
+        var eyebrow = new Label { Text = Localizer.T("Tune my PC").ToUpper(System.Globalization.CultureInfo.CurrentUICulture), AutoSize = true, Font = new Font("Segoe UI", 9f, FontStyle.Bold), Tag = "accent-performance", Margin = new Padding(0, 0, 0, 6) };
+        var headline = new Label { Text = Localizer.T("How do you want to tune your PC today?"), AutoSize = true, Font = new Font("Segoe UI Semibold", 20f), Margin = new Padding(0, 0, 0, 10) };
         foreach (var scenario in Enum.GetValues<TuneScenario>()) {
             var tile = new ChoiceTile(TunePlanner.Name(scenario), TunePlanner.Describe(scenario), HankiTheme.PerformanceAccent) { Value = scenario, Margin = new Padding(0, 0, 12, 12) };
             tile.Chosen += () => { syncRow.Visible = TunePlanner.IsGaming(scenario); Invalidate(true); };
             scenarios.Controls.Add(tile);
         }
-        var syncQuestion = new Label { Text = "Does your display have G-SYNC or FreeSync?", AutoSize = true, Font = new Font("Segoe UI Semibold", 11.5f), Margin = new Padding(0, 10, 16, 0) };
+        var syncQuestion = new Label { Text = Localizer.T("Does your display have G-SYNC or FreeSync?"), AutoSize = true, Font = new Font("Segoe UI Semibold", 11.5f), Margin = new Padding(0, 10, 16, 0) };
         foreach (var (label, value) in new[] { ("Yes", AdaptiveSync.Yes), ("No", AdaptiveSync.No), ("Not sure", AdaptiveSync.NotSure) })
             syncChoices.Controls.Add(new ChoiceTile(label, label == "Not sure" ? "Hanki leaves V-Sync and frame caps alone" : label == "Yes" ? "V-Sync and caps set for adaptive sync" : "Settings for a fixed refresh rate",
                 HankiTheme.PerformanceAccent, compact: true) { Value = value, Selected = value == AdaptiveSync.NotSure, Margin = new Padding(0, 0, 10, 0) });
-        syncHint = new Label { Text = SyncHintText, AutoSize = true, Tag = "intro",
+        syncHint = new Label { Text = Localizer.T(SyncHintText), AutoSize = true, Tag = "intro",
             Font = new Font("Segoe UI", 10f), Margin = new Padding(0, 8, 0, 0) };
         var syncStack = new FlowLayoutPanel { AutoSize = true, FlowDirection = FlowDirection.TopDown, WrapContents = false, Margin = Padding.Empty, Tag = "card" };
         syncStack.Controls.AddRange([syncQuestion, syncChoices, syncHint]);
         syncRow.Controls.Add(syncStack);
-        status.Text = "Choose one, then scan. Hanki reads your settings and shows every change before anything happens.";
+        status.Text = Localizer.T("Choose one, then scan. Hanki reads your settings and shows every change before anything happens.");
         stack.Controls.AddRange([eyebrow, headline, scenarios, syncRow, scan, status]);
         stack.SizeChanged += (_, _) => {
             int width = Math.Max(240, stack.ClientSize.Width - 8);

@@ -49,6 +49,8 @@ internal static class UiSmokeTest
         Note("start");
         var visited = new List<string>(); string? error = null, screenshotError = null; var screenshots = new List<string>();
         using var form = new HankiForm();
+        // Visiting pages can start read-only refreshes. They must not veto closing the test window.
+        form.FormClosing += (_, e) => e.Cancel = false;
         form.Shown += (_, _) => form.BeginInvoke((Action)(() => {
             try {
                 void Visit(Control root, string prefix) {
@@ -75,6 +77,10 @@ internal static class UiSmokeTest
                     .Concat(Navigation.Moved.Values);
                 var absent = destinations.Where(d => form.Routes.All(r => r.Name != d)).ToArray();
                 if (absent.Length > 0) throw new IOException("Navigation destinations without a page: " + string.Join("; ", absent));
+                using (var languageDialog = new LanguageDialog()) {
+                    if (languageDialog.Text != Localizer.T("Language")) throw new IOException("Language dialog title is not localized.");
+                    if (Find<ComboBox>(languageDialog)?.Items.Count != 13) throw new IOException("Language selector must offer automatic mode and all twelve languages.");
+                }
                 // rc.5: a button labelled with "&" was measured wider than drawn and grew on every layout pass.
                 using (var amp = new HankiButton { Text = "Memory & pagefile", AutoSize = true, Appearance = HankiButtonStyle.Tab }) {
                     var once = amp.GetPreferredSize(Size.Empty); amp.Size = once;
@@ -90,7 +96,7 @@ internal static class UiSmokeTest
                             Note("screenshot " + route);
                             open.Open(); form.PerformLayout(); Application.DoEvents();
                             if (file == "tune-plan") { Find<TunePanel>(form)?.Preview(ExamplePlan()); form.PerformLayout(); Application.DoEvents(); }
-                            if (file == "home-search") { Find<HomeSearchBox>(form)?.Query("slow"); form.PerformLayout(); Application.DoEvents(); }
+                            if (file == "home-search") { Find<HomeSearchBox>(form)?.Query(Localizer.T("slow")); form.PerformLayout(); Application.DoEvents(); }
                             if (file == "home-glance" && Find<HomePanel>(form) is { } home) { Find<HomeSearchBox>(form)?.Query(""); home.AutoScrollPosition = new Point(0, 460); Application.DoEvents(); }
                             using var bitmap = new Bitmap(form.Width, form.Height);
                             form.DrawToBitmap(bitmap, new Rectangle(Point.Empty, form.Size));
@@ -105,6 +111,13 @@ internal static class UiSmokeTest
                         var visionPath = Path.Combine(screenshotFolder, "tactical-vision.png");
                         visionBitmap.Save(visionPath, ImageFormat.Png); screenshots.Add(visionPath);
                         vision.Close();
+                        using var language = new LanguageDialog();
+                        language.Show(form); language.PerformLayout(); Application.DoEvents();
+                        using var languageBitmap = new Bitmap(language.Width, language.Height);
+                        language.DrawToBitmap(languageBitmap, new Rectangle(Point.Empty, language.Size));
+                        var languagePath = Path.Combine(screenshotFolder, "language.png");
+                        languageBitmap.Save(languagePath, ImageFormat.Png); screenshots.Add(languagePath);
+                        language.Close();
                     } catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or System.Runtime.InteropServices.ExternalException) { screenshotError = ex.Message; }
                 }
             }
@@ -112,7 +125,7 @@ internal static class UiSmokeTest
             finally {
                 Note(error is null ? "finished" : "failed: " + error);
                 try { File.WriteAllText(Path.GetFullPath(reportPath), JsonSerializer.Serialize(new {
-                    Version = AppInfo.Version, Passed = error is null, At = DateTimeOffset.Now, Dpi = form.DeviceDpi,
+                    Version = AppInfo.Version, Language = Localizer.CurrentLanguage, Passed = error is null, At = DateTimeOffset.Now, Dpi = form.DeviceDpi,
                     Visited = visited, Error = error, Screenshots = screenshots, ScreenshotError = screenshotError,
                     Limitation = "Structural navigation only. Does not validate pixels, screen readers, native actions, Defender, networking or repairs."
                 }, new JsonSerializerOptions { WriteIndented = true })); }

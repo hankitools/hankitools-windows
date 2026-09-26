@@ -22,7 +22,7 @@ public sealed class HankiButton : Button
         Padding = Primary ? new Padding(18, 6, 18, 6) : Appearance == HankiButtonStyle.Quiet ? new Padding(8, 3, 8, 3) : new Padding(14, 5, 14, 5);
     }
     private bool selected, hover, pressed, wanted = true, folded;
-    public bool Selected { get => selected; set { selected = value; AccessibleDescription = value ? "Current view" : ""; Invalidate(); } }
+    public bool Selected { get => selected; set { selected = value; AccessibleDescription = value ? Localizer.T("Current view") : ""; Invalidate(); } }
     /// <summary>Whether the page wants this button shown (its own Visible setting), apart from folding.</summary>
     internal bool Wanted => wanted;
     /// <summary>Moved into a row's "More" menu because the row is full; the button keeps its place and state.</summary>
@@ -204,12 +204,12 @@ public sealed class HankiTabs : TabControl
         foreach (TabPage page in TabPages) {
             // One row of pill-shaped views; the ones that don't fit go into "More", and the current one always shows.
             var strip = new FlowLayoutPanel { Dock = DockStyle.Top, AutoSize = true, WrapContents = false,
-                Padding = new Padding(0, 0, 0, 16), Margin = System.Windows.Forms.Padding.Empty, AccessibleName = "Workspace views" };
+                Padding = new Padding(0, 0, 0, 16), Margin = System.Windows.Forms.Padding.Empty, AccessibleName = Localizer.T("Workspace views") };
             foreach (TabPage destination in TabPages) {
                 var target = destination;
-                var button = new HankiButton { Text = ViewLabel(target.Text), AutoSize = true,
+                var button = new HankiButton { Text = Localizer.T(ViewLabel(target.Text)), AutoSize = true,
                     Appearance = HankiButtonStyle.Tab, Margin = new Padding(0, 0, 4, 0), Font = new Font("Segoe UI Semibold", 10.5f),
-                    AccessibleName = "Open " + target.Text, Tag = target };
+                    AccessibleName = Localizer.Format("Open {0}", Localizer.T(ViewLabel(target.Text))), Tag = target };
                 button.Click += (_, _) => {
                     SelectedTab = target;
                     if (strips.TryGetValue(target, out var active))
@@ -312,6 +312,7 @@ internal sealed class HankiCard : Control
     private bool hover;
     public HankiCard(string kind, string title, string description, Action open, Color? accent = null)
     {
+        title = Localizer.T(title); description = Localizer.T(description);
         this.kind = kind; this.title = title; this.description = description; this.accent = accent ?? HankiTheme.Accent;
         Text = title; AccessibleName = title; AccessibleDescription = description; AccessibleRole = AccessibleRole.PushButton;
         TabStop = true; Cursor = Cursors.Hand; Height = 148;
@@ -373,11 +374,11 @@ internal sealed class LastScanView : Control
         bool hc = SystemInformation.HighContrast;
         var text = hc ? SystemColors.ControlText : HankiTheme.Text; var muted = hc ? SystemColors.ControlText : HankiTheme.Muted;
         const TextFormatFlags flags = TextFormatFlags.Left | TextFormatFlags.Top | TextFormatFlags.NoPrefix | TextFormatFlags.EndEllipsis | TextFormatFlags.NoPadding;
-        TextRenderer.DrawText(g, "LAST SCAN", eyebrow, new Rectangle(0, 0, Width, (int)(18 * s)), muted, flags);
+        TextRenderer.DrawText(g, Localizer.T("LAST SCAN"), eyebrow, new Rectangle(0, 0, Width, (int)(18 * s)), muted, flags);
         int y = (int)(24 * s);
         if (scan is null) {
-            TextRenderer.DrawText(g, problem is null ? "No scans yet" : "History unavailable", large, new Rectangle(0, y, Width, (int)(28 * s)), text, flags);
-            TextRenderer.DrawText(g, problem ?? "Your results will appear here after the first scan.", body, new Rectangle(0, y + (int)(32 * s), Width, (int)(44 * s)), muted, flags | TextFormatFlags.WordBreak);
+            TextRenderer.DrawText(g, Localizer.T(problem is null ? "No scans yet" : "History unavailable"), large, new Rectangle(0, y, Width, (int)(28 * s)), text, flags);
+            TextRenderer.DrawText(g, problem ?? Localizer.T("Your results will appear here after the first scan."), body, new Rectangle(0, y + (int)(32 * s), Width, (int)(44 * s)), muted, flags | TextFormatFlags.WordBreak);
             return;
         }
         var ended = scan.Ended.ToLocalTime();
@@ -402,12 +403,12 @@ internal sealed class Dashboard : UserControl
         layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 62)); layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 38));
         layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
         var pitch = new FlowLayoutPanel { Dock = DockStyle.Fill, FlowDirection = FlowDirection.TopDown, WrapContents = false, Tag = "card", Margin = Padding.Empty };
-        var eyebrow = new Label { Text = "FIX MY PC", AutoSize = true, Font = new Font("Segoe UI", 9f, FontStyle.Bold), Tag = "accent", Margin = new Padding(0, 0, 0, 6) };
-        var headline = new Label { Text = "Check your PC in one pass", AutoSize = true, Font = new Font("Segoe UI Semibold", 20f), Margin = new Padding(0, 0, 0, 6) };
-        var pitchText = new Label { Text = "Read-only. Nothing changes until you approve a repair, and nothing is uploaded.", AutoSize = true, Tag = "intro", Font = new Font("Segoe UI", 11f), Margin = new Padding(0, 0, 0, 14) };
+        var eyebrow = new Label { Text = Localizer.T("Fix my PC").ToUpper(System.Globalization.CultureInfo.CurrentUICulture), AutoSize = true, Font = new Font("Segoe UI", 9f, FontStyle.Bold), Tag = "accent", Margin = new Padding(0, 0, 0, 6) };
+        var headline = new Label { Text = Localizer.T("Check your PC in one pass"), AutoSize = true, Font = new Font("Segoe UI Semibold", 20f), Margin = new Padding(0, 0, 0, 6) };
+        var pitchText = new Label { Text = Localizer.T("Read-only. Nothing changes until you approve a repair, and nothing is uploaded."), AutoSize = true, Tag = "intro", Font = new Font("Segoe UI", 11f), Margin = new Padding(0, 0, 0, 14) };
         var actions = new FlowLayoutPanel { AutoSize = true, Tag = "card", Margin = Padding.Empty, WrapContents = false };
-        var start = new HankiButton { Text = "Scan my PC", Primary = true, AutoSize = true, Margin = new Padding(0, 0, 8, 0), Font = new Font("Segoe UI Semibold", 11f) };
-        var results = new HankiButton { Text = "View results", AutoSize = true, Margin = Padding.Empty };
+        var start = new HankiButton { Text = Localizer.T("Scan my PC"), Primary = true, AutoSize = true, Margin = new Padding(0, 0, 8, 0), Font = new Font("Segoe UI Semibold", 11f) };
+        var results = new HankiButton { Text = Localizer.T("View results"), AutoSize = true, Margin = Padding.Empty };
         start.Click += (_, _) => startScan(); results.Click += (_, _) => navigate("Fix My PC");
         actions.Controls.AddRange([start, results]);
         pitch.Controls.AddRange([eyebrow, headline, pitchText, actions]);
@@ -451,6 +452,7 @@ internal sealed class ChoiceTile : Control
     }
     public ChoiceTile(string title, string description, Color? accent = null, bool compact = false)
     {
+        title = Localizer.T(title); description = Localizer.T(description);
         this.title = title; this.description = description; this.accent = accent ?? HankiTheme.Accent;
         titleFont = new Font("Segoe UI Semibold", compact ? 11f : 13f); bodyFont = new Font("Segoe UI", 10f);
         Text = title; AccessibleName = title; AccessibleDescription = description; AccessibleRole = AccessibleRole.RadioButton;

@@ -1,3 +1,14 @@
+# Hanki Tools 0.19.0-rc.3 — Twelve interface languages
+
+An unsigned preview adding the same language choices as the website articles.
+
+- **Twelve languages.** English, Finnish, German, Spanish, French, Italian, Japanese, Korean, Dutch, Polish, Brazilian Portuguese, and Simplified Chinese.
+- **Your language, remembered.** Choose Language in the sidebar, or follow the Windows display language. Changes apply on the next launch. Regional date and number formats stay unchanged.
+- **Translated everyday controls.** Navigation, page introductions, home and tuning choices, dashboard values, tabs, primary actions, common report controls, and search use the selected language. English search aliases remain available.
+- **Coverage.** This is the first localization pass. Detailed diagnostic reports, repair explanations, guided troubleshooting steps, and some secondary forms and status messages remain in English. Native-speaker review is pending; see docs/LOCALIZATION.md.
+
+Validation includes automated catalog and preference checks, the full Windows CI suite, packaged-app smoke testing, and 124 UI view visits in each of the 12 languages at two window sizes (1,488 visits). Code signing and native Windows acceptance remain pending. Smart App Control can block this unsigned preview on protected PCs; publication does not change its trust status.
+
 # Hanki Tools 0.19.0-rc.2 — Tactical Vision
 
 An unsigned preview for testing, adding per-game NVIDIA color saturation controls.
