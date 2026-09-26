@@ -58,6 +58,16 @@ internal static partial class UiSmokeTest
             "Glance tile height and column count must adapt at 100%, 150% and 200%.");
         Require(Descendants(home).OfType<GlanceTile>().All(tile => tile.Height >= GlanceTile.HeightAtDpi(form.DeviceDpi)),
             "Glance tile content must fit the current display scaling.");
+        Require(HankiCard.HeightAtDpi(96) == 148 && HankiCard.HeightAtDpi(144) == 222 && HankiCard.HeightAtDpi(192) == 296,
+            "Help and navigation cards must scale their height at 100%, 150% and 200%.");
+        Require(ToolTiles.ColumnsForWidth(1100, 96) == 3 && ToolTiles.ColumnsForWidth(1100, 144) == 2
+            && ToolTiles.ColumnsForWidth(1800, 144) == 3 && ToolTiles.ColumnsForWidth(1200, 192) == 2,
+            "Help tiles must preserve readable column widths as display scaling increases.");
+        Open("Help");
+        var helpCards = Descendants(Find<HelpLanding>(form)!).OfType<HankiCard>().ToArray();
+        Require(helpCards.Length >= 4 && helpCards.All(card => card.Height >= HankiCard.HeightAtDpi(form.DeviceDpi)),
+            $"Help card text must fit at {form.DeviceDpi} DPI.");
+        Open("Home");
         var brandHeader = Find<BrandHeader>(form)!;
         var sidebar = brandHeader.Parent!;
         var navLabels = Navigation.Sidebar.Select(id => Localizer.T(Navigation.Find(id)!.Label)).ToHashSet(StringComparer.Ordinal);
