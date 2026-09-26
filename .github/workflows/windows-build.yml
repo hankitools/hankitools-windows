@@ -15,6 +15,75 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  localization:
+    name: Localization checks and twelve-language UI smoke
+    runs-on: windows-2022
+    timeout-minutes: 15
+    env:
+      DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+      DOTNET_NOLOGO: '1'
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Install .NET 10 SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Check catalogs and build the UI
+        shell: pwsh
+        run: |
+          dotnet run --project tests/HankiTools.Checks.csproj --configuration Release -- --localization-checks
+          if ($LASTEXITCODE -ne 0) { throw 'Localization or Home checks failed.' }
+          dotnet build src/IgezziGuard/IgezziGuard.csproj --configuration Release
+          if ($LASTEXITCODE -ne 0) { throw 'UI build failed.' }
+
+      - name: Visit every view in every language
+        shell: pwsh
+        run: |
+          $output = Join-Path $env:GITHUB_WORKSPACE 'localization-validation'
+          New-Item -ItemType Directory -Path $output | Out-Null
+          $app = Join-Path $env:GITHUB_WORKSPACE 'src/IgezziGuard/bin/Release/net10.0-windows/HankiTools.dll'
+          $dotnet = (Get-Command dotnet).Source
+          $failures = @()
+          foreach ($language in @('en', 'fi', 'de', 'es', 'fr', 'it', 'ja', 'ko', 'nl', 'pl', 'pt-BR', 'zh-Hans')) {
+            $report = Join-Path $output "$language.json"
+            $arguments = @('"' + $app + '"', '--ui-smoke-test-localized', $language, '"' + $report + '"')
+            if ($language -in @('fi', 'de', 'ja')) { $arguments += '"' + (Join-Path $output $language) + '"' }
+            $process = Start-Process -FilePath $dotnet -ArgumentList $arguments -WindowStyle Hidden -PassThru `
+              -RedirectStandardOutput (Join-Path $output "$language.stdout.txt") -RedirectStandardError (Join-Path $output "$language.stderr.txt")
+            try {
+              if (!$process.WaitForExit(60000)) {
+                $process.Kill($true)
+                $failures += "$language timed out"
+                continue
+              }
+              if ($process.ExitCode -ne 0 -or !(Test-Path -LiteralPath $report)) {
+                $failures += "$language failed to produce a successful run (exit $($process.ExitCode))"
+                continue
+              }
+              $result = Get-Content -LiteralPath $report -Raw | ConvertFrom-Json
+              if (!$result.Passed -or $result.Language -ne $language -or $result.ScreenshotError) {
+                $failures += "$language failed report validation"
+                continue
+              }
+              Write-Host "$language passed: $($result.Visited.Count) view visits"
+            } finally { $process.Dispose() }
+          }
+          if ($failures.Count -gt 0) { throw ($failures -join '; ') }
+
+      - name: Upload localization reports and screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Localization-validation-${{ github.run_number }}-${{ github.run_attempt }}
+          path: localization-validation/
+          if-no-files-found: warn
+          retention-days: 14
+
   build:
     name: Checks, UI smoke test and candidate package
     runs-on: windows-2022
