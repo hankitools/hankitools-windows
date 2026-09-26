@@ -1,4 +1,5 @@
 using IgezziGuard;
+if (args is ["--usability-checks"]) { UsabilityChecks.Run(); Console.WriteLine("All usability checks passed."); return; }
 if (args is ["--localization-checks"]) {
     var localizationRoot = Path.Combine(Path.GetTempPath(), "HankiLocalizationChecks-" + Guid.NewGuid().ToString("N"));
     try { LocalizationChecks.Run(localizationRoot); HomeChecks.Run(); Console.WriteLine("All localization and home checks passed."); }
@@ -27,6 +28,7 @@ try
 {
     LocalizationChecks.Run(Path.Combine(root, "localization"));
     Directory.Delete(Path.Combine(root, "localization"), recursive: true);
+    UsabilityChecks.Run();
     DiagnosticChecks.Models();
     DiagnosticChecks.Recommendations();
     await DiagnosticChecks.Modules();

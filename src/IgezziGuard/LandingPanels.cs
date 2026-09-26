@@ -31,7 +31,7 @@ internal static class ToolTiles
     {
         int index = 0;
         foreach (var control in page.Controls.Cast<Control>().Reverse()) control.TabIndex = index++;
-        page.VisibleChanged += (_, _) => { if (page.Visible) page.AutoScrollPosition = Point.Empty; };
+        // Keep the existing scroll position when returning through navigation history.
     }
 }
 

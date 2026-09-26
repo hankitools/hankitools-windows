@@ -1,3 +1,16 @@
+# Hanki Tools 0.19.0-rc.4 — Clearer results and guided troubleshooting
+
+An unsigned preview with simpler scan results and a guided internet troubleshooting flow.
+
+- **See what needs attention.** Full scans start with actionable findings. Expand other completed checks and missing evidence separately. Each finding offers a manual next step, with technical details kept one click away.
+- **Return to where you were.** Back and Alt+Left restore the previous tool tab and keep your troubleshooting state.
+- **One internet step at a time.** Connect opens a read-only guided check, suggests the next step and lets you test again or confirm that the problem is resolved. More help opens detailed tools and the Hanki knowledge base.
+- **Relevant repair actions.** Repair review appears only for a recent scan with a supported proposal, administrator access and an eligible edition. Manual guidance remains available.
+- **Clearer controls.** New core controls and summary counts support all twelve interface languages. Back links and action labels fit better at 150% scaling. Detailed diagnostic explanations may still fall back to English.
+- **App-hang history fix.** Reading a hung application's event no longer fails because its missing module name was serialized as an object.
+
+Validation covers the full non-destructive Windows test suite, localization checks, navigation and fixed-fixture usability checks. The release workflow requires a successful main-branch Windows build, including packaged-app smoke testing and the twelve-language UI matrix. Code signing and broader native-action acceptance remain pending. This preview does not change network settings automatically.
+
 # Hanki Tools 0.19.0-rc.3 — Twelve interface languages
 
 An unsigned preview adding the same language choices as the website articles.
