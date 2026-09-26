@@ -12,6 +12,8 @@ public sealed record ConnectionFacts(int ActiveAdapters, string? Adapter, bool H
     bool? DnsWorks, long? DnsMs, bool? IpReachable, long? IpMs, bool? NameReachable, long? NameMs,
     string NameHost = "www.microsoft.com", IReadOnlyList<string>? DnsFailures = null);
 
+public sealed record ConnectionCheck(ConnectionFacts Facts, string Report);
+
 public sealed record PingStats(string Target, bool Gateway, int Sent, IReadOnlyList<long> Replies)
 {
     public double LossPercent => Sent == 0 ? 100 : 100d * (Sent - Replies.Count) / Sent;
@@ -22,6 +24,11 @@ public static class NetworkDiagnostics
 {
     internal static readonly string[] DnsTestNames = ["www.microsoft.com", "cloudflare.com", "example.com"];
     public static async Task<Diagnosis> Check(CancellationToken token)
+    {
+        var check = await Inspect(token);
+        return ConnectionVerdict.Evaluate(check.Facts, check.Report);
+    }
+    public static async Task<ConnectionCheck> Inspect(CancellationToken token)
     {
         var report = new StringBuilder($"Hanki Connect • {DateTimeOffset.Now:g}\r\nRead-only checks; failed probes alone do not establish the cause.\r\n\r\n");
         int active = 0; string? primary = null; bool ipv4 = false, gateway = false, vpn = false;
@@ -64,7 +71,7 @@ public static class NetworkDiagnostics
         string host = resolved.FirstOrDefault() ?? DnsTestNames[0];
         var (name443, nameMs) = dns == true ? await Tcp(host, report, token) : (null, null);
         report.AppendLine("\r\nFinished. VPNs, proxies and multiple adapters can affect results. No settings changed.");
-        return ConnectionVerdict.Evaluate(new(active, primary, ipv4, gateway, vpn, dns, dnsMs, ip443, ipMs, name443, nameMs, host, failures), report.ToString());
+        return new(new(active, primary, ipv4, gateway, vpn, dns, dnsMs, ip443, ipMs, name443, nameMs, host, failures), report.ToString());
     }
     private static async Task<(bool? Ok, long? Ms)> Tcp(string host, StringBuilder report, CancellationToken token)
     {

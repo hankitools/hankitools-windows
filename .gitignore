@@ -12,3 +12,6 @@ dist/
 *.user
 *.suo
 *.pdb
+
+# Local usability validation screenshots and reports
+artifacts/usability/

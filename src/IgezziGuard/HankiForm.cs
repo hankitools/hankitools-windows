@@ -2,6 +2,9 @@ namespace IgezziGuard;
 
 public sealed class HankiForm : Form
 {
+    private readonly NavigationHistory navigationHistory = new();
+    private bool restoringNavigation;
+    private readonly InternetTroubleshootingPanel internetGuide = new();
     private readonly WorkspacePages tabs = new() { Dock = DockStyle.Fill };
     private readonly ScannerPanel scanner = new();
     private readonly DiagnosticPanel connection = new("Check my connection", "Checks your network adapter, router, name lookups (DNS for www.microsoft.com, cloudflare.com and example.com) and whether Cloudflare (1.1.1.1) and the first site that resolves answer on port 443. Those servers can see your IP address. Nothing is uploaded and no settings are changed.", "What this checks", NetworkDiagnostics.Check);
@@ -50,7 +53,7 @@ public sealed class HankiForm : Form
     private readonly StoragePanel storagePanel = new();
     /// <summary>Every navigable tool, as listed in Find a tool.</summary>
     internal IReadOnlyList<ToolLauncher.Route> Routes { get; private set; } = [];
-    private ToolPage[] ExtraPages => [activation, updateHealth, batteryStartup, diagnosticHistory, systemActions, performanceSessions, gamingOverview, gamesPanel, nvidiaPanel, amdPanel, gpuPanel, bottleneck, stutter, cpuPanel, memoryHealth, storagePanel, fullScan, duplicates, startupFolders, longPerformance, tuning, networkTools, defenderTools, dumps, guidance, recovery, scanner];
+    private ToolPage[] ExtraPages => [activation, updateHealth, batteryStartup, diagnosticHistory, systemActions, performanceSessions, gamingOverview, gamesPanel, nvidiaPanel, amdPanel, gpuPanel, bottleneck, stutter, cpuPanel, memoryHealth, storagePanel, fullScan, internetGuide, duplicates, startupFolders, longPerformance, tuning, networkTools, defenderTools, dumps, guidance, recovery, scanner];
 
     public HankiForm()
     {
@@ -67,13 +70,13 @@ public sealed class HankiForm : Form
         foreach (var item in Navigation.Items) Page(item.Page);
         TabPage At(string page) => tabs.TabPages.Cast<TabPage>().Single(p => p.Text == page);
         // Home's search opens a guided check with its symptom chosen.
-        void OpenGuide(int index) { Routes.FirstOrDefault(r => r.Name == "Diagnose  /  Guided checks")?.Open(); guidance.ShowSymptom(index); }
+        void OpenGuide(int index) { if (index >= 0 && index < TroubleshootingPanel.Guides.Length && TroubleshootingPanel.Guides[index].Steps.Any(s => s.Route == "Connect  /  Guided troubleshooting")) { Routes.FirstOrDefault(r => r.Name == "Connect  /  Guided troubleshooting")?.Open(); return; } Routes.FirstOrDefault(r => r.Name == "Diagnose  /  Guided checks")?.Open(); guidance.ShowSymptom(index); }
         At("Home").Controls.Add(new HomePanel(Navigate, StartFixMyPc, () => Routes, OpenGuide));
         At("System overview").Controls.Add(new Dashboard(Navigate, StartFixMyPc));
         At("Fix My PC").Controls.Add(fullScan);
         var shield = At("Shield");
         shield.Controls.Add(defender);
-        var net = At("Connect"); net.Controls.Add(connection);
+        var net = At("Connect"); net.Controls.Add(internetGuide);
         var historyText = Report();
         historyText.VisibleChanged += (_, _) => {
             if (!historyText.Visible) return;
@@ -110,7 +113,8 @@ public sealed class HankiForm : Form
         AttachDetail(shield, "Defender audit", "Defender controls / alerts", defenderTools);
         var shieldTabs = shield.Controls.OfType<TabControl>().Single();
         AddTab(shieldTabs, "File scanner (experimental)", scanner); AddTab(shieldTabs, "File scan history", historyText);
-        AttachDetail(net, "Basic checks", "Wi-Fi / latency", networkDeep);
+        AttachDetail(net, "Guided troubleshooting", "Basic checks", connection);
+        AddTab(net.Controls.OfType<TabControl>().Single(), "Wi-Fi / latency", networkDeep);
         AddTab(net.Controls.OfType<TabControl>().Single(), "Advanced / DNS repair", networkTools);
         At("Recovery").Controls.Add(recovery);
 
@@ -199,13 +203,19 @@ public sealed class HankiForm : Form
         sidebarFooter.Controls.Add(new Label { Text = "v" + AppInfo.Version + "  ·  hanki.tools", AutoSize = true, Tag = "intro", Font = new Font("Segoe UI", 8.25f), Margin = new Padding(14, 6, 0, 0) });
         var title = new Label { Text = Localizer.T("Overview"), Dock = DockStyle.Top, Height = 58, Font = new Font("Segoe UI Semibold", 21f), Padding = new Padding(22, 16, 0, 0), AutoEllipsis = true };
         var routes = new List<ToolLauncher.Route>();
+        Action updateNavigation = () => { };
         void AddRoutes(TabControl group, string prefix = "") {
             foreach (TabPage page in group.TabPages) {
                 var destination = page;
                 var name = prefix + page.Text;
                 routes.Add(new ToolLauncher.Route(name, () => {
-                    for (Control? current = destination; current is not null; current = current.Parent)
-                        if (current is TabPage selected && selected.Parent is TabControl owner) owner.SelectedTab = selected;
+                    bool wasRestoring = restoringNavigation;
+                    restoringNavigation = true;
+                    try {
+                        for (Control? current = destination; current is not null; current = current.Parent)
+                            if (current is TabPage selected && selected.Parent is TabControl owner) owner.SelectedTab = selected;
+                    } finally { restoringNavigation = wasRestoring; }
+                    updateNavigation();
                 }));
                 foreach (var child in page.Controls.OfType<TabControl>()) AddRoutes(child, name + "  /  ");
             }
@@ -213,6 +223,8 @@ public sealed class HankiForm : Form
         AddRoutes(tabs);
         Routes = routes;
         guidance.OpenRequested += name => routes.FirstOrDefault(r => r.Name == name)?.Open();
+        fullScan.OpenRequested += name => routes.FirstOrDefault(r => r.Name == name)?.Open();
+        internetGuide.OpenRequested += name => routes.FirstOrDefault(r => r.Name == name)?.Open();
         foreach (var shortcut in new[] { ("Windows / Task Manager", "task-manager"), ("Windows / Event Viewer", "event-viewer"), ("Windows / Settings", "settings"), ("Windows / File Explorer", "explorer") }) {
             var item = shortcut;
             routes.Add(new ToolLauncher.Route(item.Item1, () => DesktopShortcuts.Open(this, item.Item2)));
@@ -225,17 +237,28 @@ public sealed class HankiForm : Form
         search.Click += (_, _) => FindTool();
         KeyPreview = true;
         KeyDown += (_, e) => { if (e.KeyCode == Keys.F1) { Navigate("Help & community"); e.SuppressKeyPress = true; } if (e.Control && e.KeyCode == Keys.K) { FindTool(); e.SuppressKeyPress = true; } };
-        var header = new Panel { Dock = DockStyle.Top, Height = 92, Padding = new Padding(0, 0, 22, 0) };
+        var header = new TableLayoutPanel { Dock = DockStyle.Top, AutoSize = true, ColumnCount = 2, RowCount = 2, Padding = new Padding(0, 0, 22, 8) };
+        header.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        header.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+        header.RowStyles.Add(new RowStyle(SizeType.AutoSize)); header.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         var searchHost = new FlowLayoutPanel { Dock = DockStyle.Right, AutoSize = true, WrapContents = false, Padding = new Padding(0, 26, 0, 0), Margin = Padding.Empty };
         searchHost.Controls.Add(search);
         // Above the title: the way back to the area's landing page, on every page that isn't one.
-        var crumbs = new FlowLayoutPanel { Dock = DockStyle.Top, Height = 38, WrapContents = false, Padding = new Padding(16, 8, 0, 0), Margin = Padding.Empty };
+        var crumbs = new FlowLayoutPanel { Dock = DockStyle.Fill, AutoSize = true, WrapContents = false, Padding = new Padding(16, 8, 0, 0), Margin = Padding.Empty };
         var back = new HankiButton { Text = "←  " + Localizer.T("Back"), Appearance = HankiButtonStyle.Quiet, AutoSize = true, Visible = false, Margin = Padding.Empty, Font = new Font("Segoe UI Semibold", 10.5f) };
-        string? backTarget = null;
-        back.Click += (_, _) => { if (backTarget is not null) Navigate(backTarget); };
+        void GoBack() {
+            if (navigationHistory.Back() is not { } target) return;
+            restoringNavigation = true;
+            try { routes.FirstOrDefault(r => r.Name == target)?.Open(); }
+            finally { restoringNavigation = false; }
+            updateNavigation();
+        }
+        back.Click += (_, _) => GoBack();
+        KeyDown += (_, e) => { if (e.Alt && e.KeyCode == Keys.Left) { GoBack(); e.SuppressKeyPress = true; } };
         crumbs.Controls.Add(back);
-        title.Dock = DockStyle.Fill; title.Padding = new Padding(22, 0, 0, 0);
-        header.Controls.Add(title); header.Controls.Add(crumbs); header.Controls.Add(searchHost);
+        title.Dock = DockStyle.Fill; title.AutoSize = true; title.Padding = new Padding(22, 0, 0, 0);
+        header.Controls.Add(crumbs, 0, 0); header.Controls.Add(title, 0, 1); header.Controls.Add(searchHost, 1, 0); header.SetRowSpan(searchHost, 2);
+        header.SizeChanged += (_, _) => back.MaximumSize = new Size(Math.Max(120, header.ClientSize.Width - searchHost.Width - 60), 0);
         var introduction = new Label { Dock = DockStyle.Top, AutoSize = false, Padding = new Padding(24, 0, 24, 16),
             Font = new Font("Segoe UI", 11.5f), Tag = "intro", AccessibleName = Localizer.T("About this page") };
         void FitIntroduction() {
@@ -257,16 +280,33 @@ public sealed class HankiForm : Form
             var productArea = destination?.Area ?? ProductArea.Home;
             foreach (var item in navigation) item.Button.Selected = item.Area == productArea;
             title.Text = Localizer.T(destination is null ? current?.Text ?? "" : Navigation.Title(destination));
-            bool landing = destination is null || Navigation.IsLanding(destination.Page);
-            backTarget = landing ? null : Navigation.Landing(productArea);
-            back.Visible = backTarget is not null;
-            if (backTarget is not null) { back.Text = "←  " + Localizer.T(Navigation.Title(Navigation.Find(backTarget)!)); back.AccessibleName = Localizer.Format("Back to {0}", Localizer.T(Navigation.Title(Navigation.Find(backTarget)!))); }
+            back.Visible = navigationHistory.BackTarget is not null;
+            if (navigationHistory.BackTarget is { } backTarget) {
+                var label = backTarget == "Diagnose  /  Guided checks" || backTarget == "Connect  /  Guided troubleshooting"
+                    ? Localizer.T("Return to troubleshooting") : Localizer.Format("Back to {0}", Localizer.Route(backTarget));
+                back.Text = "←  " + label; back.AccessibleName = label;
+            }
             // Pages with their own hero don't repeat an introduction.
             introduction.Text = destination is null || destination.Page is "Home" or "System overview" or "Performance overview" ? "" : Localizer.T(destination.Introduction);
             introduction.Visible = introduction.Text.Length > 0;
             FitIntroduction();
         }
-        tabs.SelectedIndexChanged += (_, _) => RefreshNavigation(); RefreshNavigation();
+        string CurrentRoute(TabControl group) {
+            if (group.SelectedTab is not { } selected) return "Home";
+            var child = selected.Controls.OfType<TabControl>().FirstOrDefault();
+            return selected.Text + (child?.SelectedTab is null ? "" : "  /  " + CurrentRoute(child));
+        }
+        void RecordNavigation() {
+            if (!restoringNavigation) navigationHistory.Visit(CurrentRoute(tabs));
+            RefreshNavigation();
+        }
+        void TrackNavigation(TabControl group) {
+            group.SelectedIndexChanged += (_, _) => RecordNavigation();
+            foreach (TabPage page in group.TabPages)
+                foreach (var child in page.Controls.OfType<TabControl>()) TrackNavigation(child);
+        }
+        updateNavigation = RecordNavigation;
+        TrackNavigation(tabs); RefreshNavigation();
         Shown += (_, _) => RefreshNavigation();
         // Contacts Polar only when a Technician licence is due for its weekly check; offline, the stored licence keeps working.
         Shown += async (_, _) => { try { await AppLicensing.RefreshAsync(CancellationToken.None); } catch (Exception ex) when (ex is IOException or HttpRequestException or InvalidOperationException) { } };

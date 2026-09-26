@@ -79,6 +79,7 @@ public sealed class TroubleshootingPanel : ToolPage
             new("See Windows' battery usage", "Settings → System → Power & battery → Battery usage shows which apps use the most battery."),
         ]),
         ("The internet is slow or keeps dropping", [
+            new("Follow one step at a time", "Check your connection, try the suggested step and verify whether it helped.", "Connect  /  Guided troubleshooting", "Open guided troubleshooting"),
             new("Check the basic connection", "Tests your adapter, router, name lookups (DNS) and internet access, and says which step fails.", "Connect  /  Basic checks", "Open Basic checks"),
             new("Test Wi-Fi and response times", "Compares your router with the internet to show whether trouble starts at home or further out.", "Connect  /  Wi-Fi / latency", "Open Wi-Fi / latency"),
             new("Measure speed and compare DNS", "Runs a bounded speed test and compares DNS servers.", "Connect  /  Advanced / DNS repair", "Open Network tools"),

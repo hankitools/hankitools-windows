@@ -136,6 +136,10 @@ internal static class HealthChecks
         // The real collectors on this PC: they run as a standard user and their output parses.
         var probe = new WindowsDiagnosticProbe();
         string Read(string script) => probe.ReadAsync(script, 60, CancellationToken.None).GetAwaiter().GetResult();
+        // PowerShell's empty pipeline can serialize as an object, not JSON null. Hang events have no module.
+        const string hangFixture = "function Get-WinEvent { [CmdletBinding()] param($FilterHashtable,$MaxEvents) [pscustomobject]@{Id=1002;Properties=@([pscustomobject]@{Value='Example.exe'});TimeCreated=[datetime]'2026-09-24T12:00:00Z'} }; ";
+        var hang = AppCrashes.Parse(Read(hangFixture + AppCrashes.Script)).Events!.Single();
+        Check(hang.Hang && string.IsNullOrEmpty(hang.Module), "app hang collector emits a nullable string for its absent module");
         Check(AppCrashes.Evaluate(AppCrashes.Parse(Read(AppCrashes.Script)), DateTimeOffset.UtcNow).All(i => i.Status != CardStatus.Unknown), "live: app crash history is read");
         Check(NetworkLink.Evaluate(NetworkLink.Parse(Read(NetworkLink.Script))).All(i => i.Status != CardStatus.Unknown), "live: network adapter speeds are read");
         Check(TimeSync.Evaluate(TimeSync.Parse(Read(TimeSync.Script)), DateTimeOffset.UtcNow).Single().Status != CardStatus.Unknown, "live: clock sync history is read");

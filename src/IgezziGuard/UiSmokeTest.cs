@@ -2,10 +2,11 @@ using System.Drawing.Imaging;
 using System.Text.Json;
 namespace IgezziGuard;
 
-internal static class UiSmokeTest
+internal static partial class UiSmokeTest
 {
     /// <summary>Pages saved as screenshots for review (file name, route), when a screenshot folder is given.</summary>
     internal static readonly IReadOnlyList<(string File, string Route)> Screens = [
+        ("scan-results", "Fix My PC"), ("internet-guide", "Connect  /  Guided troubleshooting"),
         ("home", "Home"), ("home-search", "Home"), ("home-glance", "Home"), ("fix-my-pc", "System overview"), ("tune-my-pc", "Performance overview"), ("gaming", "Gaming  /  Overview"),
         ("games", "Gaming  /  Games"), ("nvidia", "Gaming  /  NVIDIA"), ("amd", "Gaming  /  AMD Radeon"), ("diagnose", "Diagnose"), ("maintain", "Maintain"), ("apps", "Maintain  /  Apps & storage"), ("connect", "Connect"), ("recovery", "Recovery"), ("history", "History"), ("help", "Help"), ("tune-plan", "Performance overview")];
 
@@ -86,6 +87,7 @@ internal static class UiSmokeTest
                     var once = amp.GetPreferredSize(Size.Empty); amp.Size = once;
                     if (amp.GetPreferredSize(Size.Empty) != once) throw new IOException("A button labelled with & changes size on every layout.");
                 }
+                CheckUsability(form);
                 // Screenshots for reviewing layout changes; a capture problem is reported but doesn't fail the check.
                 if (screenshotFolder is not null) {
                     try {

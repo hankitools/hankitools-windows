@@ -6,12 +6,12 @@ namespace IgezziGuard;
 public sealed class FullScanPanel : ToolPage
 {
     private readonly CheckBox external = new() { Text = "Include network probes", AutoSize = true, AccessibleName = "Include optional external network probes", Margin = new Padding(6, 10, 14, 0) };
-    private readonly ListBox findings = new() { Dock = DockStyle.Fill, DrawMode = DrawMode.OwnerDrawFixed, IntegralHeight = false, BorderStyle = BorderStyle.None, AccessibleName = "Diagnostic findings" };
-    private readonly RoundedPanel results = new() { Dock = DockStyle.Top, Height = 320, Padding = new Padding(6, 4, 6, 8), Visible = false };
-    private readonly Panel counts = new() { Dock = DockStyle.Top, Height = 40, Tag = "card" };
-    private readonly Panel resultsGap = new() { Dock = DockStyle.Top, Height = 14, Visible = false };
-    private readonly Font pillFont = new("Segoe UI Semibold", 8.25f), metaFont = new("Segoe UI", 9f);
+    private readonly HankiButton repairButton;
+    private readonly HankiButton summaryButton;
+    public event Action<string>? OpenRequested;
     private DiagnosticScan? latest;
+    private string scanReport = "";
+    private bool historySaved = true;
     // Repairs run from the latest scan: they stop further proposals from it and go into the customer report.
     private RepairReport? repairs;
     private readonly IEntitlements entitlements = EntitlementComposition.Current();
@@ -20,8 +20,10 @@ public sealed class FullScanPanel : ToolPage
     {
         Button("Start full scan", StartScan);
         Bar.Controls.Add(external);
-        Button("Review automatic repairs", ReviewRepairs);
-        Button("Show scan summary", () => { if (latest is not null) Output.Text = Summary(latest); });
+        repairButton = Button("Review repairs", ReviewRepairs);
+        repairButton.Visible = false;
+        summaryButton = Button("Back to scan results", ShowFindings);
+        summaryButton.Visible = false;
         // Technician only; the licence can change while Hanki is open, so visibility follows it.
         var customerReport = Button("Customer report", () => {
             if (latest is null) { Output.Text = "Run a full scan first. To report on an earlier scan, open System actions → Saved scans."; return; }
@@ -29,95 +31,70 @@ public sealed class FullScanPanel : ToolPage
         });
         customerReport.Visible = entitlements.Allows(HankiCapability.CustomerReports);
         VisibleChanged += (_, _) => { if (Visible) customerReport.Visible = entitlements.Allows(HankiCapability.CustomerReports); };
-        findings.SelectedIndexChanged += (_, _) => {
-            if (IsBusy || findings.SelectedItem is not DiagnosticResult r) return;
-            Output.Text = FindingAnalysis.Describe(r);
-        };
-        findings.DrawItem += DrawFinding;
-        findings.HandleCreated += (_, _) => findings.ItemHeight = (int)(42 * findings.DeviceDpi / 96f);
-        counts.Paint += (_, e) => {
-            if (latest is null) return;
-            float s = counts.DeviceDpi / 96f;
-            string total = $"{latest.Results.Count} results";
-            TextRenderer.DrawText(e.Graphics, total, pillFont, new Rectangle((int)(12 * s), 0, counts.Width, counts.Height), SystemInformation.HighContrast ? SystemColors.ControlText : HankiTheme.Muted,
-                TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
-            int left = (int)(12 * s) + TextRenderer.MeasureText(total, pillFont).Width + (int)(18 * s);
-            StatusChips.Draw(e.Graphics, new Rectangle(left, 0, counts.Width - left, counts.Height), StatusChips.Count(latest.Results), metaFont, s);
-        };
-        results.Controls.Add(findings); results.Controls.Add(counts);
-        var administrator = Context(false).IsAdministrator;
-        var adminHint = new Label { Dock = DockStyle.Top, AutoSize = false, Height = 30, Tag = "intro", Visible = !administrator,
-            Text = "DISM and SFC checks need administrator rights. To include them, close Hanki and run it as administrator." };
-        Controls.Add(results); Controls.SetChildIndex(results, 1);
-        Controls.Add(resultsGap); Controls.SetChildIndex(resultsGap, 1);
-        Controls.Add(adminHint); Controls.SetChildIndex(adminHint, 3);
+        ShowSummary(new(Output.Text, CardStatus.Info, Localizer.T("Check your PC without changing settings"), [
+            new(Localizer.T("Start with a full scan"), Localizer.T("Checks Windows, storage, devices and security. You review the findings before choosing any action.")),
+            new(Localizer.T("Before you start"), Localizer.T("Some checks take several minutes or need administrator access. Unavailable checks are reported separately."))
+        ]));
     }
-    protected override void Dispose(bool disposing) { if (disposing) { pillFont.Dispose(); metaFont.Dispose(); } base.Dispose(disposing); }
     internal void Start() { if (!IsBusy) StartScan(); }
-    private void DrawFinding(object? sender, DrawItemEventArgs e)
+    internal void Preview(DiagnosticScan scan) { latest = scan; scanReport = Summary(scan); ShowFindings(); }
+    private void ShowFindings() { if (latest is not null) Output.Text = scanReport; ShowFindings(false, false); }
+    private void ShowFindings(bool showOther, bool showGaps)
     {
-        if (e.Index < 0 || findings.Items[e.Index] is not DiagnosticResult r) return;
-        var g = e.Graphics; float s = findings.DeviceDpi / 96f;
-        bool hc = SystemInformation.HighContrast, selected = (e.State & DrawItemState.Selected) != 0;
-        var text = hc ? (selected ? SystemColors.HighlightText : SystemColors.WindowText) : HankiTheme.Text;
-        var muted = hc ? text : HankiTheme.Muted;
-        using (var bg = new SolidBrush(hc ? (selected ? SystemColors.Highlight : SystemColors.Window) : selected ? HankiTheme.Raised : HankiTheme.Surface)) g.FillRectangle(bg, e.Bounds);
-        g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
-        if (selected && !hc) { using var bar = new SolidBrush(HankiTheme.Accent); g.FillRectangle(bar, e.Bounds.X, e.Bounds.Y + 8 * s, 3 * s, e.Bounds.Height - 16 * s); }
-        var color = HankiTheme.SeverityColor(r.Severity, r.Outcome);
-        var pill = new RectangleF(e.Bounds.X + 14 * s, e.Bounds.Y + (e.Bounds.Height - 22 * s) / 2, 92 * s, 22 * s);
-        using (var path = HankiButton.Rounded(pill, 11 * s)) {
-            using var fill = new SolidBrush(hc ? SystemColors.Window : Color.FromArgb(38, color)); g.FillPath(fill, path);
-            if (hc) { using var edge = new Pen(text); g.DrawPath(edge, path); }
+        summaryButton.Visible = false;
+        repairButton.Visible = latest is not null && repairs is null && entitlements.Allows(HankiCapability.AutomaticRepair) && Context(false).IsAdministrator
+            && RepairGuidance.Stale(latest, false, DateTimeOffset.UtcNow) is null
+            && latest.Results.Any(r => FindingAnalysis.Recommend(r)?.RepairActionId is not null);
+        if (latest is null) return;
+        var scan = latest;
+        var cards = new List<ResultCard>();
+        if (!historySaved) cards.Add(new(Localizer.T("History could not be saved"), Localizer.T("Results remain available in this window. Your existing history was preserved."), CardStatus.Unknown));
+        var ordered = FindingAnalysis.Rank(FindingAnalysis.Normalize(scan.Results)).SelectMany(g => g.Group.Sources).ToArray();
+        ResultCard Card(DiagnosticResult r) => new(r.Title, r.Explanation, ScanPresentation.Status(r), Localizer.T("See next step"), () => ShowFinding(r));
+        cards.AddRange(ordered.Where(ScanPresentation.NeedsAttention).Select(Card));
+        if (scan.Cancelled || scan.CompletedModules < scan.PlannedModules) cards.Add(new(Localizer.T("Some checks are incomplete"),
+            Localizer.Format("Checks processed: {0}/{1}. Run a new scan to check the remaining items.", scan.CompletedModules, scan.PlannedModules), CardStatus.Unknown));
+        var gaps = ordered.Where(ScanPresentation.HasGap).ToArray();
+        if (gaps.Length > 0) {
+            cards.Add(new(Localizer.Format("Checks with missing evidence: {0}", gaps.Length), Localizer.T("These checks cannot establish that everything is OK."), CardStatus.Unknown,
+                Localizer.T(showGaps ? "Hide incomplete checks" : "Review incomplete checks"), () => ShowFindings(showOther, !showGaps)));
+            if (showGaps) cards.AddRange(gaps.Select(Card));
         }
-        TextRenderer.DrawText(g, HankiTheme.SeverityLabel(r.Severity, r.Outcome), pillFont, Rectangle.Round(pill), hc ? text : color,
-            TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
-        string category = r.Category.ToString();
-        int categoryWidth = TextRenderer.MeasureText(category, metaFont).Width;
-        int titleLeft = (int)(pill.Right + 14 * s), right = e.Bounds.Right - (int)(14 * s);
-        TextRenderer.DrawText(g, category, metaFont, new Rectangle(right - categoryWidth, e.Bounds.Y, categoryWidth, e.Bounds.Height), muted,
-            TextFormatFlags.Right | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
-        TextRenderer.DrawText(g, DisplayTitle(r), findings.Font, new Rectangle(titleLeft, e.Bounds.Y, right - categoryWidth - titleLeft - (int)(12 * s), e.Bounds.Height), text,
-            TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis | TextFormatFlags.NoPrefix);
-        if (!hc && e.Index < findings.Items.Count - 1) { using var line = new Pen(HankiTheme.Border); g.DrawLine(line, e.Bounds.X + 14 * s, e.Bounds.Bottom - 1, e.Bounds.Right - 14 * s, e.Bounds.Bottom - 1); }
-        if ((e.State & DrawItemState.Focus) != 0 && findings.Focused && ShowFocusCues) {
-            using var ring = new Pen(hc ? text : HankiTheme.Accent, 2 * s); g.DrawRectangle(ring, e.Bounds.X + s, e.Bounds.Y + s, e.Bounds.Width - 2 * s, e.Bounds.Height - 2 * s);
+        var other = ordered.Where(r => !ScanPresentation.NeedsAttention(r) && !ScanPresentation.HasGap(r)).ToArray();
+        if (other.Length > 0) {
+            cards.Add(new(Localizer.Format("Other completed checks: {0}", other.Length), Localizer.T("Healthy checks and information are kept here. No action is required just because a result is listed."), CardStatus.Info,
+                Localizer.T(showOther ? "Hide other checks" : "Show other checks"), () => ShowFindings(!showOther, showGaps)));
+            if (showOther) cards.AddRange(other.Select(Card));
         }
+        if (cards.Count == 0) cards.Add(new(Localizer.T("No results yet"), Localizer.T("Run the scan again when you are ready."), CardStatus.Unknown));
+        ShowSummary(new(Output.Text, ordered.Any(r => r.Severity == FindingSeverity.Critical) ? CardStatus.Problem : ordered.Any(ScanPresentation.NeedsAttention) ? CardStatus.Review : scan.Complete && ordered.Length > 0 ? CardStatus.Good : CardStatus.Unknown,
+            ScanPresentation.Headline(scan), cards));
     }
-    // Several findings share a module title (for example two services); the finding id tells them apart.
-    private string DisplayTitle(DiagnosticResult r) =>
-        latest is not null && latest.Results.Count(x => x.Title == r.Title) > 1 && r.FindingId != "collection"
-            ? r.Title + " · " + r.FindingId.Replace("service-", "", StringComparison.Ordinal) : r.Title;
-    private void ShowFindings()
+    private void ShowFinding(DiagnosticResult finding)
     {
-        findings.BeginUpdate(); findings.Items.Clear();
-        if (latest is not null) foreach (var r in FindingAnalysis.Rank(FindingAnalysis.Normalize(latest.Results)).SelectMany(g => g.Group.Sources)) findings.Items.Add(r);
-        findings.EndUpdate();
-        bool any = findings.Items.Count > 0;
-        results.Visible = resultsGap.Visible = any;
-        // The strip is painted, so screen readers get the same counts as text.
-        counts.AccessibleName = latest is null ? "" : $"{latest.Results.Count} results: " + string.Join(", ", StatusChips.Count(latest.Results).Select(c => c.Text));
-        FitResults(); counts.Invalidate();
+        summaryButton.Visible = true;
+        Output.Text = FindingAnalysis.Describe(finding);
+        var recommendation = FindingAnalysis.Recommend(finding);
+        var route = ScanPresentation.Route(finding);
+        ShowSummary(new(Output.Text, ScanPresentation.Status(finding), finding.Title, [
+            new(Localizer.T("What we found"), finding.Explanation, ScanPresentation.Status(finding)),
+            new(Localizer.T("Try this next"), recommendation?.ManualAction ?? Localizer.T("Review the coverage below. A missing result is not a diagnosis."), CardStatus.Info,
+                route is null ? null : Localizer.T("Open recommended tool"), route is null ? null : () => OpenRequested?.Invoke(route)),
+            new(Localizer.T("What this check covers"), finding.Coverage + (ScanPresentation.HasGap(finding) ? "\n" + Localizer.T("This check is incomplete.") : ""), ScanPresentation.HasGap(finding) ? CardStatus.Unknown : CardStatus.Info)
+        ]));
     }
-    // Findings get at most half the page so the selected result's explanation stays readable.
-    private void FitResults()
-    {
-        if (!results.Visible) return;
-        int wanted = counts.Height + findings.ItemHeight * findings.Items.Count + results.Padding.Vertical + 4;
-        results.Height = Math.Max(counts.Height + findings.ItemHeight * 2, Math.Min(wanted, ClientSize.Height / 2));
-    }
-    protected override void OnSizeChanged(EventArgs e) { base.OnSizeChanged(e); FitResults(); }
     private async void StartScan()
     {
         bool contact = external.Checked;
         if (contact && !Review("Include network probes? Gateway ICMP contacts your local network. " + WindowsDiagnosticCatalog.ProbeDisclosure + " Installed KMS clients may also query your organization DNS and contact the Windows-configured KMS host. These endpoints and your DNS resolver can see your source IP. No report is uploaded. You can run without these checks by clearing Include network probes.")) return;
-        latest = null; repairs = null; ShowFindings();
+        latest = null; repairs = null; historySaved = true; ShowFindings();
         var context = Context(contact);
         var progress = new Progress<ScanProgressUpdate>(p => { if (IsBusy) Output.Text = $"{p.CompletedModules}/{p.TotalModules} checks finished\r\n{p.Activity}\r\n\r\nUnavailable checks remain unknown. Cancel preserves results from completed checks."; });
         await Run(async token => {
             latest = await new DiagnosticOrchestrator(WindowsDiagnosticCatalog.Create(includeExternal: contact)).ScanAsync(context, progress, token);
             string summary = Summary(latest);
-            try { history.Add(latest); } catch { summary += "\r\nHistory could not be saved. Current results remain available; existing history was preserved."; }
+            try { history.Add(latest); } catch { historySaved = false; summary += "\r\nHistory could not be saved. Current results remain available; existing history was preserved."; }
+            scanReport = summary;
             return summary;
         });
         ShowFindings();
@@ -126,7 +103,7 @@ public sealed class FullScanPanel : ToolPage
     {
         if (latest is null) { Output.Text = "Run a full scan first. Manual tools remain available in each module."; return; }
         if (!entitlements.Allows(HankiCapability.AutomaticRepair)) {
-            Output.Text = "Automatic repair is part of Hanki Pro. See the Hanki Pro page in the sidebar.\r\n\r\nYour scan, findings and manual guidance stay free. Select a finding to see its manual next steps.";
+            Output.Text = "Automatic repair is part of Hanki Pro. See Help → Hanki Pro.\r\n\r\nYour scan, findings and manual guidance stay free. Select a finding to see its manual next steps.";
             return;
         }
         if (RepairGuidance.Stale(latest, repairs is not null, DateTimeOffset.UtcNow) is { } stale) { Output.Text = stale; return; }
@@ -142,7 +119,7 @@ public sealed class FullScanPanel : ToolPage
         RepairReport? report = null;
         await Run(async token => RepairGuidance.Results(report = await workflow.RunAsync(scan, approved, Context(approved.NetworkApproved), progress, token)));
         // Repair evidence is historical; a new scan is required for another proposal.
-        if (report is not null && latest == scan) repairs = report;
+        if (report is not null && latest == scan) { repairs = report; repairButton.Visible = false; summaryButton.Visible = true; }
     }
     internal static DiagnosticContext Context(bool external)
     {

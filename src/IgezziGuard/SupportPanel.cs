@@ -29,6 +29,7 @@ internal sealed class SupportPanel : UserControl
             card.Controls.Add(heading); card.Controls.Add(body); card.Controls.Add(bar); layout.Controls.Add(card);
         }
         Section("Meet the Hanki community", "Ask a question, share feedback or follow the project. Links open in your browser; no report is attached.",
+            ("Open knowledge base ↗", () => OpenLink("https://hanki.tools/help/")),
             ("Open hanki.tools ↗", () => OpenLink("https://hanki.tools/")),
             ("Join Discord ↗", () => OpenLink("https://discord.gg/qprzjtTaQ")),
             ("Read the user guide ↗", () => OpenLink(Repository + "/blob/main/README-PORTABLE.md")));
@@ -48,10 +49,11 @@ internal sealed class SupportPanel : UserControl
         Controls.Add(layout);
     }
 
-    private void OpenLink(string url)
+    private void OpenLink(string url) => OpenLink(this, url);
+    internal static void OpenLink(IWin32Window owner, string url)
     {
         try { using var process = Process.Start(new ProcessStartInfo(url) { UseShellExecute = true }); }
-        catch (Exception ex) { MessageBox.Show(this, ex.Message, "Could not open browser"); }
+        catch (Exception ex) { MessageBox.Show(owner, ex.Message, "Could not open browser"); }
     }
     private void Copy(string text)
     {

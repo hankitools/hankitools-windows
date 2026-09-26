@@ -54,8 +54,12 @@ public sealed class HankiButton : Button
         if (Appearance == HankiButtonStyle.Icon) return MinimumSize;
         var size = base.GetPreferredSize(proposedSize);
         float scale = DeviceDpi / 96f;
-        if (IconKind is not null) size.Width += (int)(26 * scale);
-        if (Hint is not null) size.Width += TextRenderer.MeasureText(Hint, Font).Width + (int)(12 * scale);
+        bool leading = Appearance is HankiButtonStyle.Navigation or HankiButtonStyle.Quiet or HankiButtonStyle.Field;
+        // Match OnPaint's insets at the current DPI; native button padding can be smaller.
+        int textWidth = TextRenderer.MeasureText(Text, Font, Size.Empty, TextFormatFlags.SingleLine | TextFormatFlags.NoPrefix).Width;
+        size.Width = Math.Max(size.Width, textWidth + 2 * (int)((leading ? 12 : 10) * scale));
+        if (IconKind is not null) size.Width += (int)(28 * scale);
+        if (Hint is not null) size.Width += TextRenderer.MeasureText(Hint, Font).Width + (int)(8 * scale);
         return size;
     }
     protected override void OnPaint(PaintEventArgs e)

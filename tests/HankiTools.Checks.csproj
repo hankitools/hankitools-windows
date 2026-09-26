@@ -6,6 +6,9 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="../src/IgezziGuard/NavigationHistory.cs" Link="NavigationHistory.cs" />
+    <Compile Include="../src/IgezziGuard/ScanPresentation.cs" Link="ScanPresentation.cs" />
+    <Compile Include="../src/IgezziGuard/InternetJourney.cs" Link="InternetJourney.cs" />
     <Compile Include="../src/IgezziGuard/Localization/Localizer.cs" Link="Localization/Localizer.cs" />
     <EmbeddedResource Include="../src/IgezziGuard/Localization/Catalogs/*.json" LogicalName="Hanki.Localization.%(Filename).json" />
     <Compile Include="../src/IgezziGuard/Performance/TacticalVision.cs" Link="Performance/TacticalVision.cs" />
