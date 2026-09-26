@@ -8,21 +8,10 @@ internal sealed class HomePanel : UserControl
     private readonly FlowLayoutPanel glance = new() { Dock = DockStyle.Top, AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink, Margin = Padding.Empty };
     private DateTime glanceRead = DateTime.MinValue;
     private bool reading;
-    /// <param name="routes">Every page and tool (Find a tool's list), for the search.</param>
-    /// <param name="openGuide">Opens the guided checks with a symptom chosen.</param>
-    public HomePanel(Action<string> navigate, Action startFixMyPc, Func<IReadOnlyList<ToolLauncher.Route>> routes, Action<int> openGuide)
+    /// <param name="routes">Every page and tool (Find a tool's list), for the glance tiles.</param>
+    public HomePanel(Action<string> navigate, Action startFixMyPc, Func<IReadOnlyList<ToolLauncher.Route>> routes)
     {
         Dock = DockStyle.Fill; AutoScroll = true; Padding = new Padding(0, 4, 8, 16);
-        // Search: guided fixes for symptoms first, then pages and tools.
-        IReadOnlyList<SearchEntry>? index = null;
-        IReadOnlyList<SearchEntry> Entries() => index ??= TroubleshootingPanel.Guides.Select((g, i) => HomeSearch.Guide(i, g.Symptom, g.Steps.Length, g.Steps.Select(x => x.Title)) with { Detail = Localizer.Format("Guided fix · steps: {0}", g.Steps.Length) })
-            .Concat(routes().Where(r => r.Name != "Home").Select(r => HomeSearch.Tool(r.Name, r.SearchText, Navigation.Find(r.Name)?.Introduction)))
-            .Select(e => e with { Title = Localizer.Route(e.Title), Detail = Localizer.Route(e.Detail), Keywords = Localizer.SearchKeywords(e.Keywords) + " " + Localizer.Route(e.Title) + " " + Localizer.Route(e.Detail) }).ToArray();
-        void Open(SearchEntry entry) {
-            if (entry.GuidedFix && int.TryParse(entry.Target.AsSpan("guide:".Length), out var guide)) openGuide(guide);
-            else routes().FirstOrDefault(r => r.Name == entry.Target)?.Open();
-        }
-        var search = new HomeSearchBox(Entries, Open);
         var cards = new TableLayoutPanel { Dock = DockStyle.Top, AutoSize = true, ColumnCount = 2, Margin = Padding.Empty };
         cards.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50)); cards.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
         var system = Area("Something not working?", "Scan Windows and fix what's wrong, safely.",
@@ -55,9 +44,9 @@ internal sealed class HomePanel : UserControl
         }
         SizeChanged += (_, _) => FitTiles();
 
-        // Docked to the top in reverse: search, the two areas, then the glance tiles.
+        // Docked to the top in reverse: the two areas, then the glance tiles.
         Controls.Add(glance); Controls.Add(ToolTiles.Heading("Your PC at a glance"));
-        Controls.Add(cards); Controls.Add(search);
+        Controls.Add(cards);
         ToolTiles.TopDown(this);
         // Also lay out when shown: a resize while another page was open leaves the old arrangement.
         VisibleChanged += async (_, _) => { if (Visible) { Fit(); FitTiles(); RefreshStatus(); await RefreshGlance(); } };

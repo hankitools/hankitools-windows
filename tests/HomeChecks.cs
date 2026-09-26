@@ -1,33 +1,10 @@
 using IgezziGuard;
 
-// HANKI-UX-301: Home search, "Your PC at a glance" and recent activity.
+// HANKI-UX-301: "Your PC at a glance" and recent activity.
 internal static class HomeChecks
 {
     private static void Check(bool ok, string text) => DiagnosticChecks.Check(ok, text);
-    internal static void Run() { Search(); Glance(); ScanCompletion(); }
-
-    private static void Search()
-    {
-        SearchEntry[] entries = [
-            HomeSearch.Guide(0, "My PC restarted by itself or showed a blue screen", 5, ["Check what Windows recorded", "See what happened just before"]),
-            HomeSearch.Guide(1, "My PC is slow", 4, ["See what is using the processor", "Check startup apps"]),
-            HomeSearch.Guide(2, "The internet is slow or keeps dropping", 3, ["Check the connection"]),
-            HomeSearch.Tool("Gaming", "game fps refresh rate hz game mode", "Refresh rate, GPU choice and Windows settings for games."),
-            HomeSearch.Tool("Diagnose  /  Crash timeline", "crash blue screen timeline"),
-            HomeSearch.Tool("Recovery", "undo restore revert"),
-            HomeSearch.Tool("Performance Lab  /  Stutter Diagnostics", "slow speed optimize stutter"),
-        ];
-        string? First(string query) => HomeSearch.Find(query, entries).FirstOrDefault()?.Title;
-        Check(First("laggy") == "My PC is slow" && First("bsod") == "My PC restarted by itself or showed a blue screen" && First("wifi") == "The internet is slow or keeps dropping",
-            "home search: everyday words find the guided fix for a symptom");
-        Check(First("fps") == "Gaming" && First("undo") == "Recovery" && First("crash timeline") == "Crash timeline", "home search: tools are found by name and by what they do");
-        var slow = HomeSearch.Find("slow", entries);
-        Check(slow.Take(2).All(e => e.GuidedFix) && slow.Any(e => e.Title == "Stutter Diagnostics"), "home search: guided fixes come before tools when both match");
-        Check(HomeSearch.Find("  ", entries).Count == 0 && HomeSearch.Find("zzzz", entries).Count == 0 && HomeSearch.Find("slow internet", entries).Single().Title.StartsWith("The internet", StringComparison.Ordinal),
-            "home search: every word must match; nothing is shown for an empty or unknown query");
-        Check(entries[4] is { Title: "Crash timeline", Detail: "In Diagnose", GuidedFix: false, Target: "Diagnose  /  Crash timeline" } && entries[1] is { Detail: "Guided fix · 4 steps", Target: "guide:1" }
-            && HomeSearch.Find("s", entries, limit: 3).Count == 3, "home search: results say where they lead and are limited");
-    }
+    internal static void Run() { Glance(); ScanCompletion(); }
 
     private static void Glance()
     {

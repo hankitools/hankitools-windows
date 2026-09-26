@@ -57,6 +57,21 @@ public sealed class HankiForm : Form
     internal static int ScaleSidebarDimension(int logical, int dpi) => (int)Math.Round(logical * dpi / 96f);
     internal static int SidebarWidthAtDpi(int dpi) => 192 + ScaleSidebarDimension(64, dpi);
 
+    internal static ContextMenuStrip QuickAccessMenu(Action<string> open)
+    {
+        var menu = HankiMenu.Create();
+        foreach (var (label, command) in new[] {
+            ("PowerShell (Admin)", "powershell"), ("CMD (Admin)", "cmd"), ("File Explorer", "explorer"),
+            ("Task Manager", "task-manager"), ("Windows Settings", "settings"), ("Event Viewer", "event-viewer")
+        })
+            menu.Items.Add(HankiMenu.Item(label, () => open(command)));
+        menu.Items.Add(new ToolStripSeparator());
+        menu.Items.Add(new ToolStripMenuItem(Localizer.T("Admin shortcuts use Windows UAC.")) {
+            Enabled = false, Padding = new Padding(4, 6, 12, 6)
+        });
+        return menu;
+    }
+
     public HankiForm()
     {
         Text = "Hanki Tools • " + AppInfo.Version;
@@ -71,9 +86,7 @@ public sealed class HankiForm : Form
         // One workspace page per navigation destination, in sidebar order (HANKI-ARCH-200).
         foreach (var item in Navigation.Items) Page(item.Page);
         TabPage At(string page) => tabs.TabPages.Cast<TabPage>().Single(p => p.Text == page);
-        // Home's search opens a guided check with its symptom chosen.
-        void OpenGuide(int index) { if (index >= 0 && index < TroubleshootingPanel.Guides.Length && TroubleshootingPanel.Guides[index].Steps.Any(s => s.Route == "Connect  /  Guided troubleshooting")) { Routes.FirstOrDefault(r => r.Name == "Connect  /  Guided troubleshooting")?.Open(); return; } Routes.FirstOrDefault(r => r.Name == "Diagnose  /  Guided checks")?.Open(); guidance.ShowSymptom(index); }
-        At("Home").Controls.Add(new HomePanel(Navigate, StartFixMyPc, () => Routes, OpenGuide));
+        At("Home").Controls.Add(new HomePanel(Navigate, StartFixMyPc, () => Routes));
         At("System overview").Controls.Add(new Dashboard(Navigate, StartFixMyPc));
         At("Fix My PC").Controls.Add(fullScan);
         var shield = At("Shield");
@@ -174,21 +187,13 @@ public sealed class HankiForm : Form
             button.Click += (_, _) => tabs.SelectedTab = page;
             navigation.Add((button, item.Area)); navigationButtons.Add(button); sidebar.Controls.Add(button);
         }
-        var quick = new FlowLayoutPanel { AutoSize = true, FlowDirection = FlowDirection.TopDown, WrapContents = false, Visible = false, Margin = Padding.Empty };
-        var quickToggle = new HankiButton { Text = "›  " + Localizer.T("Quick access"), Width = 232, Height = 36, Appearance = HankiButtonStyle.Navigation,
-            Margin = new Padding(0, 0, 0, 4), AccessibleName = Localizer.T("Expand quick access"), Font = new Font("Segoe UI", 10.5f) };
-        quickToggle.Click += (_, _) => {
-            quick.Visible = !quick.Visible; quickToggle.Text = (quick.Visible ? "⌄  " : "›  ") + Localizer.T("Quick access");
-            quickToggle.AccessibleName = Localizer.T(quick.Visible ? "Collapse quick access" : "Expand quick access");
-        };
-        sidebarFooter.Controls.Add(quick); sidebarFooter.Controls.Add(quickToggle);
-        var shortcutButtons = new List<HankiButton>();
-        foreach (var item in new[] { ("PowerShell (Admin)", "powershell"), ("CMD (Admin)", "cmd"), ("File Explorer", "explorer"), ("Task Manager", "task-manager"), ("Windows Settings", "settings"), ("Event Viewer", "event-viewer") }) {
-            var shortcut = new HankiButton { Text = Localizer.T(item.Item1), Width = 218, Height = 32, Appearance = HankiButtonStyle.Navigation, Font = new Font("Segoe UI", 10f), Margin = new Padding(10, 0, 0, 0) };
-            shortcut.Click += (_, _) => DesktopShortcuts.Open(this, item.Item2); shortcutButtons.Add(shortcut); quick.Controls.Add(shortcut);
-        }
-        var shortcutHint = new Label { Text = Localizer.T("Admin shortcuts use Windows UAC."), AutoSize = true, Tag = "intro", Font = new Font("Segoe UI", 8.25f), Margin = new Padding(20, 4, 0, 4) };
-        quick.Controls.Add(shortcutHint);
+        var quickToggle = new HankiButton { Text = Localizer.T("Quick access") + "  ↑", Width = 232, Height = 36, Appearance = HankiButtonStyle.Navigation,
+            Margin = new Padding(0, 0, 0, 4), AccessibleName = Localizer.T("Quick access"), Font = new Font("Segoe UI", 10.5f) };
+        var quickMenu = QuickAccessMenu(command => DesktopShortcuts.Open(this, command));
+        quickToggle.ContextMenuStrip = quickMenu;
+        quickToggle.Click += (_, _) => HankiMenu.ShowAbove(quickToggle, quickMenu);
+        Disposed += (_, _) => quickMenu.Dispose();
+        sidebarFooter.Controls.Add(quickToggle);
         var about = new HankiButton { Text = Localizer.T("About & privacy"), Appearance = HankiButtonStyle.Navigation, Width = 232, Height = 36, Font = new Font("Segoe UI", 10.5f), Margin = new Padding(0, 2, 0, 2) };
         about.Click += (_, _) => {
             using var dialog = new Form { Text = Localizer.T("About Hanki Tools"), Size = new Size(720, 520), MinimumSize = new Size(500, 350), StartPosition = FormStartPosition.CenterParent, Font = Font, Padding = new Padding(20) };
@@ -220,10 +225,6 @@ public sealed class HankiForm : Form
                 button.Width = itemWidth; button.Height = 44; button.Margin = new Padding(0, 3, 0, 3);
             }
             quickToggle.Width = itemWidth; quickToggle.Height = 36; quickToggle.Margin = new Padding(0, 0, 0, 4);
-            foreach (var shortcut in shortcutButtons) {
-                shortcut.Width = itemWidth - Scale(10); shortcut.Height = 32; shortcut.Margin = new Padding(Scale(10), 0, 0, 0);
-            }
-            shortcutHint.Margin = new Padding(Scale(20), 4, 0, 4);
             about.Width = itemWidth; about.Height = 36; about.Margin = new Padding(0, 2, 0, 2);
             languageButton.MaximumSize = new Size(itemWidth, 0); languageButton.Margin = new Padding(0, 2, 0, 2);
             versionLabel.Margin = new Padding(Scale(12), 8, 0, 0);

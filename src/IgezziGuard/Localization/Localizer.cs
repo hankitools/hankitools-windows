@@ -3,6 +3,11 @@ using System.Text.Json;
 
 namespace IgezziGuard;
 
+internal static class SearchVocabulary
+{
+    internal static readonly IReadOnlyList<string> CommonAliases = ["slow", "blue screen", "Wi-Fi", "FPS", "disk space", "undo"];
+}
+
 /// <summary>Offline UI translations. English source text is the fallback; route IDs and diagnostic evidence are never translated here.</summary>
 internal static class Localizer
 {
@@ -84,6 +89,6 @@ internal static class Localizer
     internal static string Format(string source, params object[] arguments) => string.Format(CultureInfo.CurrentCulture, T(source), arguments);
     internal static string Route(string route) => string.Join("  /  ", route.Split("  /  ").Select(T));
     internal static string SearchKeywords(string english)
-        => english + " " + string.Join(" ", HomeSearch.Suggestions.Where(s => english.Contains(s, StringComparison.OrdinalIgnoreCase)).Select(T));
+        => english + " " + string.Join(" ", SearchVocabulary.CommonAliases.Where(s => english.Contains(s, StringComparison.OrdinalIgnoreCase)).Select(T));
     private sealed record Preference(string? Language);
 }
