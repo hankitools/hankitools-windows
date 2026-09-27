@@ -1,7 +1,7 @@
 name: Release unsigned build
 
-# Publishes the candidate ZIP of a green "Windows build" run on main as a GitHub release,
-# without rebuilding: the release carries the exact files CI checked and smoke-tested.
+# Publishes the candidate ZIP and setup installer of a green "Windows build" run on main,
+# without rebuilding: both artifacts carry the exact files CI checked and smoke-tested.
 # Versions with a suffix (0.18.0-rc.1) become an "unsigned preview" pre-release tagged
 # vVERSION-preview; plain versions become a "not code-signed yet" release tagged vVERSION.
 # Signed releases still go through PACKAGE-RELEASE.ps1 and PUBLISH-RELEASE.ps1.
@@ -76,10 +76,18 @@ jobs:
           expected=$(tr -d '\r' < "$zip.sha256" | awk 'NR == 1 { print toupper($1) }')
           hash=$(sha256sum "$zip" | awk '{ print toupper($1) }')
           if [[ "$hash" != "$expected" ]]; then echo "::error::$(basename "$zip") does not match its .sha256 file."; exit 1; fi
+          setup=$(find "$download" -type f -name '*-win-x64-setup.exe' -print -quit)
+          if [[ -z "$setup" || $(find "$download" -type f -name '*-win-x64-setup.exe' | wc -l) != 1 ]]; then echo "::error::Expected exactly one setup installer in $ARTIFACT."; exit 1; fi
+          setup_hash=$(sha256sum "$setup" | awk '{ print toupper($1) }')
+          setup_expected=$(tr -d '\r' < "$setup.sha256" | awk 'NR == 1 { print toupper($1) }')
+          if [[ "$setup_hash" != "$setup_expected" ]]; then echo "::error::$(basename "$setup") does not match its .sha256 file."; exit 1; fi
+          receipt=$(find "$download" -type f -name '*-setup-build-info.json' -print -quit)
+          if [[ -z "$receipt" || $(find "$download" -type f -name '*-setup-build-info.json' | wc -l) != 1 ]]; then echo "::error::Expected exactly one installer build receipt."; exit 1; fi
           # build-info.json is written by Windows PowerShell (UTF-8 with BOM); check it against the files it describes.
-          version=$(python3 - "$zip" <<'PY'
+          version=$(python3 - "$zip" "$setup" "$receipt" "$hash" "$setup_hash" <<'PY'
           import hashlib, json, sys, zipfile
-          with zipfile.ZipFile(sys.argv[1]) as archive:
+          zip_path, setup_path, receipt_path, zip_hash, setup_hash = sys.argv[1:]
+          with zipfile.ZipFile(zip_path) as archive:
               if archive.testzip() is not None:
                   sys.exit("::error::The candidate ZIP is damaged.")
               entries = {name.replace("\\", "/"): name for name in archive.namelist()}
@@ -98,6 +106,20 @@ jobs:
                   path = item["Path"].replace("\\", "/")
                   if sha256(path) != str(item["SHA256"]).upper():
                       sys.exit(f"::error::{path} does not match build-info.json.")
+              receipt = json.load(open(receipt_path, encoding="utf-8-sig"))
+              if receipt.get("Version") != build.get("Version"):
+                  sys.exit("::error::Installer receipt version does not match build-info.json.")
+              if receipt.get("CandidateZipSHA256", "").upper() != zip_hash.upper():
+                  sys.exit("::error::Installer receipt is not associated with this candidate ZIP.")
+              if receipt.get("SetupSHA256", "").upper() != setup_hash.upper():
+                  sys.exit("::error::Installer receipt does not match the setup executable.")
+              if receipt.get("PackageExeSHA256", "").upper() != str(build.get("ExeSHA256", "")).upper():
+                  sys.exit("::error::Installer receipt is not associated with this HankiTools.exe.")
+              if receipt.get("CompilerVersion") != "6.7.3" or receipt.get("CompilerSHA256") != "9c73c3bae7ed48d44112a0f48e66742c00090bdb5bef71d9d3c056c66e97b732":
+                  sys.exit("::error::Installer compiler provenance does not match the pinned Inno Setup release.")
+              expected_setup = f"HankiTools-{build['Version']}-win-x64-setup.exe"
+              if setup_path.split("/")[-1] != expected_setup:
+                  sys.exit(f"::error::Unexpected setup asset name: {setup_path.split('/')[-1]}")
               print(build["Version"])
           PY
           )
@@ -115,15 +137,20 @@ jobs:
           mkdir -p "$release"
           cp "$zip" "$release/$asset"
           printf '%s  %s\r\n' "$hash" "$asset" > "$release/$asset.sha256"
+          setup_asset="HankiTools-$version-win-x64-setup.exe"
+          cp "$setup" "$release/$setup_asset"
+          printf '%s  %s\r\n' "$setup_hash" "$setup_asset" > "$release/$setup_asset.sha256"
           {
             echo "version=$version"
             echo "tag=$tag"
             echo "title=$title"
             echo "asset=$release/$asset"
+            echo "setup_asset=$release/$setup_asset"
             echo "hash=$hash"
+            echo "setup_hash=$setup_hash"
             echo "prerelease=$prerelease"
           } >> "$GITHUB_OUTPUT"
-          echo "Verified $(basename "$zip") from run $RUN_ID: version $version, SHA-256 $hash."
+          echo "Verified $(basename "$zip") and $setup_asset from run $RUN_ID: version $version."
 
       - name: Write release notes
         env:
@@ -131,7 +158,9 @@ jobs:
           RUN_URL: ${{ steps.run.outputs.url }}
           VERSION: ${{ steps.candidate.outputs.version }}
           ASSET: ${{ steps.candidate.outputs.asset }}
+          SETUP_ASSET: ${{ steps.candidate.outputs.setup_asset }}
           HASH: ${{ steps.candidate.outputs.hash }}
+          SETUP_HASH: ${{ steps.candidate.outputs.setup_hash }}
           PRERELEASE: ${{ steps.candidate.outputs.prerelease }}
         run: |
           set -euo pipefail
@@ -157,11 +186,13 @@ jobs:
             echo
             echo "## Download and verify"
             echo
-            echo "1. Download \`$name\` and \`$name.sha256\`."
+            echo "1. Download \`$name\` and \`$name.sha256\` for the portable ZIP, or \`$(basename "$SETUP_ASSET")\` and \`$(basename "$SETUP_ASSET").sha256\` for the setup installer."
             echo "2. In PowerShell: \`(Get-FileHash .\\$name).Hash\` must equal the value in the \`.sha256\` file: \`$HASH\`."
-            echo "3. Extract and run HankiTools.exe. $unsigned, so the file Properties show no Digital Signatures tab."
+            echo "   For the installer: \`(Get-FileHash .\\$(basename "$SETUP_ASSET")).Hash\` must equal \`$SETUP_HASH\`."
+            echo "3. The setup installer is unsigned and Windows SmartScreen may warn; it offers current-user and all-users installation. Its installed app binary is the same checked file as in the portable ZIP."
+            echo "4. Or extract the portable ZIP and run HankiTools.exe. $unsigned, so the file Properties show no Digital Signatures tab."
             echo
-            echo "Portable app: no installer or .NET runtime needed. Updates are manual. Privacy: see PRIVACY.md in the package. The experimental file scanner is not an antivirus; Microsoft Defender remains your protection."
+            echo "Updates are manual. Uninstalling removes installed app files but preserves \`%LOCALAPPDATA%\\IgezziGuard\` history and recovery data. No service or auto-start entry is installed. Privacy: see PRIVACY.md in the package. The experimental file scanner is not an antivirus; Microsoft Defender remains your protection."
             echo
             echo "## Code signing policy"
             echo
@@ -175,22 +206,27 @@ jobs:
           TAG: ${{ steps.candidate.outputs.tag }}
           TITLE: ${{ steps.candidate.outputs.title }}
           ASSET: ${{ steps.candidate.outputs.asset }}
+          SETUP_ASSET: ${{ steps.candidate.outputs.setup_asset }}
           HASH: ${{ steps.candidate.outputs.hash }}
+          SETUP_HASH: ${{ steps.candidate.outputs.setup_hash }}
           PRERELEASE: ${{ steps.candidate.outputs.prerelease }}
           DRAFT: ${{ inputs.draft }}
         run: |
           set -euo pipefail
-          args=(release create "$TAG" "$ASSET" "$ASSET.sha256" --repo "$REPO" --target "$SHA" --title "$TITLE" --notes-file "$RUNNER_TEMP/notes.md")
+          args=(release create "$TAG" "$ASSET" "$ASSET.sha256" "$SETUP_ASSET" "$SETUP_ASSET.sha256" --repo "$REPO" --target "$SHA" --title "$TITLE" --notes-file "$RUNNER_TEMP/notes.md")
           if [[ "$PRERELEASE" == true ]]; then args+=(--prerelease); fi
           if [[ "$DRAFT" == true ]]; then args+=(--draft); fi
           url=$(gh "${args[@]}")
           # The releases API lists drafts too and reports each uploaded asset's SHA-256 digest;
           # the size is compared when no digest is reported.
-          name=$(basename "$ASSET")
-          uploaded=$(gh api "repos/$REPO/releases?per_page=30" --jq ".[] | select(.tag_name == \"$TAG\") | .assets[] | select(.name == \"$name\") | \"\(.digest // \"-\") \(.size)\"")
-          read -r digest size <<< "$uploaded"
-          if [[ "$digest" == sha256:* ]]; then matched=$([[ "$digest" == "sha256:${HASH,,}" ]] && echo true || echo false)
-          else matched=$([[ -n "$size" && "$size" == "$(stat -c %s "$ASSET")" ]] && echo true || echo false); fi
-          if [[ "$matched" != true ]]; then echo "::error::Uploaded ZIP ($uploaded) does not match $HASH. Inspect or delete the release: $url"; exit 1; fi
-          echo "$( [[ "$DRAFT" == true ]] && echo 'Draft created' || echo 'Published' ): [$TITLE]($url) from run $RUN_ID, SHA-256 \`$HASH\`." >> "$GITHUB_STEP_SUMMARY"
+          for path in "$ASSET" "$ASSET.sha256" "$SETUP_ASSET" "$SETUP_ASSET.sha256"; do
+            name=$(basename "$path")
+            uploaded=$(gh api "repos/$REPO/releases?per_page=30" --jq ".[] | select(.tag_name == \"$TAG\") | .assets[] | select(.name == \"$name\") | \"\(.digest // \"-\") \(.size)\"")
+            read -r digest size <<< "$uploaded"
+            expected=$(sha256sum "$path" | awk '{ print $1 }')
+            if [[ "$digest" == sha256:* ]]; then matched=$([[ "$digest" == "sha256:$expected" ]] && echo true || echo false)
+            else matched=$([[ -n "$size" && "$size" == "$(stat -c %s "$path")" ]] && echo true || echo false); fi
+            if [[ "$matched" != true ]]; then echo "::error::Uploaded asset $name ($uploaded) does not match local SHA-256 $expected. Inspect or delete the release: $url"; exit 1; fi
+          done
+          echo "$( [[ "$DRAFT" == true ]] && echo 'Draft created' || echo 'Published' ): [$TITLE]($url) from run $RUN_ID. Portable ZIP SHA-256: \`$HASH\`; setup SHA-256: \`$SETUP_HASH\`." >> "$GITHUB_STEP_SUMMARY"
           echo "$url"

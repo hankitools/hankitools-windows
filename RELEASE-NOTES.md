@@ -1,3 +1,14 @@
+# Hanki Tools 0.19.0-rc.8 — Windows setup installer
+
+An unsigned preview adding a Windows setup installer alongside the portable ZIP.
+
+- **Install either way.** The setup wizard offers current-user installation without administrator approval, or all-users installation with Windows administrator approval.
+- **No surprise background changes.** Setup adds app shortcuts and the standard Windows uninstall entry; it does not add a service or auto-start entry. Hanki continues to request UAC only for actions that need it.
+- **Keep recovery data.** Updating replaces the installed app files. Uninstall removes those files but leaves `%LOCALAPPDATA%\IgezziGuard` history and recovery data in place.
+- **Verify both downloads.** The portable ZIP and `HankiTools-0.19.0-rc.8-win-x64-setup.exe` each have a SHA-256 file. The setup program itself is unsigned and may trigger SmartScreen; its app binary is the same tested binary as the ZIP.
+
+The installer is compiled from the checksum-verified CI candidate ZIP using the pinned, signature-checked Inno Setup compiler. Human/signed packaging builds it from PACKAGE-RELEASE.ps1's verified signed ZIP. Native install/upgrade/uninstall acceptance is still required before a signed public release.
+
 # Hanki Tools 0.19.0-rc.7 — Help tiles at high DPI
 
 An unsigned preview fixing clipped Help cards at increased Windows display scaling.

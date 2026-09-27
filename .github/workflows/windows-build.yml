@@ -125,6 +125,14 @@ jobs:
             Stop-Transcript
           }
 
+      - name: Build setup from the verified candidate ZIP
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $zip = @(Get-ChildItem -LiteralPath dist -Filter '*-candidate.zip' -File)
+          if ($zip.Count -ne 1) { throw "Expected one candidate ZIP; found $($zip.Count)." }
+          .\BUILD-INSTALLER.ps1 -CandidateZip $zip[0].FullName -SmokeInstall
+
       - name: Upload unsigned test candidate and checksum
         uses: actions/upload-artifact@v4
         with:
@@ -132,6 +140,9 @@ jobs:
           path: |
             dist/*-candidate.zip
             dist/*-candidate.zip.sha256
+            dist/*-win-x64-setup.exe
+            dist/*-win-x64-setup.exe.sha256
+            dist/*-setup-build-info.json
           if-no-files-found: error
           retention-days: 14
           compression-level: 0
