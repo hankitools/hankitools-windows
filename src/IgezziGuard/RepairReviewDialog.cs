@@ -25,6 +25,7 @@ internal static class RepairReviewDialog
             new() { Text = text, AutoSize = true, MaximumSize = new Size(width - 30, 0), Tag = tag, Margin = new Padding(0, top, 0, 0), UseMnemonic = false };
         layout.Controls.Add(new Label { Text = "Nothing changes until you choose Repair selected. Each repair checks the problem again just before it runs, and afterwards to see whether it worked.",
             AutoSize = true, MaximumSize = new Size(width, 0), Tag = "intro", Margin = new Padding(0, 0, 0, 4) });
+        layout.Controls.Add(Text(Localizer.T("Before continuing: supported setting changes save their previous values in Recovery; disabled Startup-folder files are backed up there. Use Recovery → Review / undo; Hanki refuses if the setting no longer matches. Windows file repairs have no per-file Hanki undo, and restore points are not full backups. Uninstall leaves local history and recovery data in %LOCALAPPDATA%\\IgezziGuard."), "intro", 8));
 
         var choices = new List<(CheckBox Box, RepairDefinition Definition)>();
         foreach (var d in actions.Select(a => a.Definition)) {
@@ -33,7 +34,7 @@ internal static class RepairReviewDialog
             var box = new CheckBox { Text = d.Title, Font = bold, AutoSize = true, Margin = new Padding(0, 0, 0, 2) };
             card.Controls.Add(box);
             if (RepairGuidance.Reason(scan, d.Id) is { Length: > 0 } reason) card.Controls.Add(Text("Why: " + reason));
-            card.Controls.Add(Text("What it does: " + d.ChangeDescription));
+            card.Controls.Add(Text(Localizer.T("What it changes") + ": " + d.ChangeDescription));
             card.Controls.Add(Text($"{d.Risk} risk · {RepairGuidance.Restart(d.Restart)} · Undo: {d.RollbackInformation}", "intro", 6));
             if (RepairGuidance.Blocker(d, administrator) is { } blocker) { box.Enabled = false; card.Controls.Add(Text(blocker, "status-review", 6)); }
             layout.Controls.Add(card); choices.Add((box, d));

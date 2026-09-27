@@ -93,7 +93,7 @@ public sealed class RecoveryPanel : ToolPage
 {
     private readonly ComboBox entries = new() { Width = 360, DropDownStyle = ComboBoxStyle.DropDownList };
     private List<SettingChange> records = [];
-    public RecoveryPanel() : base("Recovery covers power plans, IPv4 DNS and startup-folder files. Current state must match a saved state before undo. Registry startup changes are undone in Maintain → Startup entries. Recycled files are restored through Windows Recycle Bin; no claim of automatic file rollback.") {
+    public RecoveryPanel() : base("Recovery stores the previous and new values for supported setting changes. Disabled Startup-folder files are moved into a backup under %LOCALAPPDATA%\\IgezziGuard. Select an entry and choose Review / undo to restore it. Hanki refuses when the current setting no longer matches the saved change. Registry startup entries are undone in Maintain → Startup entries. Restore recycled files through the Windows Recycle Bin; Recovery does not roll back file cleanup. Windows file repairs have no per-file Hanki undo; Windows restore points are not full backups. Uninstall removes Hanki's application files but leaves history and recovery data in %LOCALAPPDATA%\\IgezziGuard.") {
         Bar.Controls.Add(entries);
         Button("Refresh history", RefreshHistory);
         Button("Review / undo", async () => {

@@ -1,4 +1,10 @@
 {
+  "Before continuing: supported setting changes save their previous values in Recovery; disabled Startup-folder files are backed up there. Use Recovery → Review / undo; Hanki refuses if the setting no longer matches. Windows file repairs have no per-file Hanki undo, and restore points are not full backups. Uninstall leaves local history and recovery data in %LOCALAPPDATA%\\IgezziGuard.": "继续前请注意：受支持的设置更改会将原值保存到“恢复”中；已禁用的“启动”文件夹文件也会备份到此处。选择一条记录并选择“查看 / 撤销”即可恢复。如果当前设置与保存的更改不再一致，Hanki 会拒绝撤销。Hanki 无法逐个撤销 Windows 文件修复；还原点不是完整备份。卸载后，本地历史记录和恢复数据仍保留在 %LOCALAPPDATA%\\IgezziGuard。",
+  "Getting started": "入门",
+  "Recovery stores the previous and new values for supported setting changes. Disabled Startup-folder files are moved into a backup under %LOCALAPPDATA%\\IgezziGuard. Select an entry and choose Review / undo to restore it. Hanki refuses when the current setting no longer matches the saved change. Registry startup entries are undone in Maintain → Startup entries. Restore recycled files through the Windows Recycle Bin; Recovery does not roll back file cleanup. Windows file repairs have no per-file Hanki undo; Windows restore points are not full backups. Uninstall removes Hanki's application files but leaves history and recovery data in %LOCALAPPDATA%\\IgezziGuard.": "“恢复”会保存受支持设置更改的原值和新值。已禁用的“启动”文件夹文件会移至 %LOCALAPPDATA%\\IgezziGuard 下的备份中。选择一条记录并选择“查看 / 撤销”即可恢复。如果当前设置与保存的更改不再一致，Hanki 会拒绝撤销。注册表启动项可在“维护 → 启动项”中撤销。回收的文件可通过 Windows 回收站还原；“恢复”不会撤销文件清理。Hanki 无法逐个撤销 Windows 文件修复；Windows 还原点不是完整备份。卸载会删除 Hanki 应用文件，但历史记录和恢复数据仍保留在 %LOCALAPPDATA%\\IgezziGuard。",
+  "Read each finding, then choose an action—or leave things as they are. Some checks may be unavailable without administrator access.": "阅读每项发现，然后选择操作，也可以保持现状。没有管理员权限时，某些检查可能无法使用。",
+  "Scan → review findings → choose what to do. The scan is read-only and no report is uploaded. Some checks or repair actions need administrator access and may be unavailable without it. Hanki never elevates automatically.": "扫描 → 查看发现 → 选择下一步。扫描仅读取信息，不会上传报告。某些检查或修复操作需要管理员权限，没有权限时可能无法使用。Hanki 不会自动请求提升权限。",
+  "What it changes": "更改内容",
   "Add a game…": "添加游戏…",
   "All files": "所有文件",
   "Analyze dump": "分析转储",

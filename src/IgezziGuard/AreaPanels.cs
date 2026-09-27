@@ -14,8 +14,8 @@ internal sealed class HomePanel : UserControl
         Dock = DockStyle.Fill; AutoScroll = true; Padding = new Padding(0, 4, 8, 16);
         var cards = new TableLayoutPanel { Dock = DockStyle.Top, AutoSize = true, ColumnCount = 2, Margin = Padding.Empty };
         cards.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50)); cards.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
-        var system = Area("Something not working?", "Scan Windows and fix what's wrong, safely.",
-            systemStatus, ("Scan my PC", startFixMyPc, true), ("Open Fix my PC", () => navigate("System overview"), false));
+        var system = Area("Something not working?", "Scan → review findings → choose what to do. The scan is read-only and no report is uploaded. Some checks or repair actions need administrator access and may be unavailable without it. Hanki never elevates automatically.",
+            systemStatus, ("Scan my PC", startFixMyPc, true), ("Open Fix my PC", () => navigate("System overview"), false), ("Getting started", () => navigate("Help"), false));
         var performance = Area("Want more from your PC?", "Tune it for gaming, creative work or low power.",
             performanceStatus, ("Tune my PC", () => navigate("Performance overview"), true), ("Performance Lab", () => navigate("Performance Lab"), false));
         cards.Controls.Add(system, 0, 0); cards.Controls.Add(performance, 1, 0);
