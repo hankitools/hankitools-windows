@@ -1,3 +1,12 @@
+# Hanki Tools 0.19.0-rc.9 — clearer first run and recovery
+
+An unsigned preview that explains the first scan and makes recovery options and limits easier to find.
+
+- **Know what happens next.** Home and Help explain the Scan → review findings → choose what to do flow. The scan is read-only; some checks and repair actions need administrator access, which Hanki never requests automatically.
+- **Review changes before approval.** Proposed repairs identify what they change and explain where supported changes are saved, how to undo them, and which Windows repairs do not have per-file Hanki undo.
+- **Find recovery sooner.** Full Scan links directly to Recovery, which explains startup-file backups, registry startup undo, Recycle Bin restoration, restore-point limits and which local data remains after uninstall.
+- **Available in all supported languages.** Onboarding and recovery guidance is included in all twelve UI language catalogs.
+
 # Hanki Tools 0.19.0-rc.8 — Windows setup installer
 
 An unsigned preview adding a Windows setup installer alongside the portable ZIP.
