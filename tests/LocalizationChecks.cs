@@ -9,11 +9,10 @@ internal static class LocalizationChecks
         static void Check(bool condition, string message) { if (!condition) throw new Exception("Localization: " + message); }
         var baseline = Localizer.ReadCatalog("en");
         Check(baseline.Count > 100, "embedded English catalog must be present");
-        var scanFlow = baseline["Scan → review findings → choose what to do. The scan is read-only and no report is uploaded. Some checks or repair actions need administrator access and may be unavailable without it. Hanki never elevates automatically."];
-        Check(scanFlow.Contains("Scan → review findings → choose what to do", StringComparison.Ordinal)
-            && scanFlow.Contains("read-only", StringComparison.Ordinal)
-            && scanFlow.Contains("no report is uploaded", StringComparison.Ordinal)
-            && scanFlow.Contains("never elevates automatically", StringComparison.Ordinal), "first-run flow explains scan, review, choice and permissions");
+        var scanFlow = baseline["Scan → review → choose what to fix. Nothing changes until you approve, and Hanki only asks for admin access when a fix needs it."];
+        Check(scanFlow.Contains("Scan → review → choose what to fix", StringComparison.Ordinal)
+            && scanFlow.Contains("Nothing changes until you approve", StringComparison.Ordinal)
+            && scanFlow.Contains("admin access", StringComparison.Ordinal), "first-run flow explains scan, review, choice and permissions");
         var recovery = baseline["Recovery stores the previous and new values for supported setting changes. Disabled Startup-folder files are moved into a backup under %LOCALAPPDATA%\\IgezziGuard. Select an entry and choose Review / undo to restore it. Hanki refuses when the current setting no longer matches the saved change. Registry startup entries are undone in Maintain → Startup entries. Restore recycled files through the Windows Recycle Bin; Recovery does not roll back file cleanup. Windows file repairs have no per-file Hanki undo; Windows restore points are not full backups. Uninstall removes Hanki's application files but leaves history and recovery data in %LOCALAPPDATA%\\IgezziGuard."];
         Check(recovery.Contains("Startup-folder files", StringComparison.Ordinal)
             && recovery.Contains("Review / undo", StringComparison.Ordinal)
@@ -27,7 +26,7 @@ internal static class LocalizationChecks
             "Getting started",
             "Recovery stores the previous and new values for supported setting changes. Disabled Startup-folder files are moved into a backup under %LOCALAPPDATA%\\IgezziGuard. Select an entry and choose Review / undo to restore it. Hanki refuses when the current setting no longer matches the saved change. Registry startup entries are undone in Maintain → Startup entries. Restore recycled files through the Windows Recycle Bin; Recovery does not roll back file cleanup. Windows file repairs have no per-file Hanki undo; Windows restore points are not full backups. Uninstall removes Hanki's application files but leaves history and recovery data in %LOCALAPPDATA%\\IgezziGuard.",
             "Read each finding, then choose an action—or leave things as they are. Some checks may be unavailable without administrator access.",
-            "Scan → review findings → choose what to do. The scan is read-only and no report is uploaded. Some checks or repair actions need administrator access and may be unavailable without it. Hanki never elevates automatically.",
+            "Scan → review → choose what to fix. Nothing changes until you approve, and Hanki only asks for admin access when a fix needs it.",
             "What it changes"
         };
         Check(Localizer.Languages.Select(l => l.Code).SequenceEqual(new[] { "en", "fi", "de", "es", "fr", "it", "ja", "ko", "nl", "pl", "pt-BR", "zh-Hans" }), "website language set");
