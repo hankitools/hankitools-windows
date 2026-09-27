@@ -16,7 +16,7 @@ public sealed class FullScanPanel : ToolPage
     private RepairReport? repairs;
     private readonly IEntitlements entitlements = EntitlementComposition.Current();
     private readonly DiagnosticHistory history = new(Path.Combine(SecurityPaths.Root, "diagnostic-history.json"));
-    public FullScanPanel() : base("Scan → review findings → choose what to do. The scan is read-only and no report is uploaded. Some checks or repair actions need administrator access and may be unavailable without it. Hanki never elevates automatically.")
+    public FullScanPanel() : base("Scan → review → choose what to fix. Nothing changes until you approve, and Hanki only asks for admin access when a fix needs it.")
     {
         Button("Start full scan", StartScan);
         Bar.Controls.Add(external);

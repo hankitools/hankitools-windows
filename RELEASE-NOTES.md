@@ -1,3 +1,11 @@
+# Hanki Tools 0.19.0-rc.10 — clearer, more colorful Home cards
+
+An unsigned preview that shortens the Home page onboarding copy and makes each card's heading easier to spot.
+
+- **Shorter, clearer copy.** The "Something not working?" card now explains the flow in one short sentence: nothing changes until you approve a fix, and Hanki only asks for admin access when a fix actually needs it.
+- **Headings you can scan.** Each Home card's heading now uses its area's accent color (blue for Fix my PC, purple for Tune my PC) instead of plain white, so the two cards are easier to tell apart at a glance.
+- **Available in all supported languages.** The shortened onboarding copy is translated in all twelve UI language catalogs; native-speaker review is still recommended before a signed release.
+
 # Hanki Tools 0.19.0-rc.9 — clearer first run and recovery
 
 An unsigned preview that explains the first scan and makes recovery options and limits easier to find.
