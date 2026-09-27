@@ -67,6 +67,9 @@ internal sealed class HelpLanding : UserControl
     public HelpLanding(Action<string> navigate, Action remoteHelp)
     {
         Dock = DockStyle.Fill; AutoScroll = true; Padding = new Padding(0, 4, 8, 16);
+        ToolTiles.Add(this, "Getting started", [
+            ("Fix", "Start with a full scan", "Read each finding, then choose an action—or leave things as they are. Some checks may be unavailable without administrator access.", () => navigate("Fix My PC"))
+        ], HankiTheme.Accent);
         ToolTiles.Add(this, "More help", [("Help", "Remote help", "Opens Windows' Quick Assist so someone you trust can see your screen. Hanki shows a scam warning first.", remoteHelp)], HankiTheme.Accent);
         ToolTiles.Add(this, "Help and support", ToolTiles.For(ProductArea.Support, navigate), HankiTheme.Accent);
         ToolTiles.TopDown(this);

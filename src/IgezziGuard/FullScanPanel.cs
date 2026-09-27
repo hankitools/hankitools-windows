@@ -16,12 +16,13 @@ public sealed class FullScanPanel : ToolPage
     private RepairReport? repairs;
     private readonly IEntitlements entitlements = EntitlementComposition.Current();
     private readonly DiagnosticHistory history = new(Path.Combine(SecurityPaths.Root, "diagnostic-history.json"));
-    public FullScanPanel() : base("A local, read-only review of Windows, storage, devices, security and performance. Some checks require administrator access and may take several minutes. Unavailable checks stay unknown. No repairs, uploads or automatic elevation. Existing tools remain available individually.")
+    public FullScanPanel() : base("Scan → review findings → choose what to do. The scan is read-only and no report is uploaded. Some checks or repair actions need administrator access and may be unavailable without it. Hanki never elevates automatically.")
     {
         Button("Start full scan", StartScan);
         Bar.Controls.Add(external);
         repairButton = Button("Review repairs", ReviewRepairs);
         repairButton.Visible = false;
+        Button("Recovery", () => OpenRequested?.Invoke("Recovery"));
         summaryButton = Button("Back to scan results", ShowFindings);
         summaryButton.Visible = false;
         // Technician only; the licence can change while Hanki is open, so visibility follows it.
