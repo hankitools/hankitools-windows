@@ -83,7 +83,7 @@ The experimental file scanner has a bundled EICAR test signature and simple heur
 
 Hanki targets .NET 10, a long-term support release supported until 10 November 2028. Build against the current servicing patch, and move to the next LTS before that date; the release script enforces this deadline. Official reference: https://dotnet.microsoft.com/en-us/platform/support/policy/dotnet-core
 
-The project namespace/data directory retains the original IgezziGuard name for compatibility. Previous UX/version notes describe history, not current release validation. MIT license; see LICENSE.
+The project namespace/data directory retains the original IgezziGuard name for compatibility. Previous UX/version notes describe history, not current release validation. Licensed under the [PolyForm Noncommercial License 1.0.0](LICENSE) (source-available, free for noncommercial use; commercial use needs a separate license). Releases published before the change to this license (up to and including the last release under the MIT license) remain available under the MIT license they were published with.
 
 ## Diagnostics and editions
 
