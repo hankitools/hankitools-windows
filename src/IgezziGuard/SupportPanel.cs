@@ -43,7 +43,7 @@ internal sealed class SupportPanel : UserControl
             ("Copy app details", () => Copy(AppDetails)),
             ("View releases ↗", () => OpenLink(Repository + "/releases")),
             ("Read release notes ↗", () => OpenLink(Repository + "/blob/main/RELEASE-NOTES.md")));
-        Section("Privacy & project information", "Hanki Tools is distributed under the MIT license. The experimental scanner is not a replacement antivirus. Discord and GitHub issues may be public: share only information you have reviewed.",
+        Section("Privacy & project information", "Hanki Tools is distributed under the PolyForm Noncommercial License 1.0.0 (source-available; free for noncommercial use). The experimental scanner is not a replacement antivirus. Discord and GitHub issues may be public: share only information you have reviewed.",
             ("Privacy information ↗", () => OpenLink(Repository + "/blob/main/PRIVACY.md")),
             ("Source & license ↗", () => OpenLink(Repository)));
         Controls.Add(layout);

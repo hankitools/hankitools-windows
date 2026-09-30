@@ -198,7 +198,7 @@ public sealed class HankiForm : Form
         about.Click += (_, _) => {
             using var dialog = new Form { Text = Localizer.T("About Hanki Tools"), Size = new Size(720, 520), MinimumSize = new Size(500, 350), StartPosition = FormStartPosition.CenterParent, Font = Font, Padding = new Padding(20) };
             var body = Report();
-            body.Text = $"Hanki Tools {AppInfo.Version}\r\nWindows toolkit • MIT license\r\nRuntime: {System.Runtime.InteropServices.RuntimeInformation.FrameworkDescription}\r\n\r\n" +
+            body.Text = $"Hanki Tools {AppInfo.Version}\r\nWindows toolkit • PolyForm Noncommercial license\r\nRuntime: {System.Runtime.InteropServices.RuntimeInformation.FrameworkDescription}\r\n\r\n" +
                 "No app telemetry, background updater or automatic report upload is implemented. Diagnostics may contain names, paths, network identifiers and application data. Review before sharing.\r\n\r\n" +
                 "Network tools contact the targets shown before running. Optional AI sends only the request you review to OpenAI; API billing and provider retention apply. API keys are not intentionally saved to disk.\r\n\r\n" +
                 "Local history and recovery backups: " + SecurityPaths.Root + "\r\nKeep this folder until supported changes are undone. The portable app folder is separate from your saved data.\r\n\r\n" +

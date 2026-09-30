@@ -196,7 +196,7 @@ jobs:
             echo
             echo "## Code signing policy"
             echo
-            echo "This $kind is not code-signed. Future releases are intended to be signed through the SignPath Foundation program for open-source projects (application pending). Team roles, signing rules and the privacy policy: [Code signing policy](https://github.com/$REPO#code-signing-policy)."
+            echo "This $kind is not code-signed. Future releases are intended to be signed through the SignPath Foundation program (application pending). Team roles, signing rules and the privacy policy: [Code signing policy](https://github.com/$REPO#code-signing-policy)."
           } > "$RUNNER_TEMP/notes.md"
           cat "$RUNNER_TEMP/notes.md"
 
