@@ -15,7 +15,7 @@ user asks for automation; no startup prompt, checkout or login form exists.
 
 Debug builds alone accept `HANKI_DEVELOPMENT_EDITION=Community|Pro|Technician`.
 Release removes the lookup at compile time; Release tests assert the variable
-cannot unlock automation. Open-source compilation can of course modify local
+cannot unlock automation. Compiling the source can of course modify local
 code; this is not DRM or a claim of tamper-resistant client enforcement.
 
 `ILicenseProvider` is the trust boundary. A future provider must verify issuer,

@@ -21,7 +21,7 @@ scoop install hanki/hanki-tools
 
 ## Code signing policy
 
-Windows releases are intended to be signed through the [SignPath Foundation](https://signpath.org) program for open-source projects; the application is pending. Once approved, this section will read: *Free code signing provided by [SignPath.io](https://about.signpath.io), certificate by [SignPath Foundation](https://signpath.org).*
+Windows releases are intended to be signed through the [SignPath Foundation](https://signpath.org) program; the application is pending. Once approved, this section will read: *Free code signing provided by [SignPath.io](https://about.signpath.io), certificate by [SignPath Foundation](https://signpath.org).*
 
 Team roles:
 
