@@ -14,6 +14,24 @@ public sealed class HankiForm : Form
     /// <summary>Every navigable tool, as listed in Find a tool.</summary>
     internal IReadOnlyList<ToolLauncher.Route> Routes => workspace.Routes;
 
+    internal static int ScaleSidebarDimension(int logical, int dpi) => (int)Math.Round(logical * dpi / 96f);
+    internal static int SidebarWidthAtDpi(int dpi) => 192 + ScaleSidebarDimension(64, dpi);
+
+    internal static ContextMenuStrip QuickAccessMenu(Action<string> open)
+    {
+        var menu = HankiMenu.Create();
+        foreach (var (label, command) in new[] {
+            ("PowerShell (Admin)", "powershell"), ("CMD (Admin)", "cmd"), ("File Explorer", "explorer"),
+            ("Task Manager", "task-manager"), ("Windows Settings", "settings"), ("Event Viewer", "event-viewer")
+        })
+            menu.Items.Add(HankiMenu.Item(label, () => open(command)));
+        menu.Items.Add(new ToolStripSeparator());
+        menu.Items.Add(new ToolStripMenuItem(Localizer.T("Admin shortcuts use Windows UAC.")) {
+            Enabled = false, Padding = new Padding(4, 6, 12, 6)
+        });
+        return menu;
+    }
+
     public HankiForm()
     {
         Text = "Hanki Tools • " + AppInfo.Version;

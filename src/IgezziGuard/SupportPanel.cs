@@ -29,6 +29,7 @@ internal sealed class SupportPanel : UserControl
             card.Controls.Add(heading); card.Controls.Add(body); card.Controls.Add(bar); layout.Controls.Add(card);
         }
         Section("Meet the Hanki community", "Ask a question, share feedback or follow the project. Links open in your browser; no report is attached.",
+            ("Open knowledge base ↗", () => OpenLink("https://hanki.tools/help/")),
             ("Open hanki.tools ↗", () => OpenLink("https://hanki.tools/")),
             ("Join Discord ↗", () => OpenLink("https://discord.gg/qprzjtTaQ")),
             ("Read the user guide ↗", () => OpenLink(Repository + "/blob/main/README-PORTABLE.md")));
@@ -42,16 +43,17 @@ internal sealed class SupportPanel : UserControl
             ("Copy app details", () => Copy(AppDetails)),
             ("View releases ↗", () => OpenLink(Repository + "/releases")),
             ("Read release notes ↗", () => OpenLink(Repository + "/blob/main/RELEASE-NOTES.md")));
-        Section("Privacy & project information", "Hanki Tools is distributed under the MIT license. The experimental scanner is not a replacement antivirus. Discord and GitHub issues may be public: share only information you have reviewed.",
+        Section("Privacy & project information", "Hanki Tools is distributed under the PolyForm Noncommercial License 1.0.0 (source-available; free for noncommercial use). The experimental scanner is not a replacement antivirus. Discord and GitHub issues may be public: share only information you have reviewed.",
             ("Privacy information ↗", () => OpenLink(Repository + "/blob/main/PRIVACY.md")),
             ("Source & license ↗", () => OpenLink(Repository)));
         Controls.Add(layout);
     }
 
-    private void OpenLink(string url)
+    private void OpenLink(string url) => OpenLink(this, url);
+    internal static void OpenLink(IWin32Window owner, string url)
     {
         try { using var process = Process.Start(new ProcessStartInfo(url) { UseShellExecute = true }); }
-        catch (Exception ex) { MessageBox.Show(this, ex.Message, "Could not open browser"); }
+        catch (Exception ex) { MessageBox.Show(owner, ex.Message, "Could not open browser"); }
     }
     private void Copy(string text)
     {
@@ -66,7 +68,7 @@ internal sealed class SupportPanel : UserControl
         var bar = new FlowLayoutPanel { Dock = DockStyle.Bottom, AutoSize = true, Padding = new Padding(0, 12, 0, 0) };
         var copy = new HankiButton { Text = "Copy reviewed draft", AutoSize = true, Primary = true };
         var open = new HankiButton { Text = "Open new GitHub issue ↗", AutoSize = true };
-        var close = new HankiButton { Text = "Close", AutoSize = true, Appearance = HankiButtonStyle.Quiet, DialogResult = DialogResult.Cancel };
+        var close = new HankiButton { Text = Localizer.T("Close"), AutoSize = true, Appearance = HankiButtonStyle.Quiet, DialogResult = DialogResult.Cancel };
         copy.Click += (_, _) => { if (!string.IsNullOrWhiteSpace(report.Text)) Copy(report.Text); };
         open.Click += (_, _) => OpenLink(Repository + "/issues/new");
         bar.Controls.AddRange([copy, open, close]); dialog.Controls.Add(report); dialog.Controls.Add(bar); dialog.CancelButton = close;

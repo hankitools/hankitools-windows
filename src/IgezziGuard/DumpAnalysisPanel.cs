@@ -40,12 +40,12 @@ public sealed record GuideStep(string Title, string Why, string? Route = null, s
 
 public sealed class TroubleshootingPanel : ToolPage
 {
-    private readonly ComboBox symptom = new() { Width = 380, DropDownStyle = ComboBoxStyle.DropDownList, AccessibleName = "What's happening?", Margin = new Padding(0, 6, 8, 0) };
+    private readonly ComboBox symptom = new() { Width = 380, DropDownStyle = ComboBoxStyle.DropDownList, AccessibleName = Localizer.T("What's happening?"), Margin = new Padding(0, 6, 8, 0) };
     /// <summary>Raised with a tool route name, for example "Diagnose  /  Crash timeline".</summary>
     public event Action<string>? OpenRequested;
     public TroubleshootingPanel() : base("Pick what's happening to get a short, ordered plan. Each step explains why it helps and opens the right tool. Steps only read information unless you choose a change yourself, and every supported change can be undone in Recovery.") {
-        Bar.Controls.Add(new Label { Text = "What's happening?", AutoSize = true, Margin = new Padding(0, 10, 8, 0) });
-        symptom.Items.AddRange(Guides.Select(g => g.Symptom).ToArray()); Bar.Controls.Add(symptom);
+        Bar.Controls.Add(new Label { Text = Localizer.T("What's happening?"), AutoSize = true, Margin = new Padding(0, 10, 8, 0) });
+        symptom.Items.AddRange(Guides.Select(g => Localizer.T(g.Symptom)).ToArray()); Bar.Controls.Add(symptom);
         symptom.SelectedIndexChanged += (_, _) => ShowGuide();
         symptom.SelectedIndex = 0;
     }
@@ -79,6 +79,7 @@ public sealed class TroubleshootingPanel : ToolPage
             new("See Windows' battery usage", "Settings → System → Power & battery → Battery usage shows which apps use the most battery."),
         ]),
         ("The internet is slow or keeps dropping", [
+            new("Follow one step at a time", "Check your connection, try the suggested step and verify whether it helped.", "Connect  /  Guided troubleshooting", "Open guided troubleshooting"),
             new("Check the basic connection", "Tests your adapter, router, name lookups (DNS) and internet access, and says which step fails.", "Connect  /  Basic checks", "Open Basic checks"),
             new("Test Wi-Fi and response times", "Compares your router with the internet to show whether trouble starts at home or further out.", "Connect  /  Wi-Fi / latency", "Open Wi-Fi / latency"),
             new("Measure speed and compare DNS", "Runs a bounded speed test and compares DNS servers.", "Connect  /  Advanced / DNS repair", "Open Network tools"),
@@ -108,7 +109,7 @@ public sealed class TroubleshootingPanel : ToolPage
             new("Use Windows' own activation settings", "Windows Settings → System → Activation offers troubleshooting and lets you enter a genuine product key."),
         ]),
     ];
-    /// <summary>Opens the plan for a symptom, for example from the Home search.</summary>
+    /// <summary>Opens the plan for a selected symptom.</summary>
     internal void ShowSymptom(int index) { if (index >= 0 && index < symptom.Items.Count) symptom.SelectedIndex = index; }
     private void ShowGuide()
     {

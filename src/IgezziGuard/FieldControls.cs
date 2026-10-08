@@ -10,7 +10,7 @@ internal sealed class SearchField : Panel
     internal Color Fill { get; init; } = HankiTheme.Canvas;
     public SearchField(string placeholder, int width)
     {
-        Box.PlaceholderText = placeholder; Box.AccessibleName = placeholder;
+        Box.PlaceholderText = Localizer.T(placeholder); Box.AccessibleName = Box.PlaceholderText;
         Width = width; Height = 34; Cursor = Cursors.IBeam;
         SetStyle(ControlStyles.UserPaint | ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.ResizeRedraw, true);
         Controls.Add(Box);
@@ -48,14 +48,14 @@ internal sealed class ProgressLine : Control
     private bool busy;
     public ProgressLine()
     {
-        Height = 2; AccessibleRole = AccessibleRole.ProgressBar; AccessibleName = "Progress";
+        Height = 2; AccessibleRole = AccessibleRole.ProgressBar; AccessibleName = Localizer.T("Progress");
         SetStyle(ControlStyles.UserPaint | ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.ResizeRedraw, true);
         timer.Tick += (_, _) => { phase = (phase + 0.012f) % 1.4f; Invalidate(); };
     }
     public bool Busy
     {
         get => busy;
-        set { busy = value; AccessibleDescription = value ? "Working" : ""; if (value && !SystemInformation.HighContrast) timer.Start(); else timer.Stop(); phase = 0; Invalidate(); }
+        set { busy = value; AccessibleDescription = value ? Localizer.T("Working") : ""; if (value && !SystemInformation.HighContrast) timer.Start(); else timer.Stop(); phase = 0; Invalidate(); }
     }
     protected override void Dispose(bool disposing) { if (disposing) timer.Dispose(); base.Dispose(disposing); }
     protected override void OnPaint(PaintEventArgs e)

@@ -27,4 +27,4 @@ use the future identity provider with audit/abuse limits, not a mutable local fl
 Seat enforcement and revocation belong on the server for hosted services. Offline
 replay, copied signed claims, clock rollback, sharing one technician account and
 excessive replacement requests need provider controls. These models do not claim
-tamper resistance on a compromised or modified open-source client.
+tamper resistance on a compromised or modified client.

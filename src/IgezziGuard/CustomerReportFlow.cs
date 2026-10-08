@@ -53,7 +53,7 @@ internal static class CustomerReportFlow
     /// <summary>The labels dialog; separate from Create so it can be rendered for review.</summary>
     internal static (Form Dialog, LabelFields Fields) BuildLabels(BusinessDefaults? saved)
     {
-        var dialog = new Form { Text = "Customer report", StartPosition = FormStartPosition.CenterParent, FormBorderStyle = FormBorderStyle.FixedDialog,
+        var dialog = new Form { Text = Localizer.T("Customer report"), StartPosition = FormStartPosition.CenterParent, FormBorderStyle = FormBorderStyle.FixedDialog,
             MaximizeBox = false, MinimizeBox = false, ShowInTaskbar = false, AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink, Padding = new Padding(20) };
         var layout = new FlowLayoutPanel { FlowDirection = FlowDirection.TopDown, AutoSize = true, WrapContents = false, Dock = DockStyle.Fill };
         TextBox Field(string label, string value, string placeholder)
@@ -71,7 +71,7 @@ internal static class CustomerReportFlow
         layout.Controls.Add(technical);
         var buttons = new FlowLayoutPanel { AutoSize = true, Margin = new Padding(0, 18, 0, 0) };
         var create = new HankiButton { Text = "Create report", Primary = true, AutoSize = true, DialogResult = DialogResult.OK };
-        var cancel = new HankiButton { Text = "Cancel", AutoSize = true, DialogResult = DialogResult.Cancel };
+        var cancel = new HankiButton { Text = Localizer.T("Cancel"), AutoSize = true, DialogResult = DialogResult.Cancel };
         buttons.Controls.AddRange([create, cancel]); layout.Controls.Add(buttons);
         dialog.Controls.Add(layout); dialog.AcceptButton = create; dialog.CancelButton = cancel;
         HankiTheme.Apply(dialog);

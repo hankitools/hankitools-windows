@@ -39,7 +39,7 @@ New-Item -ItemType Directory -Path $staging | Out-Null
 try {
     New-Item -ItemType Directory -Path (Join-Path $staging 'Data') | Out-Null
     foreach ($relative in $payloadPaths) { Copy-Item -LiteralPath (Join-Path $directory $relative) -Destination (Join-Path $staging $relative) }
-    @{ Version=$build.Version; Runtime=$build.Runtime; Sdk=$build.Sdk; ExeSHA256=$hash; Signed=$true; PublicReleaseApproved=$true;
+    @{ Version=$build.Version; Runtime=$build.Runtime; Sdk=$build.Sdk; ExeSHA256=$hash; Signed=$true; UiSmokePassed=$true; PublicReleaseApproved=$true;
        ApprovedAt=(Get-Date).ToUniversalTime().ToString('o'); Payload=$build.Payload } | ConvertTo-Json -Depth 5 |
         Set-Content -LiteralPath (Join-Path $staging 'build-info.json') -Encoding UTF8
     $manifest=Join-Path $staging 'SHA256SUMS.txt'
@@ -52,4 +52,5 @@ try {
 } finally { Remove-Item -LiteralPath $staging -Recurse -Force }
 "$((Get-FileHash -LiteralPath $zip -Algorithm SHA256).Hash)  $([IO.Path]::GetFileName($zip))" | Set-Content -LiteralPath "$zip.sha256" -Encoding ASCII
 Write-Host "Verified release package: $zip" -ForegroundColor Green
-Write-Host 'Upload the ZIP and SHA256 file together. Keep signing keys private. An RC version must be labelled as a release candidate on the download page.'
+& (Join-Path $PSScriptRoot 'BUILD-INSTALLER.ps1') -CandidateZip $zip
+Write-Host 'Test this exact setup EXE using the installer checks in RELEASE-CHECKLIST.md, record the evidence in acceptance.json, then run PUBLISH-RELEASE.ps1. The setup EXE itself is unsigned; keep signing keys private. An RC version must be labelled as a release candidate on the download page.'

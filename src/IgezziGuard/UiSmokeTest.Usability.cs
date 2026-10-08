@@ -1,0 +1,95 @@
+namespace IgezziGuard;
+
+internal static partial class UiSmokeTest
+{
+    private static IEnumerable<Control> Descendants(Control root) => root.Controls.Cast<Control>().SelectMany(c => new[] { c }.Concat(Descendants(c)));
+    private static void CheckUsability(HankiForm form)
+    {
+        void Require(bool condition, string message) { if (!condition) throw new IOException("Usability: " + message); }
+        void Open(string route) { form.Routes.Single(r => r.Name == route).Open(); form.PerformLayout(); Application.DoEvents(); }
+        void Click(Control parent, string text) {
+            var button = Descendants(parent).OfType<HankiButton>().Single(b => b.Text == Localizer.T(text) || b.AccessibleName == Localizer.T(text));
+            Require(button.Wanted && button.Enabled, "Action unavailable: " + text);
+            button.Invoke(); form.PerformLayout(); Application.DoEvents();
+        }
+        Open("Fix My PC");
+        var scan = Find<FullScanPanel>(form)!;
+        Require(!Descendants(scan).OfType<HankiButton>().Single(b => b.Text == Localizer.T("Review repairs")).Wanted, "Repairs must not appear before a scan.");
+        var now = DateTimeOffset.UtcNow;
+        DiagnosticResult Result(string id, string title, CollectionOutcome outcome, FindingSeverity severity) => new("storage", id, DiagnosticCategory.Storage, outcome, severity,
+            title, "Example data for the UI check. Nothing was read or changed.", now, now, coverage: "Example coverage");
+        scan.Preview(new(Guid.NewGuid(), now, now, 3, 3, false, [
+            Result("capacity", "Example — low free space", CollectionOutcome.Completed, FindingSeverity.Warning),
+            Result("healthy", "Example healthy check", CollectionOutcome.Completed, FindingSeverity.Healthy),
+            Result("missing", "Example unavailable check", CollectionOutcome.Unavailable, FindingSeverity.Unknown)
+        ]));
+        Require(!Descendants(scan).OfType<Label>().Any(l => l.Text == "Example healthy check"), "Healthy findings must be collapsed initially.");
+        Click(scan, "Show other checks");
+        Require(Descendants(scan).OfType<Label>().Any(l => l.Text == "Example healthy check"), "Expanding other checks must reveal healthy findings.");
+        Click(scan, "Hide other checks");
+        Click(scan, "Review incomplete checks");
+        Require(Descendants(scan).OfType<Label>().Any(l => l.Text == "Example unavailable check"), "Missing evidence must be available separately.");
+        Click(scan, "Hide incomplete checks");
+        Click(scan, "See next step");
+        Require(Descendants(scan).OfType<Label>().Any(l => l.Text == Localizer.T("Try this next")), "A finding must lead with manual guidance.");
+        Click(scan, "Back to scan results");
+
+        Open("Connect  /  Guided troubleshooting");
+        var internet = Find<InternetTroubleshootingPanel>(form)!;
+        var sample = new ConnectionCheck(new(1, "Example Wi-Fi", true, true, false, false, null, true, 20, null, null), "Example report. No probes were run.");
+        internet.Preview(sample);
+        Click(internet, "More help");
+        Click(internet, "Open next check");
+        Click(form, "Return to troubleshooting");
+        Require(internet.Visible, "Back must restore the exact guided tab.");
+        Require(Descendants(internet).Any(c => c.Text == Localizer.T("A server answered, but website name lookups failed")), "Returning must retain the previous finding.");
+        Require(Descendants(internet).OfType<HankiButton>().Any(b => b.Wanted && b.Text == Localizer.T("Hide extra help")), "Returning must retain the journey's expanded help state.");
+        Click(internet, "It works now");
+        Require(!Descendants(internet).OfType<HankiButton>().Single(b => b.Text == Localizer.T("It works now")).Wanted, "Resolution must be an explicit terminal state.");
+        internet.Preview(sample);
+        Note("usability: summary, coverage, next step, contextual actions and Back passed with fixed fixtures");
+
+        Open("Home");
+        var home = Find<HomePanel>(form)!;
+        Require(!Descendants(home).OfType<Label>().Any(l => l.Text == Localizer.T("Recent activity")), "Home must not repeat recent actions.");
+        Require(!Descendants(home).OfType<SearchField>().Any(), "Home must not repeat Find a tool as a separate search box.");
+        Require(GlanceTile.HeightAtDpi(96) == 124 && GlanceTile.HeightAtDpi(144) == 186 && GlanceTile.HeightAtDpi(192) == 248
+            && HomePanel.ColumnsForWidth(1100, 96) == 3 && HomePanel.ColumnsForWidth(1100, 144) == 2 && HomePanel.ColumnsForWidth(1100, 192) == 2,
+            "Glance tile height and column count must adapt at 100%, 150% and 200%.");
+        Require(Descendants(home).OfType<GlanceTile>().All(tile => tile.Height >= GlanceTile.HeightAtDpi(form.DeviceDpi)),
+            "Glance tile content must fit the current display scaling.");
+        Require(HankiCard.HeightAtDpi(96) == 148 && HankiCard.HeightAtDpi(144) == 222 && HankiCard.HeightAtDpi(192) == 296,
+            "Help and navigation cards must scale their height at 100%, 150% and 200%.");
+        Require(ToolTiles.ColumnsForWidth(1100, 96) == 3 && ToolTiles.ColumnsForWidth(1100, 144) == 2
+            && ToolTiles.ColumnsForWidth(1800, 144) == 3 && ToolTiles.ColumnsForWidth(1200, 192) == 2,
+            "Help tiles must preserve readable column widths as display scaling increases.");
+        Open("Help");
+        var helpCards = Descendants(Find<HelpLanding>(form)!).OfType<HankiCard>().ToArray();
+        Require(helpCards.Length >= 4 && helpCards.All(card => card.Height >= HankiCard.HeightAtDpi(form.DeviceDpi)),
+            $"Help card text must fit at {form.DeviceDpi} DPI.");
+        Open("Home");
+        var brandHeader = Find<BrandHeader>(form)!;
+        var sidebar = brandHeader.Parent!;
+        var navLabels = Navigation.Sidebar.Select(id => Localizer.T(Navigation.Find(id)!.Label)).ToHashSet(StringComparer.Ordinal);
+        var navButtons = sidebar.Controls.OfType<HankiButton>().Where(button => navLabels.Contains(button.Text)).ToArray();
+        var quickToggle = Descendants(form).OfType<HankiButton>().Single(button => button.AccessibleName == Localizer.T("Quick access"));
+        var quickMenu = quickToggle.ContextMenuStrip!;
+        var shortcutNames = quickMenu.Items.OfType<ToolStripMenuItem>().Where(item => item.Enabled).Select(item => item.Text).ToArray();
+        Require(shortcutNames.SequenceEqual(new[] { "PowerShell (Admin)", "CMD (Admin)", "File Explorer", "Task Manager", "Windows Settings", "Event Viewer" }.Select(Localizer.T))
+            && quickMenu.Items.OfType<ToolStripMenuItem>().Any(item => !item.Enabled && item.Text == Localizer.T("Admin shortcuts use Windows UAC.")),
+            "Quick access must show all six shortcuts and the UAC note.");
+        quickToggle.Invoke(); Application.DoEvents();
+        var quickButtonTop = quickToggle.PointToScreen(Point.Empty).Y;
+        Require(quickMenu.Visible && quickMenu.Bounds.Bottom <= quickButtonTop,
+            "Quick access must open above its sidebar button without being clipped.");
+        quickMenu.Close();
+        Require(HankiForm.SidebarWidthAtDpi(96) == 256 && HankiForm.SidebarWidthAtDpi(144) == 288 && HankiForm.SidebarWidthAtDpi(192) == 320,
+            "Sidebar width must scale consistently at 100%, 150% and 200%.");
+        Require(navButtons.Length == Navigation.Sidebar.Count,
+            $"Expected {Navigation.Sidebar.Count} sidebar destinations, found {navButtons.Length}.");
+        int menuWidth = HankiForm.SidebarWidthAtDpi(form.DeviceDpi) - 2 * HankiForm.ScaleSidebarDimension(12, form.DeviceDpi);
+        Require(brandHeader.Width == menuWidth && navButtons.All(button => button.Width == menuWidth),
+            $"Brand and navigation rows must share the available sidebar width at {form.DeviceDpi} DPI.");
+        Note($"usability: Home activity removed; glance and sidebar fit at {form.DeviceDpi} DPI");
+    }
+}

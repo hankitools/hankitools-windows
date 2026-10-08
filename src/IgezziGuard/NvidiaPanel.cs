@@ -158,7 +158,7 @@ internal static class NvidiaEditorDialog
         scroll.Controls.Add(table);
         var buttons = new FlowLayoutPanel { AutoSize = true, Margin = new Padding(0, 14, 0, 0) };
         var review = new HankiButton { Text = "Review changes", Primary = true, AutoSize = true, DialogResult = DialogResult.OK };
-        var cancel = new HankiButton { Text = "Cancel", AutoSize = true, DialogResult = DialogResult.Cancel };
+        var cancel = new HankiButton { Text = Localizer.T("Cancel"), AutoSize = true, DialogResult = DialogResult.Cancel };
         buttons.Controls.AddRange([review, cancel]);
         outer.Controls.AddRange([scroll, buttons]);
         dialog.Controls.Add(outer); dialog.AcceptButton = review; dialog.CancelButton = cancel;
@@ -180,7 +180,7 @@ internal static class TextPromptDialog
         var text = new TextBox { Width = 380, Text = initial, AccessibleName = prompt, MaxLength = 200 };
         var buttons = new FlowLayoutPanel { AutoSize = true, Margin = new Padding(0, 14, 0, 0) };
         var ok = new HankiButton { Text = "OK", Primary = true, AutoSize = true, DialogResult = DialogResult.OK };
-        var cancel = new HankiButton { Text = "Cancel", AutoSize = true, DialogResult = DialogResult.Cancel };
+        var cancel = new HankiButton { Text = Localizer.T("Cancel"), AutoSize = true, DialogResult = DialogResult.Cancel };
         buttons.Controls.AddRange([ok, cancel]);
         layout.Controls.AddRange([new Label { Text = prompt, AutoSize = true, MaximumSize = new Size(380, 0), UseMnemonic = false, Margin = new Padding(0, 0, 0, 6) }, text, buttons]);
         dialog.Controls.Add(layout); dialog.AcceptButton = ok; dialog.CancelButton = cancel;

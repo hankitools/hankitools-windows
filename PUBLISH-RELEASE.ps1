@@ -48,6 +48,30 @@ try {
 [xml]$project=Get-Content -LiteralPath (Join-Path $root 'src\IgezziGuard\IgezziGuard.csproj') -Raw
 $version=[string]$build.Version
 if ([string]$project.Project.PropertyGroup.Version -ne $version) { throw "Package version $version does not match the project version." }
+$acceptance=Get-Content -LiteralPath (Join-Path $directory 'acceptance.json') -Raw | ConvertFrom-Json
+if ($acceptance.ExeSHA256 -ne $build.ExeSHA256) { throw 'Acceptance evidence does not match the signed application executable in the release ZIP.' }
+$installerChecks=@('installer-per-user','installer-all-users','installer-upgrade-uninstall-retention','installer-no-auto-start-uac')
+foreach ($id in $installerChecks) {
+    $matches=@($acceptance.Checks | Where-Object { $_.Id -eq $id })
+    if ($matches.Count -ne 1 -or $matches[0].Passed -ne $true -or [string]::IsNullOrWhiteSpace($matches[0].Notes)) {
+        throw "Installer acceptance needs a passing result and evidence notes before publishing: $id"
+    }
+}
+$setupName="HankiTools-$version-win-x64-setup.exe"
+$setup=Join-Path $root "dist\$setupName"
+$setupSum="$setup.sha256"
+$setupReceipt=Join-Path $root "dist\HankiTools-$version-win-x64-setup-build-info.json"
+if (-not (Test-Path -LiteralPath $setup -PathType Leaf) -or -not (Test-Path -LiteralPath $setupSum -PathType Leaf) -or -not (Test-Path -LiteralPath $setupReceipt -PathType Leaf)) {
+    throw 'Verified setup installer, checksum and build receipt are required. Run PACKAGE-RELEASE.ps1 to create them from this signed ZIP.'
+}
+$setupHash=(Get-FileHash -LiteralPath $setup -Algorithm SHA256).Hash
+if ((((Get-Content -LiteralPath $setupSum -Raw).Trim()) -split '\s+')[0] -ne $setupHash) { throw 'Setup installer does not match its .sha256 file.' }
+$receipt=Get-Content -LiteralPath $setupReceipt -Raw | ConvertFrom-Json
+if ($receipt.Version -ne $version -or $receipt.CandidateZipSHA256 -ne $zipHash.ToLowerInvariant() -or
+    $receipt.SetupSHA256 -ne $setupHash -or $receipt.PackageExeSHA256 -ne $build.ExeSHA256 -or
+    $receipt.CompilerVersion -ne '6.7.3' -or $receipt.CompilerSHA256 -ne '9c73c3bae7ed48d44112a0f48e66742c00090bdb5bef71d9d3c056c66e97b732') {
+    throw 'Installer build receipt does not match the verified signed ZIP and setup file.'
+}
 if (Git status --porcelain) { throw 'Working tree has uncommitted changes. Commit and push first.' }
 Git fetch --quiet origin | Out-Null
 $head=(Git rev-parse HEAD).Trim()
@@ -74,10 +98,10 @@ $notes=@(
     $(if ($candidate) { '> **Release candidate.** Please report problems through GitHub issues before a final release.'; '' })
     ($section -join "`n").Trim(); ''
     '## Download and verify'; ''
-    "1. Download ``$zipName`` and ``$zipName.sha256``."
-    "2. In PowerShell: ``(Get-FileHash .\$zipName).Hash`` must equal the value in the ``.sha256`` file."
-    "3. After extracting, HankiTools.exe > Properties > Digital Signatures must show **$signer** with a valid timestamp."; ''
-    'Portable app: extract and run HankiTools.exe; no installer or .NET runtime needed. Updates are manual.'
+    "1. Download ``$zipName`` and ``$zipName.sha256`` for the portable app, or ``$setupName`` and ``$setupName.sha256`` for setup."
+    "2. In PowerShell, compare ``(Get-FileHash .\<downloaded-file>).Hash`` with the matching ``.sha256`` value before running it."
+    "3. The setup program is unsigned and may trigger SmartScreen. It offers current-user and all-users scopes; the installed HankiTools.exe > Properties > Digital Signatures must show **$signer** with a valid timestamp."; ''
+    'The portable app needs no installer or .NET runtime. Updates are manual. Setup uninstalls the app files but preserves %LOCALAPPDATA%\IgezziGuard history and recovery data. It does not add a service or auto-start entry.'
     'Privacy: see PRIVACY.md in the package. The experimental file scanner is not an antivirus; Microsoft Defender remains your protection.'; ''
     '## Code signing policy'; ''
     $(if ($signer -like '*SignPath Foundation*') { 'Free code signing provided by [SignPath.io](https://about.signpath.io), certificate by [SignPath Foundation](https://signpath.org).' } else { "Signed by $signer." })
@@ -91,7 +115,7 @@ if ($DryRun) { Write-Host "Dry run: would create $(if ($Publish) { 'a public' } 
 $notesFile=Join-Path ([IO.Path]::GetTempPath()) ('Hanki-notes-' + [guid]::NewGuid().ToString('N') + '.md')
 try {
     [IO.File]::WriteAllText($notesFile, $notes, [Text.UTF8Encoding]::new($false))
-    $arguments=@('release','create',$tag,$zip,$sumFile,'--repo',$repo,'--target',$head,'--title',$title,'--notes-file',$notesFile)
+    $arguments=@('release','create',$tag,$zip,$sumFile,$setup,$setupSum,'--repo',$repo,'--target',$head,'--title',$title,'--notes-file',$notesFile)
     if ($candidate) { $arguments+='--prerelease' }
     if (-not $Publish) { $arguments+='--draft' }
     $url=& gh @arguments
@@ -101,9 +125,13 @@ try {
 # Compare the uploaded asset with the local package. The releases API lists drafts (which have no tag yet)
 # and reports each asset's SHA-256 digest; the size is compared when no digest is reported.
 $releases=(& gh api "repos/$repo/releases?per_page=30") | ConvertFrom-Json
-$asset=@($releases | Where-Object { $_.tag_name -eq $tag } | ForEach-Object { $_.assets } | Where-Object { $_.name -eq $zipName }) | Select-Object -First 1
-$digest=if ($asset -and $asset.PSObject.Properties['digest']) { [string]$asset.digest } else { '' }
-$matched=if ($digest) { $digest -eq ('sha256:' + $zipHash.ToLowerInvariant()) } else { $null -ne $asset -and $asset.size -eq (Get-Item -LiteralPath $zip).Length }
-if (-not $matched) { throw "Uploaded ZIP could not be verified. Inspect or delete the release: $url" }
+foreach ($upload in @(@{Path=$zip;Hash=$zipHash},@{Path=$setup;Hash=$setupHash},@{Path=$sumFile;Hash=(Get-FileHash -LiteralPath $sumFile -Algorithm SHA256).Hash},@{Path=$setupSum;Hash=(Get-FileHash -LiteralPath $setupSum -Algorithm SHA256).Hash})) {
+    $name=[IO.Path]::GetFileName($upload.Path)
+    $asset=@($releases | Where-Object { $_.tag_name -eq $tag } | ForEach-Object { $_.assets } | Where-Object { $_.name -eq $name }) | Select-Object -First 1
+    $digest=if ($asset -and $asset.PSObject.Properties['digest']) { [string]$asset.digest } else { '' }
+    $expectedHash=([string]$upload.Hash).ToLowerInvariant()
+    $matched=if ($digest) { $digest -eq ('sha256:' + $expectedHash) } else { $null -ne $asset -and $asset.size -eq (Get-Item -LiteralPath $upload.Path).Length }
+    if (-not $matched) { throw "Uploaded asset $name could not be verified. Inspect or delete the release: $url" }
+}
 Write-Host "$(if ($Publish) { 'Published' } else { 'Draft created' }): $url" -ForegroundColor Green
-Write-Host ("Uploaded ZIP verified by " + $(if ($digest) { 'SHA-256 digest' } else { 'size' }) + '. Review the notes on GitHub before publishing a draft.')
+Write-Host 'Uploaded ZIP, setup EXE and both checksums verified. Review the notes on GitHub before publishing a draft.'

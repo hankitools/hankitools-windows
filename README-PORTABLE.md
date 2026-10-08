@@ -18,6 +18,14 @@ To upgrade, close Hanki and extract the new package to a new folder. Local histo
 
 To remove the portable app, close it and delete its extracted application folder. Removing the application does not undo settings or delete local data. Restore desired changes first. If you later remove the local data directory, you also remove its history and recovery backups; this is not necessary for an ordinary upgrade.
 
+## Setup installer
+
+The release also offers `HankiTools-VERSION-win-x64-setup.exe` and a matching `.sha256` file. Verify the checksum before running setup. The installer is unsigned and Windows SmartScreen may warn; this is separate from whether the app executable inside is signed.
+
+Choose installation for your Windows account under `%LOCALAPPDATA%\Programs` (no administrator approval) or all users under Program Files (Windows administrator approval). Setup creates a Start menu shortcut and a standard Windows uninstall entry; a desktop shortcut is optional. It does not install a service or auto-start entry. Hanki still asks for administrator approval only when you choose an action that requires it.
+
+To update, close Hanki and run the newer setup, choosing the same install scope. To uninstall, use Windows Installed apps or the Start menu's uninstall entry. Uninstall removes the installed application files, not `%LOCALAPPDATA%\IgezziGuard`; your history and recovery data remain available. Restore desired settings and startup files before removing that data directory yourself.
+
 ## Limitations
 
 - Defender can remediate threats under Windows policy. Hanki does not undo that remediation.

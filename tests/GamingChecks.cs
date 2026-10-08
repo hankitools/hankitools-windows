@@ -6,7 +6,7 @@ internal static class GamingChecks
     private static void Check(bool ok, string text) => DiagnosticChecks.Check(ok, text);
     private static bool Throws(Action action) { try { action(); return false; } catch (IOException) { return true; } }
     private static readonly DateTimeOffset Now = new(2026, 9, 24, 12, 0, 0, TimeSpan.Zero);
-    internal static void Run() { Facts(); Health(); Profiles(); NvidiaGlobal(); WindowsGaming(); Tune(); TuneSteps(); TuneMore(); TuneHelpers(); Radeon(); Background(); Launch(); Library(); GpuConnection(); Live(); }
+    internal static void Run() { TacticalVisionChecks.Run(); Facts(); Health(); Profiles(); NvidiaGlobal(); WindowsGaming(); Tune(); TuneSteps(); TuneMore(); TuneHelpers(); Radeon(); Background(); Launch(); Library(); GpuConnection(); Live(); }
 
     private static GpuAdapter Gpu(GpuVendor vendor, string name, ulong memory, int rank, long luid) =>
         new(name, vendor, 0, 0, luid, memory, 8 * GraphicsFacts.GiB, rank, "32.0.16.1692", new DateTime(2026, 9, 4), GraphicsFacts.LikelyIntegrated(vendor, memory));

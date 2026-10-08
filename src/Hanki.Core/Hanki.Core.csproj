@@ -14,6 +14,7 @@
   </PropertyGroup>
   <ItemGroup>
     <FrameworkReference Include="Microsoft.WindowsDesktop.App.WindowsForms" />
+    <EmbeddedResource Include="Localization/Catalogs/*.json" LogicalName="Hanki.Localization.%(Filename).json" />
     <InternalsVisibleTo Include="HankiTools" />
     <InternalsVisibleTo Include="HankiTools.Checks" />
   </ItemGroup>

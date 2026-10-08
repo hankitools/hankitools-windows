@@ -45,7 +45,7 @@ public sealed class LicenseEntitlements(ValidatedLicense? license, Func<DateTime
 }
 /// <summary>
 /// The app wires the Polar provider (AppLicensing). The licence is kept in Windows Credential Manager, never in an editable
-/// file; Hanki is MIT-licensed, so the check serves honest buyers and is not copy protection.
+/// file; Hanki source is available under the PolyForm Noncommercial license, so the check serves honest buyers and is not copy protection.
 /// </summary>
 public sealed class LicensingSession(ILicenseProvider provider) : IEntitlements
 {

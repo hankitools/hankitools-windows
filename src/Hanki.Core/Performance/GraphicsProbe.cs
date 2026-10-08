@@ -128,7 +128,7 @@ internal static class GraphicsProbe
     [DllImport("user32.dll", CharSet = CharSet.Unicode)] internal static extern bool EnumDisplaySettingsW(string device, int mode, ref DevMode devMode);
     internal static DevMode NewDevMode() => new() { DeviceName = "", FormName = "", Size = (ushort)Marshal.SizeOf<DevMode>() };
 
-    private static IReadOnlyList<DisplayInfo> Displays()
+    internal static IReadOnlyList<DisplayInfo> Displays(bool includeModes = true)
     {
         const uint OnlyActivePaths = 2;
         for (int attempt = 0; attempt < 3; attempt++) {
@@ -152,7 +152,7 @@ internal static class GraphicsProbe
                 double refresh = path.Target.Refresh.Hz > 0 ? path.Target.Refresh.Hz : current.DisplayFrequency;
                 var supported = new HashSet<DisplayMode>();
                 var mode = NewDevMode();
-                for (int i = 0; i < 2000 && EnumDisplaySettingsW(source.GdiName, i, ref mode); i++)
+                for (int i = 0; includeModes && i < 2000 && EnumDisplaySettingsW(source.GdiName, i, ref mode); i++)
                     if (mode.DisplayFrequency > 1) supported.Add(new DisplayMode((int)mode.PelsWidth, (int)mode.PelsHeight, mode.DisplayFrequency));
                 result.Add(new DisplayInfo(name, source.GdiName, path.Source.Adapter.Value, new DisplayMode((int)current.PelsWidth, (int)current.PelsHeight, refresh),
                     supported.OrderByDescending(m => m.Width * m.Height).ThenByDescending(m => m.RefreshHz).ToArray(),

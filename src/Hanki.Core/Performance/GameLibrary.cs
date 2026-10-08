@@ -4,7 +4,7 @@ using Microsoft.Win32;
 namespace IgezziGuard;
 
 /// <param name="Hidden">Removed by the user; a rescan doesn't bring it back.</param>
-public sealed record GameEntry(Guid Id, string Name, string Executable, string Source, GamingGoal Goal, bool Hidden = false);
+public sealed record GameEntry(Guid Id, string Name, string Executable, string Source, GamingGoal Goal, bool Hidden = false, int TacticalVision = 0);
 public sealed record GameLibraryDocument(int Version, IReadOnlyList<GameEntry> Games);
 
 /// <summary>

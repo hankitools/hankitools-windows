@@ -11,12 +11,14 @@ internal static class HankiMenu
     }
     internal static ToolStripMenuItem Item(string text, Action click, bool enabled = true)
     {
-        var item = new ToolStripMenuItem(text) { Enabled = enabled, Padding = new Padding(4, 6, 12, 6) };
+        var item = new ToolStripMenuItem(Localizer.T(text)) { Enabled = enabled, Padding = new Padding(4, 6, 12, 6) };
         item.Click += (_, _) => click();
         return item;
     }
     /// <summary>Opens the menu under a button, aligned to its left edge.</summary>
     internal static void ShowBelow(Control anchor, ContextMenuStrip menu) => menu.Show(anchor, new Point(0, anchor.Height + (int)(4 * anchor.DeviceDpi / 96f)));
+    /// <summary>Opens the menu above a button, aligned to its left edge.</summary>
+    internal static void ShowAbove(Control anchor, ContextMenuStrip menu) => menu.Show(anchor, Point.Empty, ToolStripDropDownDirection.AboveRight);
 
     private sealed class Renderer() : ToolStripProfessionalRenderer(new Palette())
     {
@@ -65,7 +67,7 @@ internal static class Overflow
     internal static HankiButton Attach(FlowLayoutPanel row, Func<HankiButton, bool> foldable, Func<HankiButton, bool>? pinned = null, string label = "More",
         HankiButtonStyle style = HankiButtonStyle.Tab, Font? font = null, int maxRows = 1, int keepVisible = 0)
     {
-        var more = new HankiButton { Text = label + "  ▾", AutoSize = true, Appearance = style, AccessibleName = label, Folded = true, Margin = new Padding(0, 0, 8, 0) };
+        var more = new HankiButton { Text = Localizer.T(label) + "  ▾", AutoSize = true, Appearance = style, AccessibleName = Localizer.T(label), Folded = true, Margin = new Padding(0, 0, 8, 0) };
         if (font is not null) more.Font = font;
         more.Click += (_, _) => {
             var menu = HankiMenu.Create();

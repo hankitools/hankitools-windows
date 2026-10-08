@@ -8,7 +8,9 @@ A Windows toolkit for understanding your PC, reviewing maintenance and investiga
 
 ## Download
 
-Builds are published on [GitHub Releases](https://github.com/hankitools/hankitools-windows/releases). Releases from 0.19.0 on are code-signed; check Digital Signatures in the file Properties. SmartScreen may still warn until the publisher has built reputation. Each release lists a SHA-256 checksum; compare it before running. Hanki is a portable app: extract the ZIP and run `HankiTools.exe`.
+Builds are published on [GitHub Releases](https://github.com/hankitools/hankitools-windows/releases). Releases from 0.19.0 on are code-signed; check Digital Signatures in the file Properties. SmartScreen may still warn until the publisher has built reputation. Each release provides the portable ZIP and a Windows setup EXE, each with its own SHA-256 checksum; compare the matching checksum before opening either file. It offers installation for just your Windows account (under `%LOCALAPPDATA%\Programs`) or for all users (under Program Files, which requires administrator approval). The portable ZIP remains available if you prefer not to install.
+
+The installer creates a Start menu shortcut and standard Windows uninstall entry; an optional desktop shortcut is unchecked by default. It does not install a service or auto-start entry, and Hanki still requests UAC only when an action needs it. Updating replaces the app files. Uninstalling removes those files but preserves `%LOCALAPPDATA%\IgezziGuard` history and recovery data. Neither install scope changes this behavior.
 
 With [Scoop](https://scoop.sh/), which checks the checksum for you:
 
@@ -30,17 +32,21 @@ Only release builds produced by this repository's GitHub Actions workflow from t
 
 Privacy policy: this program will not transfer any information to other networked systems unless specifically requested by the user or the person installing or operating it. Each optional network feature (connection checks, speed test, DNS comparison, Defender definition updates and the optional OpenAI chat) and the third parties it contacts are described in [PRIVACY.md](PRIVACY.md). Hanki shows a review before any change to system configuration and records supported changes for undo.
 
+## Languages
+
+The interface supports the 12 website article languages. Choose **Language / Language** in the sidebar; the preference applies on the next launch. Navigation, home screens and common tool controls are translated; detailed reports and some secondary screens still fall back to English. See [localization coverage and contributor instructions](docs/LOCALIZATION.md).
+
 ## Build and try
 
-On Windows, install the current .NET 10 SDK, close any running Hanki instance, extract the source ZIP and run `BUILD-WINDOWS.cmd`. Internet is required for Microsoft runtime metadata and package restore. The script runs the logic checks, publishes a self-contained Windows x64 candidate and runs a structural UI smoke check. Launch `HankiTools.exe` from the new timestamped `dist` folder. End users of the portable package do not need the SDK.
+On Windows, install the current .NET 10 SDK, close any running Hanki instance, extract the source ZIP and run `BUILD-WINDOWS.cmd`. Internet is required for Microsoft runtime metadata, package restore and the pinned Inno Setup compiler. The script runs the logic checks, publishes a self-contained Windows x64 candidate and runs a structural UI smoke check. Then run `BUILD-INSTALLER.ps1 -CandidateZip PATH_TO_CANDIDATE_ZIP` to validate the ZIP and create the setup EXE, its checksum and compiler-provenance receipt. Launch `HankiTools.exe` from the new timestamped `dist` folder. End users do not need the SDK or .NET runtime.
 
 For a signing-enabled candidate, run `BUILD-WINDOWS.ps1 -CertificateThumbprint YOUR_CERTIFICATE_THUMBPRINT -TimestampServer YOUR_PROVIDER_RFC3161_URL` from a Windows SDK shell with SignTool available. Private signing material stays in your certificate store; it is not included in source or arguments.
 
-After testing that exact signed executable and recording evidence in its generated `acceptance.json`, run `PACKAGE-RELEASE.ps1 -CandidateDirectory PATH_TO_CANDIDATE`. This verifies the executable hash, signature, current runtime patch, smoke result and recorded acceptance before producing a release ZIP and checksum. It does not replace human testing. Details: [RELEASE-CHECKLIST.md](RELEASE-CHECKLIST.md).
+After testing that exact signed executable and recording its evidence in the generated `acceptance.json`, run `PACKAGE-RELEASE.ps1 -CandidateDirectory PATH_TO_CANDIDATE`. This verifies the executable hash, signature, current runtime patch, smoke result and recorded app acceptance before producing the release ZIP and setup EXE from that verified signed ZIP. Test that exact setup EXE in both install scopes, record the four installer checks in `acceptance.json`, then run PUBLISH-RELEASE.ps1; publishing refuses to proceed without them. The installer wrapper itself is not code-signed yet. Details: [RELEASE-CHECKLIST.md](RELEASE-CHECKLIST.md).
 
 To publish on GitHub Releases, install the GitHub CLI (`winget install --id GitHub.cli`), sign in once with `gh auth login`, commit and push, then run `PUBLISH-RELEASE.ps1 -CandidateDirectory PATH_TO_CANDIDATE`. It re-verifies the packaged ZIP, checksum list and signature, requires a clean pushed commit matching the project version, and creates a **draft** release tagged `vVERSION` (marked pre-release for `-rc` versions) with notes from RELEASE-NOTES.md, then checks the uploaded ZIP against the local one. Review and publish the draft on GitHub, or pass `-Publish`. Use `-DryRun` to run every check without creating anything.
 
-Until signing is in place, releases come straight from CI: when a **Windows build** run on main is green, open Actions → **Release unsigned build** → Run workflow and enter that run's number (from its URL). It publishes the exact ZIP that run built, after checking its checksum, `build-info.json`, UI smoke result and that the version matches the commit. An `-rc` version becomes an unsigned preview pre-release tagged `vVERSION-preview`; a plain version becomes a "not code-signed yet" release tagged `vVERSION`. Notes come from this version's section of RELEASE-NOTES.md. Tick *draft* to review the release before publishing. Bump the version in `IgezziGuard.csproj` first: an existing tag is refused.
+Until signing is in place, releases come straight from CI: when a **Windows build** run on main is green, open Actions → **Release unsigned build** → Run workflow and enter that run's number (from its URL). It publishes the exact ZIP and setup installer that run built, after checking their checksums, installer provenance, `build-info.json`, UI smoke result and that the version matches the commit. An `-rc` version becomes an unsigned preview pre-release tagged `vVERSION-preview`; a plain version becomes a "not code-signed yet" release tagged `vVERSION`. Notes come from this version's section of RELEASE-NOTES.md. Tick *draft* to review the release before publishing. Bump the version in `IgezziGuard.csproj` first: an existing tag is refused.
 
 ## Recover from an earlier ZIP failure
 
@@ -77,7 +83,7 @@ The experimental file scanner has a bundled EICAR test signature and simple heur
 
 Hanki targets .NET 10, a long-term support release supported until 10 November 2028. Build against the current servicing patch, and move to the next LTS before that date; the release script enforces this deadline. Official reference: https://dotnet.microsoft.com/en-us/platform/support/policy/dotnet-core
 
-The project namespace/data directory retains the original IgezziGuard name for compatibility. Previous UX/version notes describe history, not current release validation. MIT license; see LICENSE.
+The project namespace/data directory retains the original IgezziGuard name for compatibility. Previous UX/version notes describe history, not current release validation. Licensed under the [PolyForm Noncommercial License 1.0.0](LICENSE) (source-available, free for noncommercial use; commercial use needs a separate license). Releases published before the change to this license (up to and including the last release under the MIT license) remain available under the MIT license they were published with.
 
 ## Diagnostics and editions
 

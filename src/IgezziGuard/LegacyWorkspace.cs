@@ -74,9 +74,7 @@ internal sealed class LegacyWorkspace : Panel
         // One workspace page per navigation destination, in sidebar order (HANKI-ARCH-200).
         foreach (var item in Navigation.Items) Page(item.Page);
         TabPage At(string page) => tabs.TabPages.Cast<TabPage>().Single(p => p.Text == page);
-        // Home's search opens a guided check with its symptom chosen.
-        void OpenGuide(int index) => this.OpenGuide(index);
-        At("Home").Controls.Add(new HomePanel(Navigate, StartFixMyPc, () => Routes, OpenGuide));
+        At("Home").Controls.Add(new HomePanel(Navigate, StartFixMyPc, () => Routes));
         At("System overview").Controls.Add(new Dashboard(Navigate, StartFixMyPc));
         At("Fix My PC").Controls.Add(fullScan);
         var shield = At("Shield");

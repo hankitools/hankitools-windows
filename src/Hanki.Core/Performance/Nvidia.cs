@@ -7,7 +7,7 @@ namespace IgezziGuard;
 /// write the same profiles as NVIDIA Control Panel. Every call is checked; a missing driver or failed call becomes a
 /// clear message, never a guessed value.
 /// </summary>
-internal static class Nvidia
+internal static partial class Nvidia
 {
     [DllImport("nvapi64.dll", EntryPoint = "nvapi_QueryInterface", CallingConvention = CallingConvention.Cdecl)]
     private static extern IntPtr QueryInterface(uint id);

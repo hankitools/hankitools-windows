@@ -6,30 +6,18 @@ internal sealed class HomePanel : UserControl
     private readonly Label systemStatus = Status(), performanceStatus = Status();
     private readonly DiagnosticHistory scans = new(Path.Combine(SecurityPaths.Root, "diagnostic-history.json"));
     private readonly FlowLayoutPanel glance = new() { Dock = DockStyle.Top, AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink, Margin = Padding.Empty };
-    private readonly RecentActivityView activity;
     private DateTime glanceRead = DateTime.MinValue;
     private bool reading;
-    /// <param name="routes">Every page and tool (Find a tool's list), for the search.</param>
-    /// <param name="openGuide">Opens the guided checks with a symptom chosen.</param>
-    public HomePanel(Action<string> navigate, Action startFixMyPc, Func<IReadOnlyList<ToolLauncher.Route>> routes, Action<int> openGuide)
+    /// <param name="routes">Every page and tool (Find a tool's list), for the glance tiles.</param>
+    public HomePanel(Action<string> navigate, Action startFixMyPc, Func<IReadOnlyList<ToolLauncher.Route>> routes)
     {
         Dock = DockStyle.Fill; AutoScroll = true; Padding = new Padding(0, 4, 8, 16);
-        // Search: guided fixes for symptoms first, then pages and tools.
-        IReadOnlyList<SearchEntry>? index = null;
-        IReadOnlyList<SearchEntry> Entries() => index ??= TroubleshootingPanel.Guides.Select((g, i) => HomeSearch.Guide(i, g.Symptom, g.Steps.Length, g.Steps.Select(x => x.Title)))
-            .Concat(routes().Where(r => r.Name != "Home").Select(r => HomeSearch.Tool(r.Name, r.SearchText, Navigation.Find(r.Name)?.Introduction))).ToArray();
-        void Open(SearchEntry entry) {
-            if (entry.GuidedFix && int.TryParse(entry.Target.AsSpan("guide:".Length), out var guide)) openGuide(guide);
-            else routes().FirstOrDefault(r => r.Name == entry.Target)?.Open();
-        }
-        var search = new HomeSearchBox(Entries, Open);
-        activity = new RecentActivityView(navigate);
         var cards = new TableLayoutPanel { Dock = DockStyle.Top, AutoSize = true, ColumnCount = 2, Margin = Padding.Empty };
         cards.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50)); cards.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
-        var system = Area(ProductArea.System, "Something not working?", "Scan Windows and fix what's wrong, safely.",
-            systemStatus, ("Scan my PC", startFixMyPc, true), ("Open Fix my PC", () => navigate("System overview"), false));
-        var performance = Area(ProductArea.Performance, "Want more from your PC?", "Tune it for gaming, creative work or low power.",
-            performanceStatus, ("Tune my PC", () => navigate("Performance overview"), true), ("Performance Lab", () => navigate("Performance Lab"), false));
+        var system = Area("Something not working?", "Scan → review → choose what to fix. Nothing changes until you approve, and Hanki only asks for admin access when a fix needs it.",
+            "accent", systemStatus, ("Scan my PC", startFixMyPc, true), ("Open Fix my PC", () => navigate("System overview"), false), ("Getting started", () => navigate("Help"), false));
+        var performance = Area("Want more from your PC?", "Tune it for gaming, creative work or low power.",
+            "accent-performance", performanceStatus, ("Tune my PC", () => navigate("Performance overview"), true), ("Performance Lab", () => navigate("Performance Lab"), false));
         cards.Controls.Add(system, 0, 0); cards.Controls.Add(performance, 1, 0);
         // Side by side when there is room, stacked otherwise.
         void Fit() {
@@ -38,7 +26,7 @@ internal sealed class HomePanel : UserControl
             cards.SetCellPosition(performance, new TableLayoutPanelCellPosition(narrow ? 0 : 1, narrow ? 1 : 0));
         }
         SizeChanged += (_, _) => Fit();
-
+        DpiChangedAfterParent += (_, _) => { Fit(); FitTiles(); };
         // Your PC at a glance: six tiles, three across when there's room; each opens its page.
         foreach (var model in Loading()) {
             var tile = new GlanceTile(model) { Margin = new Padding(0, 0, 14, 14) };
@@ -46,20 +34,29 @@ internal sealed class HomePanel : UserControl
             glance.Controls.Add(tile);
         }
         void FitTiles() {
+            int gap = (int)(14 * DeviceDpi / 96f);
             int width = Math.Max(260, ClientSize.Width - Padding.Horizontal - SystemInformation.VerticalScrollBarWidth);
-            int columns = width >= 900 ? 3 : width >= 560 ? 2 : 1;
-            foreach (Control tile in glance.Controls) tile.Width = Math.Max(200, (width - 14 * columns) / columns);
+            int columns = ColumnsForWidth(width, DeviceDpi);
+            foreach (Control tile in glance.Controls) {
+                tile.Margin = new Padding(0, 0, gap, gap);
+                tile.Width = Math.Max(200, (width - gap * columns) / columns);
+            }
         }
         SizeChanged += (_, _) => FitTiles();
 
-        // Docked to the top in reverse: search, the two areas, the glance tiles, then recent activity.
-        Controls.Add(activity); Controls.Add(ToolTiles.Heading("Recent activity"));
+        // Docked to the top in reverse: the two areas, then the glance tiles.
         Controls.Add(glance); Controls.Add(ToolTiles.Heading("Your PC at a glance"));
-        Controls.Add(cards); Controls.Add(search);
+        Controls.Add(cards);
         ToolTiles.TopDown(this);
         // Also lay out when shown: a resize while another page was open leaves the old arrangement.
         VisibleChanged += async (_, _) => { if (Visible) { Fit(); FitTiles(); RefreshStatus(); await RefreshGlance(); } };
         RefreshStatus(); Fit(); FitTiles();
+    }
+
+    internal static int ColumnsForWidth(int width, int dpi)
+    {
+        float scale = dpi / 96f;
+        return width >= 900 * scale ? 3 : width >= 520 * scale ? 2 : 1;
     }
 
     private static IEnumerable<GlanceTileModel> Loading() =>
@@ -81,21 +78,21 @@ internal sealed class HomePanel : UserControl
     }
     private static Label Status() => new() { AutoSize = true, Font = new Font("Segoe UI", 11f), Margin = new Padding(0, 0, 0, 16), Tag = "intro" };
 
-    private static RoundedPanel Area(ProductArea area, string headline, string description, Label status, params (string Text, Action Action, bool Primary)[] actions)
+    // accentTag colors the headline (e.g. "accent" or "accent-performance") so each card is recognisable at a glance, instead of blending into the body text.
+    private static RoundedPanel Area(string headline, string description, string accentTag, Label status, params (string Text, Action Action, bool Primary)[] actions)
     {
-        var card = new RoundedPanel { Dock = DockStyle.Fill, AutoSize = true, Padding = new Padding(28, 26, 28, 26), Margin = new Padding(0, 0, 14, 14), MinimumSize = new Size(0, 260) };
+        var card = new RoundedPanel { Dock = DockStyle.Fill, AutoSize = true, Padding = new Padding(22, 20, 22, 20), Margin = new Padding(0, 0, 10, 12) };
         var stack = new FlowLayoutPanel { Dock = DockStyle.Fill, AutoSize = true, FlowDirection = FlowDirection.TopDown, WrapContents = false, Tag = "card", Margin = Padding.Empty };
-        var eyebrow = new Label { Text = area == ProductArea.Performance ? "TUNE MY PC" : "FIX MY PC", AutoSize = true, Font = new Font("Segoe UI", 9f, FontStyle.Bold), Margin = new Padding(0, 0, 0, 8),
-            Tag = area == ProductArea.Performance ? "accent-performance" : "accent" };
-        var title = new Label { Text = headline, AutoSize = true, Font = new Font("Segoe UI Semibold", 21f), Margin = new Padding(0, 0, 0, 6) };
-        var body = new Label { Text = description, AutoSize = true, Font = new Font("Segoe UI", 12f), Margin = new Padding(0, 0, 0, 12) };
+        var title = new Label { Text = Localizer.T(headline), AutoSize = true, Font = new Font("Segoe UI Semibold", 18.5f), Margin = new Padding(0, 0, 0, 6), Tag = accentTag };
+        var body = new Label { Text = Localizer.T(description), AutoSize = true, Font = new Font("Segoe UI", 11.5f), Margin = new Padding(0, 0, 0, 10) };
+        status.Margin = new Padding(0, 0, 0, 12);
         var buttons = new FlowLayoutPanel { AutoSize = true, Tag = "card", Margin = Padding.Empty, WrapContents = true };
         foreach (var (text, action, primary) in actions) {
-            var button = new HankiButton { Text = text, Primary = primary, AutoSize = true, Margin = new Padding(0, 0, 8, 0), Font = new Font("Segoe UI Semibold", primary ? 11.5f : 10.5f),
+            var button = new HankiButton { Text = Localizer.T(text), Primary = primary, AutoSize = true, Margin = new Padding(0, 0, 8, 0), Font = new Font("Segoe UI Semibold", primary ? 11.5f : 10.5f),
                 Appearance = primary ? HankiButtonStyle.Secondary : HankiButtonStyle.Quiet };
             button.Click += (_, _) => action(); buttons.Controls.Add(button);
         }
-        stack.Controls.AddRange([eyebrow, title, body, status, buttons]);
+        stack.Controls.AddRange([title, body, status, buttons]);
         stack.SizeChanged += (_, _) => { var wrap = new Size(Math.Max(200, stack.ClientSize.Width - 8), 0); foreach (var label in new[] { title, body, status }) label.MaximumSize = wrap; };
         card.Controls.Add(stack);
         return card;
@@ -105,23 +102,18 @@ internal sealed class HomePanel : UserControl
     {
         try {
             var latest = scans.Read().OrderByDescending(s => s.Ended).FirstOrDefault();
-            systemStatus.Text = latest is null ? "No scan yet. Fix My PC checks Windows in one read-only pass." : SystemStatus(latest);
-        } catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { systemStatus.Text = "Saved scan history couldn't be read."; }
+            systemStatus.Text = latest is null ? Localizer.T("No scan yet. Fix My PC checks Windows in one read-only pass.") : SystemStatus(latest);
+        } catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { systemStatus.Text = Localizer.T("Saved scan history couldn't be read."); }
         var performanceLatest = PerformanceStatus.Latest();
         performanceStatus.Text = PerformanceStatus.Describe(performanceLatest);
-        DiagnosticScan? lastScan = null;
-        IReadOnlyList<SettingChange> changes = [];
-        try { lastScan = scans.Read().OrderByDescending(s => s.Ended).FirstOrDefault(); } catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
-        try { changes = WindowsSettings.Journal().Read(); } catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Text.Json.JsonException) { }
-        activity.Show(HomeActivity.Build(lastScan, performanceLatest, changes));
     }
     internal static string SystemStatus(DiagnosticScan scan)
     {
         int count = scan.Results.Count(r => r.Severity is FindingSeverity.Warning or FindingSeverity.Critical);
         string when = scan.Ended.ToLocalTime().ToString("g");
-        if (!HomeActivity.Finished(scan))
-            return $"Last scan {when}: {char.ToLowerInvariant(HomeActivity.ScanSummary(scan)[0])}{HomeActivity.ScanSummary(scan)[1..]}. Scan again for a complete picture.";
-        return count == 0 ? $"Last scan {when}: nothing needs attention." : $"{count} system {(count == 1 ? "recommendation" : "recommendations")} from your last scan ({when}).";
+        if (!HomeScanStatus.Finished(scan))
+            return Localizer.Format("Last scan {0} was incomplete. Scan again for a complete picture.", when);
+        return count == 0 ? Localizer.Format("Last scan {0}: nothing needs attention.", when) : Localizer.Format("System recommendations: {0}. Last scan: {1}.", count, when);
     }
 }
 
@@ -132,10 +124,10 @@ internal static class PerformanceStatus
     internal static DiagnosticScan? Latest() { try { return History.Read().OrderByDescending(s => s.Ended).FirstOrDefault(); } catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { return null; } }
     internal static string Describe(DiagnosticScan? latest)
     {
-        if (latest is null) return "Not checked yet. Tune my PC starts with one question.";
+        if (latest is null) return Localizer.T("Not checked yet. Tune my PC starts with one question.");
         int count = latest.Results.Count(r => r.Severity is FindingSeverity.Warning or FindingSeverity.Critical);
-        return count == 0 ? $"Last check {latest.Ended.ToLocalTime():g}: no optimization opportunities found."
-            : $"{count} optimization {(count == 1 ? "opportunity" : "opportunities")} from your last check ({latest.Ended.ToLocalTime():g}).";
+        return count == 0 ? Localizer.Format("Last check {0}: no optimization opportunities found.", latest.Ended.ToLocalTime().ToString("g"))
+            : Localizer.Format("Optimization opportunities: {0}. Last check: {1}.", count, latest.Ended.ToLocalTime().ToString("g"));
     }
 }
 
@@ -171,8 +163,8 @@ internal sealed class PlannedPanel : UserControl
         var card = new RoundedPanel { Dock = DockStyle.Top, AutoSize = true, Padding = new Padding(26, 22, 26, 22), MinimumSize = new Size(0, 120) };
         var stack = new FlowLayoutPanel { Dock = DockStyle.Fill, AutoSize = true, FlowDirection = FlowDirection.TopDown, WrapContents = false, Tag = "card" };
         var eyebrow = new Label { Text = "COMING IN A LATER UPDATE", AutoSize = true, Font = new Font("Segoe UI", 8.25f, FontStyle.Bold), Tag = "accent-performance", Margin = new Padding(0, 0, 0, 6) };
-        var heading = new Label { Text = title, AutoSize = true, Font = new Font("Segoe UI Semibold", 14f), Margin = new Padding(0, 0, 0, 8) };
-        var body = new Label { Text = description, AutoSize = true, Tag = "intro", Margin = Padding.Empty };
+        var heading = new Label { Text = Localizer.T(title), AutoSize = true, Font = new Font("Segoe UI Semibold", 14f), Margin = new Padding(0, 0, 0, 8) };
+        var body = new Label { Text = Localizer.T(description), AutoSize = true, Tag = "intro", Margin = Padding.Empty };
         stack.Controls.AddRange([eyebrow, heading, body]);
         stack.SizeChanged += (_, _) => body.MaximumSize = heading.MaximumSize = new Size(Math.Max(200, stack.ClientSize.Width - 8), 0);
         card.Controls.Add(stack); Controls.Add(card);

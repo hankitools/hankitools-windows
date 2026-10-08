@@ -1,11 +1,11 @@
 using IgezziGuard;
 
-// HANKI-UX-301: Home search, "Your PC at a glance" and recent activity.
+// HANKI-UX-301: "Your PC at a glance" and recent activity.
 internal static class HomeChecks
 {
     private static void Check(bool ok, string text) => DiagnosticChecks.Check(ok, text);
     private static readonly DateTimeOffset Now = new(2026, 9, 24, 12, 0, 0, TimeSpan.Zero);
-    internal static void Run() { Search(); Glance(); Activity(); Adapters(); }
+    internal static void Run() { Search(); Glance(); Activity(); Adapters(); ScanCompletion(); }
 
     private static void Adapters()
     {
@@ -85,7 +85,7 @@ internal static class HomeChecks
         var adminOnlySkipped = new DiagnosticScan(Guid.NewGuid(), Now, Now, 15, 15, false,
             [Finding(FindingSeverity.Healthy), new("sfc", "integrity", DiagnosticCategory.Windows, CollectionOutcome.Unavailable, FindingSeverity.Unknown, "SFC", "Needs administrator rights.", Now, Now)]);
         Check(HomeActivity.ScanSummary(cancelled) == "Cancelled after 5 of 15 checks" && HomeActivity.ScanSummary(stopped) == "Stopped after 14 of 15 checks; 1 recommendation to review"
-            && HomeActivity.ScanSummary(adminOnlySkipped) == "Nothing needed attention" && !HomeActivity.Finished(cancelled) && HomeActivity.Finished(adminOnlySkipped),
+            && HomeActivity.ScanSummary(adminOnlySkipped) == "Nothing needed attention" && !HomeScanStatus.Finished(cancelled) && HomeScanStatus.Finished(adminOnlySkipped),
             "activity: a cancelled or stopped scan says how far it got instead of 'nothing needed attention'; checks skipped for administrator rights don't count as unfinished");
         Check(items.Where(i => i.Title is "Power mode" or "Radeon Anti-Lag").All(i => i.Target == "Recovery") && items.Single(i => i.Title == "Fix my PC scan").Target == "Fix My PC"
             && HomeActivity.Build(null, null, []).Count == 0 && HomeActivity.Build(scan, check, changes, limit: 2).Count == 2, "activity: each item opens where it can be reviewed or undone");
@@ -93,5 +93,17 @@ internal static class HomeChecks
             && HomeActivity.ChangeLabel(Change("GPU preference", "D:/Games/game.exe", "Applied", 1)) == "GPU for game"
             && HomeActivity.ChangeLabel(Change("AMD setting", "7|7", "Applied", 1)) == "Radeon setting" && HomeActivity.ChangeLabel(Change("Power plan", "x", "Applied", 1)) == "Power plan",
             "activity: changes are named in plain words, falling back to their kind");
+    }
+
+    private static void ScanCompletion()
+    {
+        var now = new DateTimeOffset(2026, 9, 24, 12, 0, 0, TimeSpan.Zero);
+        DiagnosticResult Finding() => new("fixture", "f", DiagnosticCategory.Performance, CollectionOutcome.Completed, FindingSeverity.Healthy, "Title", "Explanation.", now, now);
+        var cancelled = new DiagnosticScan(Guid.NewGuid(), now, now, 15, 5, true, [Finding()]);
+        var stopped = new DiagnosticScan(Guid.NewGuid(), now, now, 15, 14, false, [Finding()]);
+        var adminOnlySkipped = new DiagnosticScan(Guid.NewGuid(), now, now, 15, 15, false,
+            [Finding(), new("sfc", "integrity", DiagnosticCategory.Windows, CollectionOutcome.Unavailable, FindingSeverity.Unknown, "SFC", "Needs administrator rights.", now, now)]);
+        Check(!HomeScanStatus.Finished(cancelled) && !HomeScanStatus.Finished(stopped) && HomeScanStatus.Finished(adminOnlySkipped),
+            "home scan status: cancelled and incomplete scans remain distinguishable; checks skipped for administrator rights count as run");
     }
 }

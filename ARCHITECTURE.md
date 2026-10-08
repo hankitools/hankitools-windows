@@ -19,7 +19,7 @@ journals; a new application framework is unnecessary.
 This change adds documentation only. HANKI-102/HANKI-103 are not implemented.
 The future design below is a recommendation, not a description of existing
 functionality or a substitute for those issues' specifications. All existing
-Community/free/open-source features remain available; no licensing, payment,
+Community/free features remain available; no licensing, payment,
 authentication, Pro gating, or runtime behavior changes are introduced.
 
 ## 1. Project, composition and navigation

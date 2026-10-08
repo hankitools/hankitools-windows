@@ -111,7 +111,7 @@ internal sealed class StatusBanner : Control
 internal sealed class ResultCardsView : UserControl
 {
     private readonly SummaryView summary = new();
-    private readonly HankiButton details = new() { Text = "Technical details", AutoSize = true, Appearance = HankiButtonStyle.Quiet, Enabled = false, AccessibleName = "View technical details" };
+    private readonly HankiButton details = new() { Text = Localizer.T("Technical details"), AutoSize = true, Appearance = HankiButtonStyle.Quiet, Enabled = false, AccessibleName = Localizer.T("View technical details") };
     private readonly FlowLayoutPanel footer = new() { Dock = DockStyle.Bottom, AutoSize = true, Padding = new Padding(0, 6, 0, 0) };
     private readonly TextBox evidence;
     public ResultCardsView(TextBox evidence)
@@ -130,7 +130,7 @@ internal sealed class ResultCardsView : UserControl
     private void Present(CardStatus? status, string? headline, IEnumerable<ResultCard> items, bool hasEvidence)
     {
         summary.Show(status, headline, items);
-        evidence.Visible = false; summary.Visible = true; details.Enabled = hasEvidence; details.Text = "Technical details";
+        evidence.Visible = false; summary.Visible = true; details.Enabled = hasEvidence; details.Text = Localizer.T("Technical details");
     }
     /// <summary>Moves the summary/details switch into a page's own action row, instead of a line below the cards.</summary>
     internal void PlaceDetailsIn(Control host) { footer.Controls.Remove(details); footer.Visible = false; details.Margin = new Padding(0, 1, 4, 0); host.Controls.Add(details); }

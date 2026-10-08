@@ -14,6 +14,111 @@ The first code-signed release: HankiTools.exe is signed through Microsoft Artifa
 
 Testing: 737 automated checks and a UI smoke test. Reading the new facts was checked on a Windows 11 desktop, and the Energy saver change was written, read back and restored on a throwaway copy of a power plan. Not yet tried on a laptop, an X3D or APO processor, or with OBS installed.
 
+
+# Hanki Tools 0.19.0-rc.10 — clearer, more colorful Home cards
+
+An unsigned preview that shortens the Home page onboarding copy and makes each card's heading easier to spot.
+
+- **Shorter, clearer copy.** The "Something not working?" card now explains the flow in one short sentence: nothing changes until you approve a fix, and Hanki only asks for admin access when a fix actually needs it.
+- **Headings you can scan.** Each Home card's heading now uses its area's accent color (blue for Fix my PC, purple for Tune my PC) instead of plain white, so the two cards are easier to tell apart at a glance.
+- **Available in all supported languages.** The shortened onboarding copy is translated in all twelve UI language catalogs; native-speaker review is still recommended before a signed release.
+
+# Hanki Tools 0.19.0-rc.9 — clearer first run and recovery
+
+An unsigned preview that explains the first scan and makes recovery options and limits easier to find.
+
+- **Know what happens next.** Home and Help explain the Scan → review findings → choose what to do flow. The scan is read-only; some checks and repair actions need administrator access, which Hanki never requests automatically.
+- **Review changes before approval.** Proposed repairs identify what they change and explain where supported changes are saved, how to undo them, and which Windows repairs do not have per-file Hanki undo.
+- **Find recovery sooner.** Full Scan links directly to Recovery, which explains startup-file backups, registry startup undo, Recycle Bin restoration, restore-point limits and which local data remains after uninstall.
+- **Available in all supported languages.** Onboarding and recovery guidance is included in all twelve UI language catalogs.
+
+# Hanki Tools 0.19.0-rc.8 — Windows setup installer
+
+An unsigned preview adding a Windows setup installer alongside the portable ZIP.
+
+- **Install either way.** The setup wizard offers current-user installation without administrator approval, or all-users installation with Windows administrator approval.
+- **No surprise background changes.** Setup adds app shortcuts and the standard Windows uninstall entry; it does not add a service or auto-start entry. Hanki continues to request UAC only for actions that need it.
+- **Keep recovery data.** Updating replaces the installed app files. Uninstall removes those files but leaves `%LOCALAPPDATA%\IgezziGuard` history and recovery data in place.
+- **Verify both downloads.** The portable ZIP and `HankiTools-0.19.0-rc.8-win-x64-setup.exe` each have a SHA-256 file. The setup program itself is unsigned and may trigger SmartScreen; its app binary is the same tested binary as the ZIP.
+
+The installer is compiled from the checksum-verified CI candidate ZIP using the pinned, signature-checked Inno Setup compiler. Human/signed packaging builds it from PACKAGE-RELEASE.ps1's verified signed ZIP. Native install/upgrade/uninstall acceptance is still required before a signed public release.
+
+# Hanki Tools 0.19.0-rc.7 — Help tiles at high DPI
+
+An unsigned preview fixing clipped Help cards at increased Windows display scaling.
+
+- **Readable Help cards.** Cards now scale vertically with display DPI, and their columns and spacing adapt to the available scaled width so headings and descriptions have room to wrap.
+
+# Hanki Tools 0.19.0-rc.6 — Home search and Quick access
+
+An unsigned preview removing duplicate search UI and fixing the sidebar shortcuts menu.
+
+- **One search entry point.** Removed the extra search box from Home; Find a tool in the header remains available.
+- **Quick access menu.** Replaced the expanding shortcut list with a compact popup that opens above its sidebar button, preserving all six shortcuts and the Windows UAC note.
+
+# Hanki Tools 0.19.0-rc.5 — A cleaner Home at high DPI
+
+An unsigned preview with a simpler Home screen and a fix for clipped PC-at-a-glance tiles.
+
+- **Less clutter on Home.** Recent actions no longer repeat scans, checks and changes already available in History. The scan and Tune my PC status stay with their main actions.
+- **Clearer first view.** The two main actions use less vertical space, with shorter headings and more room for the PC overview.
+- **Scaling fix.** PC-at-a-glance tiles now scale their height and grid density with Windows display DPI, so usage bars no longer cross values and details remain visible at higher scaling.
+- **More legible navigation.** The sidebar now scales with Windows display DPI, keeps the brand and destinations inside the panel, and uses consistent text sizing and row spacing.
+
+Validation includes the automated home/localization checks and the UI smoke test at the current 150% display scaling. The smoke test checks tile heights and sidebar sizing at 100%, 150% and 200%; manually inspect those settings on Windows before public distribution.
+
+# Hanki Tools 0.19.0-rc.4 — Clearer results and guided troubleshooting
+
+An unsigned preview with simpler scan results and a guided internet troubleshooting flow.
+
+- **See what needs attention.** Full scans start with actionable findings. Expand other completed checks and missing evidence separately. Each finding offers a manual next step, with technical details kept one click away.
+- **Return to where you were.** Back and Alt+Left restore the previous tool tab and keep your troubleshooting state.
+- **One internet step at a time.** Connect opens a read-only guided check, suggests the next step and lets you test again or confirm that the problem is resolved. More help opens detailed tools and the Hanki knowledge base.
+- **Relevant repair actions.** Repair review appears only for a recent scan with a supported proposal, administrator access and an eligible edition. Manual guidance remains available.
+- **Clearer controls.** New core controls and summary counts support all twelve interface languages. Back links and action labels fit better at 150% scaling. Detailed diagnostic explanations may still fall back to English.
+- **App-hang history fix.** Reading a hung application's event no longer fails because its missing module name was serialized as an object.
+
+Validation covers the full non-destructive Windows test suite, localization checks, navigation and fixed-fixture usability checks. The release workflow requires a successful main-branch Windows build, including packaged-app smoke testing and the twelve-language UI matrix. Code signing and broader native-action acceptance remain pending. This preview does not change network settings automatically.
+
+# Hanki Tools 0.19.0-rc.3 — Twelve interface languages
+
+An unsigned preview adding the same language choices as the website articles.
+
+- **Twelve languages.** English, Finnish, German, Spanish, French, Italian, Japanese, Korean, Dutch, Polish, Brazilian Portuguese, and Simplified Chinese.
+- **Your language, remembered.** Choose Language in the sidebar, or follow the Windows display language. Changes apply on the next launch. Regional date and number formats stay unchanged.
+- **Translated everyday controls.** Navigation, page introductions, home and tuning choices, dashboard values, tabs, primary actions, common report controls, and search use the selected language. English search aliases remain available.
+- **Coverage.** This is the first localization pass. Detailed diagnostic reports, repair explanations, guided troubleshooting steps, and some secondary forms and status messages remain in English. Native-speaker review is pending; see docs/LOCALIZATION.md.
+
+Validation includes automated catalog and preference checks, the full Windows CI suite, packaged-app smoke testing, and 124 UI view visits in each of the 12 languages at two window sizes (1,488 visits). Code signing and native Windows acceptance remain pending. Smart App Control can block this unsigned preview on protected PCs; publication does not change its trust status.
+
+# Hanki Tools 0.19.0-rc.2 — Tactical Vision
+
+An unsigned preview for testing, adding per-game NVIDIA color saturation controls.
+
+- **Tactical Vision.** In Gaming → Games, select a game and choose Tactical Vision. Enable it and choose Digital Vibrance from 51–100%; the default is 70%. Existing games remain off until enabled.
+- **Automatic activation and restoration.** Keep Hanki open. Colors boost while the selected game's executable is focused and return to their previous setting when you switch away, close the game, or exit Hanki. A recovery record allows Hanki to restore colors after an interrupted session when reopened with the display connected.
+- **Display scope.** The boost affects the entire display containing the game window. Requires an SDR display connected directly to NVIDIA. HDR is unsupported, and some drivers may not expose the required Digital Vibrance controls. This is a color adjustment, with no FPS improvement claimed.
+- **Manual settings respected.** An existing stronger boost is preserved, and manual changes in NVIDIA Control Panel take precedence on restoration.
+
+Testing: build, gaming regression checks, restoration and recovery tests, and UI smoke checks passed for the feature commit. Live NVIDIA color output, fullscreen behavior and driver compatibility still need real-game verification. Native Windows acceptance and code signing remain pending. See docs/TACTICAL-VISION.md for usage and recovery details.
+
+# Hanki Tools 0.19.0-rc.1 — Tune my PC looks further
+
+An unsigned preview for testing. Tune my PC checks more of your PC and turns more of what Hanki already measures into advice. It still changes nothing until you apply, and each new change is saved in Recovery first.
+
+- **Laptops.** Gaming on a laptop whose screen runs through the integrated graphics suggests the MUX switch or Advanced Optimus (the dedicated-GPU mode in your laptop maker's app). Low power suggests hybrid mode, sets the power mode for battery as well as plugged in, and offers to start Energy saver at 50% battery.
+- **Auto HDR.** Gaming + Quality with HDR on offers to turn on Auto HDR for DirectX 11 and 12 games.
+- **Graphics driver age.** A driver six months old is an optional update step; after a year it's a required one.
+- **Network (Gaming + Performance).** A slow or half-duplex wired link is a cable step, Wi-Fi gets an optional "use a cable" step, and there's a step to pause game-launcher and Windows Update downloads while you play.
+- **Hardware.** PCIe lane, Resizable BAR and motherboard-output findings from the gaming check now appear in the plan, as does memory that ran short earlier.
+- **Processor helpers.** Ryzen 9 X3D processors with two core groups get a check for AMD's 3D V-Cache optimizer and the Balanced power plan. Processors Intel lists for Application Optimization (APO) get a step when Intel Dynamic Tuning isn't installed.
+- **Creative work: color.** A YCbCr 4:2:2 or 4:2:0 signal, or 6-bit color on an external display, is a step. On Windows 11 24H2, automatic color management is suggested for wide-gamut displays.
+- **Streaming.** OBS profiles that encode with x264 on the processor get a step to use NVENC, AMF or Quick Sync instead.
+- **Your measured games.** Launch and measure now saves what limited each run. Tune my PC turns each game's latest run into advice for that game: for example, lower textures when video memory was full, or raise graphics settings for free when the processor was the limit.
+
+Testing: 737 automated checks and a UI smoke test. Reading the new facts was checked on a Windows 11 desktop, and the Energy saver change was written, read back and restored on a throwaway copy of a power plan. Not yet tried on a laptop, an X3D or APO processor, or with OBS installed.
+
+
 # Hanki Tools 0.18.0 — Fix my PC and Tune my PC
 
 Hanki Tools 0.18 is the first full release of the 0.18 series. It is not code-signed yet: signing is pending, so Windows SmartScreen warns before the first run. Compare the published SHA-256 checksum before running it.

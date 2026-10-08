@@ -9,7 +9,7 @@ public sealed class CrashTimelinePanel : UserControl
     private readonly Label status = new() { Dock = DockStyle.Bottom, Height = 58, Text = "Read recent markers or enter a known crash time (local time). A marker's logged time may be after restart." };
     private readonly HankiButton load = new() { Text = "Find restart markers", AutoSize = true, Primary = true };
     private readonly HankiButton collect = new() { Text = "Build timeline", AutoSize = true, Primary = true };
-    private readonly HankiButton stop = new() { Text = "Cancel", AutoSize = true, Enabled = false };
+    private readonly HankiButton stop = new() { Text = Localizer.T("Cancel"), AutoSize = true, Enabled = false };
     private readonly HankiButton export = new() { Text = "Review / export", Appearance = HankiButtonStyle.Quiet, AutoSize = true, Enabled = false };
     private readonly HankiButton assistant = new() { Text = "Explain with Assistant", Appearance = HankiButtonStyle.Quiet, AutoSize = true, Enabled = false };
     private CancellationTokenSource? pending;
