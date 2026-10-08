@@ -45,6 +45,8 @@ internal sealed class LegacyWorkspace : Panel
     private readonly SystemActionsPanel systemActions = new();
     private readonly PerformanceSessionsPanel performanceSessions = new();
     private static readonly GamingState gaming = new();
+    /// <summary>The gaming scan shared by the native Gaming overview and the hosted Games, NVIDIA and AMD pages.</summary>
+    internal static GamingState Gaming => gaming;
     private readonly GamingOverviewPanel gamingOverview = new(gaming);
     private readonly GamesPanel gamesPanel = new(gaming);
     private readonly NvidiaPanel nvidiaPanel = new(gaming);
@@ -199,7 +201,7 @@ internal sealed class LegacyWorkspace : Panel
         return path;
     }
     /// <summary>Pages a native page still shows through a host while its own version is not written.</summary>
-    internal Control? HostedPanel(string key) => key switch { "Apps & storage" => apps, "Usage review" => usage, "Startup / undo" => startup, "Duplicates" => duplicates, "Startup folders" => startupFolders, "Comparisons" => sampling, "Power plans" => tuning, "Memory & pagefile" => performance, _ => null };
+    internal Control? HostedPanel(string key) => key switch { "Apps & storage" => apps, "Usage review" => usage, "Startup / undo" => startup, "Duplicates" => duplicates, "Startup folders" => startupFolders, "Comparisons" => sampling, "Games" => gamesPanel, "NVIDIA" => nvidiaPanel, "AMD Radeon" => amdPanel, "Power plans" => tuning, "Memory & pagefile" => performance, _ => null };
     /// <summary>Maps an installed app for usage review (the Usage review page's own action).</summary>
     internal void MapUsage(InstalledApp app) => usage.Map(app);
 

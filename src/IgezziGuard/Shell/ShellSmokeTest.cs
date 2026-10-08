@@ -176,6 +176,9 @@ internal static class ShellSmokeTest
         if (memory.Health is null) throw new IOException("Memory health did not build.");
         WaitFor(memory.Health.RunAsync("Check memory health", SystemPages.MemoryActions(services)), window);
         if (memory.Health.Result.CardCount == 0) throw new IOException("The memory check produced no cards.");
+        window.Workspace.Navigate("Gaming"); Flush(window.Dispatcher);
+        if (window.CurrentNative is not GamingPage gaming || gaming.Overview is null) throw new IOException("Gaming does not open on its native overview.");
+        foreach (var key in gaming.TabKeys) { window.Workspace.Routes.First(r => r.Name == "Gaming  /  " + key).Open(); window.UpdateLayout(); Flush(window.Dispatcher); if (gaming.CurrentTab != key) throw new IOException("A route did not select the Gaming tab " + key); }
         window.Workspace.Navigate("Storage"); Flush(window.Dispatcher);
         if (window.CurrentNative is not StoragePage storage) throw new IOException("Storage is not the native page.");
         WaitFor(storage.View.RunAsync("Check storage", storage.Actions), window);

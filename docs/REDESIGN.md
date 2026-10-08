@@ -148,3 +148,11 @@ Implemented on `redesign/phase-5-performance`:
 - Bug found only by running it: WPF controls must be read on the UI thread, and the Monitor read its duration list from inside the background measurement. The UI check cannot see this because it never measures. Rule for native pages: read control values before `Task.Run`.
 
 Not done in phase 5 (all still hosted): Tune my PC (plan, apply through Recovery), Gaming (overview, games, NVIDIA, AMD), GPU, CPU and power plans, Memory and pagefile, Storage, Performance sessions. Tune my PC changes Windows, NVIDIA and AMD settings, so it deserves its own careful port and live test.
+
+## Phase 5 notes, continued (2026-10-08)
+
+- Tune my PC (the Performance landing) is native: scenario cards, G-SYNC question, plan, reviewed apply, tweaks Hanki won't make, tool cards. Change reviews use the drawer (non-optional changes ticked, optional unticked, "you change it" steps as cards with an Open settings link).
+- GPU, CPU (power plans still hosted), Memory (memory and pagefile still hosted), Storage and the Gaming overview are native. Games, NVIDIA and AMD Radeon are still hosted inside the native Gaming page; so are Comparisons, Power plans and Memory & pagefile. Performance sessions is still hosted.
+- `ReportView` is the pattern for a page of read-only checks: buttons run on the UI thread, heavy work moves to a background thread inside the check.
+- Testing without touching the user's screen: the UI check runs on a private hidden desktop (CreateDesktop + CreateProcess with lpDesktop), and native pages are captured with RenderTargetBitmap because PrintWindow cannot see WPF on a hidden desktop. `BUILD-WINDOWS.ps1` still starts the smoke test as a normal window; it should use the hidden desktop too.
+- Not run for real (they change the system): applying a Tune plan, ReTrim, the processor change.
