@@ -156,3 +156,15 @@ Not done in phase 5 (all still hosted): Tune my PC (plan, apply through Recovery
 - `ReportView` is the pattern for a page of read-only checks: buttons run on the UI thread, heavy work moves to a background thread inside the check.
 - Testing without touching the user's screen: the UI check runs on a private hidden desktop (CreateDesktop + CreateProcess with lpDesktop), and native pages are captured with RenderTargetBitmap because PrintWindow cannot see WPF on a hidden desktop. `BUILD-WINDOWS.ps1` still starts the smoke test as a normal window; it should use the hidden desktop too.
 - Not run for real (they change the system): applying a Tune plan, ReTrim, the processor change.
+
+## Phase 6 and final status (2026-10-08)
+
+Branch `redesign/phase-6-connect-diagnose` holds the whole redesign (phases 0 to 6, stacked); the old WinForms shell is tagged `legacy-winforms-0.19.0`.
+
+Native WPF now: shell (rail, header, palette, footer, review drawer), Home, Fix my PC, Full scan, Recovery, Maintain (Files, Apps, Startup, Duplicates), Shield (all four tabs), Tune my PC, Performance Lab (Monitor with charts, Bottleneck, Stutter), GPU, CPU, Memory, Storage, Gaming overview, Connect (two checks), Diagnose (event logs, Windows Update, battery).
+
+Still existing WinForms pages, shown inside native tabs: Usage review, Startup folders, Comparisons, Power plans, Memory & pagefile, Games, NVIDIA, AMD Radeon, Network tools (DNS), Guided checks, Crash timeline, Windows Activation, Dump analysis, and the History and Help areas (System actions, Performance sessions, Assistant, Help & community, Hanki Pro). Phase 7 (remove WinForms) therefore cannot happen yet; porting those is the next work.
+
+Final build checked on a hidden desktop: 756 checks, 124 hosted views, 17 shell checks, signed and timestamped, 167.6 MB. `BUILD-WINDOWS.ps1` now runs its smoke test on the hidden desktop through `build/Run-Hidden.ps1`.
+
+Never exercised for real (they change the system or contact the network): applying a Tune plan, ReTrim, the processor change, uninstall, Defender scan/update/cancel, DNS change, the Connect checks, a game measurement. Acceptance evidence for 0.19.0 does not carry over: the exe is new, and high contrast, 150/200% scaling and a light theme are untested.

@@ -66,12 +66,12 @@ if ($CertificateThumbprint -or $SigningMetadata) {
 $smoke = Join-Path $publishDirectory 'ui-smoke.json'
 # Screenshots of the main pages go next to dist, outside the package, for reviewing layout changes.
 $screenshots = Join-Path $projectRoot 'dist\ui-screenshots'
-$process = Start-Process -FilePath $exe -ArgumentList @('--ui-smoke-test', ('"' + $smoke + '"'), ('"' + $screenshots + '"')) -PassThru
+# The check runs on a private invisible desktop: building must never put a window on the person's screen.
+$hiddenRun = & (Join-Path $projectRoot 'build\Run-Hidden.ps1') -Exe $exe -Arguments ('--ui-smoke-test "' + $smoke + '" "' + $screenshots + '"') -TimeoutSeconds 90
 $smokeProgress = "$smoke.progress.txt"
 function Show-SmokeProgress { if (Test-Path -LiteralPath $smokeProgress) { Write-Host 'UI smoke check progress (last steps):'; Get-Content -LiteralPath $smokeProgress -Tail 15 | Write-Host } }
-if (-not $process.WaitForExit(90000)) { $process.Kill(); Show-SmokeProgress; throw 'UI smoke check exceeded 90 seconds.' }
-$smokeExit = $process.ExitCode
-$process.Dispose()
+if ($hiddenRun -eq 'TIMEOUT') { Show-SmokeProgress; throw 'UI smoke check exceeded 90 seconds.' }
+$smokeExit = if ($hiddenRun -match '^exit=(\d+)$') { [int]$Matches[1] } else { -1 }
 if ($smokeExit -ne 0 -or -not (Test-Path -LiteralPath $smoke)) { Show-SmokeProgress; throw 'UI smoke check failed.' }
 Remove-Item -LiteralPath $smokeProgress -ErrorAction SilentlyContinue
 $smokeResult = Get-Content -LiteralPath $smoke -Raw | ConvertFrom-Json
