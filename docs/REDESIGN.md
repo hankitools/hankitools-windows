@@ -168,3 +168,7 @@ Still existing WinForms pages, shown inside native tabs: Usage review, Startup f
 Final build checked on a hidden desktop: 756 checks, 124 hosted views, 17 shell checks, signed and timestamped, 167.6 MB. `BUILD-WINDOWS.ps1` now runs its smoke test on the hidden desktop through `build/Run-Hidden.ps1`.
 
 Never exercised for real (they change the system or contact the network): applying a Tune plan, ReTrim, the processor change, uninstall, Defender scan/update/cancel, DNS change, the Connect checks, a game measurement. Acceptance evidence for 0.19.0 does not carry over: the exe is new, and high contrast, 150/200% scaling and a light theme are untested.
+
+## Owner testing (2026-10-08)
+
+The owner reports having tested high contrast, 150% and 200% scaling and a light theme on the redesign build, with no problems found. This is the owner's own report; it was not run by the assistant and no evidence files were recorded. The acceptance checks `dpi-keyboard-contrast` and the others in RELEASE-CHECKLIST.md still need their evidence notes (tester, Windows version, date) entered in acceptance.json for the exact exe before packaging.
