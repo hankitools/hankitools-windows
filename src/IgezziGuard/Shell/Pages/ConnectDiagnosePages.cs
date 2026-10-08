@@ -47,7 +47,7 @@ internal sealed class ConnectPage : NativePage
             "Checks your network adapter, router, name lookups (DNS for www.microsoft.com, cloudflare.com and example.com) and whether Cloudflare (1.1.1.1) and the first site that resolves answer on port 443. Those servers can see your IP address. Nothing is uploaded and no settings are changed.", DiagnoseActions.Connection()));
         tabs.Add("Wi-Fi / latency", "Wi-Fi / latency", () => new ReportView(shell, "Connect",
             "Reads your Wi-Fi signal and sends 10 pings each to your router and to Cloudflare (1.1.1.1), so you can see whether delays start at home or further out. Cloudflare sees your IP address. The report can contain network names and addresses. No settings are changed.", DiagnoseActions.WifiLatency()));
-        tabs.Add("Advanced / DNS repair", "Network tools", () => new HostedView(shell, "Advanced / DNS repair"));
+        tabs.Add("Advanced / DNS repair", "Network tools", () => DiagnoseTools.NetworkTools(shell));
         Content = tabs;
     }
     internal override void OnShown() { if (tabs.Current is null) tabs.Select("Basic checks"); }
@@ -58,6 +58,8 @@ internal sealed class ConnectPage : NativePage
 internal sealed class DiagnosePage : NativePage
 {
     private readonly SubTabs tabs = new();
+    internal GuidedChecksView? Guided => tabs.ContentOf("Guided checks") as GuidedChecksView;
+    internal void ShowGuide(int index) { tabs.Select("Guided checks"); Guided?.ShowSymptom(index); }
     internal ReportView? EventLogs => tabs.ContentOf("Recent Event Logs") as ReportView;
     internal ReportView? Update => tabs.ContentOf("Windows Update") as ReportView;
     internal ReportView? Battery => tabs.ContentOf("Battery & startup") as ReportView;
@@ -66,16 +68,16 @@ internal sealed class DiagnosePage : NativePage
 
     internal DiagnosePage(IShellServices shell)
     {
-        tabs.Add("Guided checks", "Guided checks", () => new HostedView(shell, "Guided checks"));
-        tabs.Add("Crash timeline", "Crash timeline", () => new HostedView(shell, "Crash timeline"));
+        tabs.Add("Guided checks", "Guided checks", () => new GuidedChecksView(shell));
+        tabs.Add("Crash timeline", "Crash timeline", () => DiagnoseTools.CrashTimeline(shell));
         tabs.Add("Recent Event Logs", "Recent Event Logs", () => new ReportView(shell, "Diagnose",
             "Reads warnings, errors and restart records from the Windows System and Application logs for the last 7 days, then explains the common ones in plain language: what they mean, whether they matter, and what to do. The report can contain names and paths. Nothing is cleared or changed.", DiagnoseActions.EventLogs()));
-        tabs.Add("Windows Activation", "Windows Activation", () => new HostedView(shell, "Windows Activation"));
+        tabs.Add("Windows Activation", "Windows Activation", () => DiagnoseTools.Activation(shell));
         tabs.Add("Windows Update", "Windows Update", () => new ReportView(shell, "Diagnose",
             "See whether Windows is installing its updates: when the last Windows update installed, which updates failed and why, and whether a restart is waiting. Hanki only reads Windows' own records; it doesn't install, hide or remove updates.", DiagnoseActions.WindowsUpdate(shell)));
         tabs.Add("Battery & startup", "Battery & startup", () => new ReportView(shell, "Diagnose",
             "Check how much of its original capacity a laptop battery still holds, when Windows last fully restarted and how the last startup went. Hanki reads Windows' own records and changes nothing.", DiagnoseActions.BatteryStartup(shell)));
-        tabs.Add("Dump analysis", "Dump analysis", () => new HostedView(shell, "Dump analysis"));
+        tabs.Add("Dump analysis", "Dump analysis", () => DiagnoseTools.DumpAnalysis(shell));
         Content = tabs;
     }
     internal override void OnShown() { if (tabs.Current is null) tabs.Select("Guided checks"); }

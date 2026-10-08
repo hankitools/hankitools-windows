@@ -30,7 +30,7 @@ public sealed class NetworkToolsPanel : ToolPage
             await Run(async t => { await WindowsSettings.Journal().Apply("IPv4 DNS", target, before, after, t); return "IPv4 DNS setting applied and verified. Re-test connectivity. Undo in Recovery. This does not override VPN/NRPT or prove the network is fixed."; });
         } catch (Exception ex) { Output.Text = ex.Message; }
     }
-    private static async Task<string> Trace(string host, CancellationToken token) {
+    internal static async Task<string> Trace(string host, CancellationToken token) {
         var addresses = await Dns.GetHostAddressesAsync(host, token); var destination = addresses.FirstOrDefault(a => a.AddressFamily == AddressFamily.InterNetwork) ?? throw new IOException("No IPv4 destination.");
         var lines = new List<string> { $"Traceroute {host} → {destination}, {DateTimeOffset.Now:O}", "One probe per hop, 20-hop maximum. Missing ICMP replies do not prove a broken route; return paths can differ." };
         using var ping = new Ping();
@@ -41,9 +41,9 @@ public sealed class NetworkToolsPanel : ToolPage
         } catch (PingException ex) { lines.Add($"{ttl}: probe unavailable ({ex.InnerException?.Message ?? ex.Message})"); } }
         return string.Join("\r\n", lines);
     }
-    private static Task<string> CompareDns(string name, CancellationToken token) => WindowsCommand.PowerShell(
+    internal static Task<string> CompareDns(string name, CancellationToken token) => WindowsCommand.PowerShell(
         "$name=" + WindowsCommand.Quote(name) + "; $results=@(foreach($server in @('Configured','1.1.1.1','8.8.8.8')){ for($i=1;$i -le 3;$i++){ $watch=[Diagnostics.Stopwatch]::StartNew(); try{$params=@{Name=$name;Type='A';DnsOnly=$true;NoHostsFile=$true;QuickTimeout=$true};if($server -ne 'Configured'){$params.Server=$server};$answer=Resolve-DnsName @params;$watch.Stop();[pscustomobject]@{Resolver=$server;Attempt=$i;Milliseconds=$watch.ElapsedMilliseconds;Addresses=(@($answer | Where-Object Type -eq 'A' | Select-Object -ExpandProperty IPAddress) -join ',');Error=$null}}catch{$watch.Stop();[pscustomobject]@{Resolver=$server;Attempt=$i;Milliseconds=$watch.ElapsedMilliseconds;Addresses=$null;Error=$_.Exception.Message}}} }); $results | Format-Table -AutoSize | Out-String -Width 220", token, 120);
-    private static async Task<string> Speed(CancellationToken token) {
+    internal static async Task<string> Speed(CancellationToken token) {
         var lines = new List<string> { $"Cloudflare bounded transfer test {DateTimeOffset.Now:O}", "Single HTTP request per direction. Includes request/connection overhead; not a sustained multi-connection speed benchmark." };
         using var handler = new HttpClientHandler { AllowAutoRedirect = false, AutomaticDecompression = DecompressionMethods.None };
         using var client = new HttpClient(handler) { Timeout = Timeout.InfiniteTimeSpan }; client.DefaultRequestHeaders.UserAgent.ParseAdd("HankiTools/" + AppInfo.Version);

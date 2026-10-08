@@ -192,7 +192,7 @@ internal sealed partial class ShellWindow : Window, IShellServices
     // IShellServices: what native pages may ask of the shell.
     void IShellServices.Navigate(string page) => workspace.Navigate(page);
     IReadOnlyList<ToolLauncher.Route> IShellServices.Routes => workspace.Routes;
-    void IShellServices.OpenGuide(int index) => workspace.OpenGuide(index);
+    void IShellServices.OpenGuide(int index) { workspace.Routes.FirstOrDefault(r => r.Name == "Diagnose  /  Guided checks")?.Open(); (nativePages.GetValueOrDefault("Diagnose") as DiagnosePage)?.ShowGuide(index); }
     IWin32Window IShellServices.DialogOwner => Win32;
     void IShellServices.PrepareForAssistant(string text) => workspace.PrepareForAssistant(text);
     FullScanController IShellServices.Scan => scan;
