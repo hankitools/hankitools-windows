@@ -190,7 +190,9 @@ public sealed class HankiForm : Form
                 "Defender runs independently and may remediate according to Windows policy. The standalone scanner uses a test signature and simple heuristics; it is not a replacement antivirus.\r\n\r\n" +
                 "See PRIVACY.md and README-PORTABLE.md included with the download for details.";
             var close = new HankiButton { Text = "Close", Dock = DockStyle.Bottom, Height = 40, DialogResult = DialogResult.Cancel };
-            dialog.Controls.Add(body); dialog.Controls.Add(close); dialog.CancelButton = close; HankiTheme.Apply(dialog); dialog.ShowDialog(this);
+            dialog.Controls.Add(body); dialog.Controls.Add(close); dialog.CancelButton = close; HankiTheme.Apply(dialog);
+            dialog.Shown += (_, _) => { body.Select(0, 0); close.Focus(); };
+            dialog.ShowDialog(this);
         };
         sidebarFooter.Controls.Add(about);
         sidebarFooter.Controls.Add(new Label { Text = "v" + AppInfo.Version + "  ·  hanki.tools", AutoSize = true, Tag = "intro", Font = new Font("Segoe UI", 8.25f), Margin = new Padding(14, 6, 0, 0) });

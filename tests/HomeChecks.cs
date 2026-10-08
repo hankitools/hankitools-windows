@@ -5,7 +5,19 @@ internal static class HomeChecks
 {
     private static void Check(bool ok, string text) => DiagnosticChecks.Check(ok, text);
     private static readonly DateTimeOffset Now = new(2026, 9, 24, 12, 0, 0, TimeSpan.Zero);
-    internal static void Run() { Search(); Glance(); Activity(); }
+    internal static void Run() { Search(); Glance(); Activity(); Adapters(); }
+
+    private static void Adapters()
+    {
+        Check(NetworkAdapterFilter.IsFilterBinding("Intel(R) Wi-Fi 6E AX211 160MHz-WFP Native MAC Layer LightWeight Filter-0000") && NetworkAdapterFilter.IsFilterBinding("Intel(R) Wi-Fi 6E AX211 160MHz-QoS Packet Scheduler-0000")
+            && NetworkAdapterFilter.IsFilterBinding("Realtek PCIe GbE Family Controller-Virtual WiFi Filter Driver-0001"), "DNS adapters: filter-driver bindings are hidden");
+        Check(!NetworkAdapterFilter.IsFilterBinding("Intel(R) Wi-Fi 6E AX211 160MHz") && !NetworkAdapterFilter.IsFilterBinding("Microsoft Wi-Fi Direct Virtual Adapter #2") && !NetworkAdapterFilter.IsFilterBinding("Realtek PCIe GbE Family Controller") && !NetworkAdapterFilter.IsFilterBinding(null),
+            "DNS adapters: real adapters stay listed");
+        Check(NetworkAdapterFilter.IsUserAdapter("Intel(R) Wi-Fi 6E AX211 160MHz", System.Net.NetworkInformation.NetworkInterfaceType.Wireless80211) && NetworkAdapterFilter.IsUserAdapter("Realtek PCIe GbE Family Controller", System.Net.NetworkInformation.NetworkInterfaceType.Ethernet)
+            && !NetworkAdapterFilter.IsUserAdapter("WAN Miniport (IP)", System.Net.NetworkInformation.NetworkInterfaceType.Ethernet) && !NetworkAdapterFilter.IsUserAdapter("Microsoft Teredo Tunneling Adapter", System.Net.NetworkInformation.NetworkInterfaceType.Tunnel)
+            && !NetworkAdapterFilter.IsUserAdapter("Microsoft Kernel Debug Network Adapter", System.Net.NetworkInformation.NetworkInterfaceType.Ethernet) && !NetworkAdapterFilter.IsUserAdapter(null, System.Net.NetworkInformation.NetworkInterfaceType.Ethernet),
+            "DNS adapters: WAN miniports, tunnels and the debug adapter are not offered");
+    }
 
     private static void Search()
     {

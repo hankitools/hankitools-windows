@@ -16,13 +16,14 @@ public sealed class NetworkToolsPanel : ToolPage
         Button("Compare DNS", async () => { try { var name = ValidateHost(host.Text); if (IPAddress.TryParse(name, out _)) throw new ArgumentException("Enter a DNS hostname for DNS comparisons."); if (Review($"Query A records for {name} three times each using configured DNS, Cloudflare 1.1.1.1 and Google 8.8.8.8? Public resolvers receive this hostname. Cached results can affect timings.")) await Run(t => CompareDns(name, t)); } catch (Exception ex) { Output.Text = ex.Message; } });
         Button("Speed test (35 MiB max)", async () => { if (Review("Send a bounded speed test to speed.cloudflare.com?\nUp to 25 MiB download and 10 MiB upload plus protocol overhead. This uses bandwidth and may incur metered-data charges. Cloudflare sees your source IP. Each direction has a 25-second timeout; no automatic retry. Results are approximate single-request throughput, not line capacity.")) await Run(Speed); });
         Bar.Controls.Add(adapters);
-        Button("Refresh adapters", () => { try { interfaces = NetworkInterface.GetAllNetworkInterfaces().Where(a => Guid.TryParse(a.Id, out _) && a.NetworkInterfaceType != NetworkInterfaceType.Loopback).ToList(); adapters.Items.Clear(); foreach (var a in interfaces) adapters.Items.Add(a.Name + " / " + a.OperationalStatus); } catch (Exception ex) { Output.Text = ex.Message; } });
+        Button("Refresh adapters", () => { try { interfaces = NetworkInterface.GetAllNetworkInterfaces().Where(a => Guid.TryParse(a.Id, out _) && NetworkAdapterFilter.IsUserAdapter(a.Description, a.NetworkInterfaceType)).ToList(); adapters.Items.Clear(); foreach (var a in interfaces) adapters.Items.Add(a.Name + " / " + a.OperationalStatus); } catch (Exception ex) { Output.Text = ex.Message; } });
         Button("Restore automatic IPv4 DNS", () => ChangeDns(""));
         Button("Use Cloudflare IPv4 DNS", () => ChangeDns("1.1.1.1,1.0.0.1"));
     }
     internal static string ValidateHost(string value) { value = value.Trim(); if (value.Length > 253 || Uri.CheckHostName(value) is UriHostNameType.Unknown or UriHostNameType.IPv6) throw new ArgumentException("Enter a plain DNS hostname or IPv4 address, without scheme, port, spaces or path."); return value; }
     private async void ChangeDns(string after) {
-        if (adapters.SelectedIndex < 0) return; var adapter = interfaces[adapters.SelectedIndex]; var target = Guid.Parse(adapter.Id).ToString();
+        if (adapters.SelectedIndex < 0 || adapters.SelectedIndex >= interfaces.Count) { Output.Text = "Choose a network adapter first: click Refresh adapters, pick yours (usually Wi-Fi or Ethernet), then try again. Nothing was changed."; return; }
+        var adapter = interfaces[adapters.SelectedIndex]; var target = Guid.Parse(adapter.Id).ToString();
         try {
             var before = await new WindowsSettings().Read("IPv4 DNS", target, CancellationToken.None);
             if (!Review($"Change IPv4 DNS for {adapter.Name}?\nBefore: {(before.Length == 0 ? "Automatic" : before)}\nAfter: {(after.Length == 0 ? "Automatic" : after)}\n\nMay interrupt name resolution or break private/corporate names. Public DNS receives future queries. IPv6 DNS is not changed. Policy/VPN settings can take precedence. Recovery stores the original configuration. Administrator rights may be required.")) return;

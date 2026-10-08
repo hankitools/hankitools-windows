@@ -136,7 +136,8 @@ public sealed class LabMonitorPanel : ToolPage
             if (run.Samples is null || run.Samples.Count > 100_000 || run.Notes is null) throw new IOException("Not a Hanki measurement.");
             state.Baseline = run;
             Output.Text = $"Loaded a measurement from {run.Started.ToLocalTime():g} as the baseline.";
-        } catch (Exception ex) when (ex is IOException or JsonException or UnauthorizedAccessException or NotSupportedException) { Output.Text = "Couldn't load it: " + ex.Message; }
+        } catch (JsonException) { Output.Text = "Couldn't load it: this isn't a complete Hanki measurement file. It may be damaged, cut short or from another program."; }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException) { Output.Text = "Couldn't load it: " + ex.Message; }
     }
 }
 
