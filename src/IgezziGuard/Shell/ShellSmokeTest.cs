@@ -108,7 +108,7 @@ internal static class ShellSmokeTest
             if (window.CurrentTitle.Length == 0) throw new IOException("Empty header title on " + entry.Page);
             if (window.BackVisible) throw new IOException("A landing page shows a back link: " + entry.Page);
             // Home, Fix my PC and Tune my PC are native WPF pages; every other destination is still a hosted WinForms page.
-            bool expectNative = entry.Page is "Home" or "System overview" or "Performance overview";
+            bool expectNative = entry.Page is "Home" or "System overview" or "Performance overview" or "History" or "Help" or "Hanki Pro";
             if ((window.CurrentNative is not null) != expectNative) throw new IOException("Wrong kind of page shown for " + entry.Page);
             notes.Add("rail/" + entry.Page);
         }
