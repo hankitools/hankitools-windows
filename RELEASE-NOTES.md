@@ -1,6 +1,6 @@
-# Hanki Tools 0.19.0-rc.1 — Tune my PC looks further
+# Hanki Tools 0.19.0 — Tune my PC looks further
 
-An unsigned preview for testing. Tune my PC checks more of your PC and turns more of what Hanki already measures into advice. It still changes nothing until you apply, and each new change is saved in Recovery first.
+The first code-signed release: HankiTools.exe is signed through Microsoft Artifact Signing (publisher Iikka Amos Isosaari) with a trusted timestamp. Check the signature in the file Properties under Digital Signatures. Tune my PC checks more of your PC and turns more of what Hanki already measures into advice. It still changes nothing until you apply, and each new change is saved in Recovery first.
 
 - **Laptops.** Gaming on a laptop whose screen runs through the integrated graphics suggests the MUX switch or Advanced Optimus (the dedicated-GPU mode in your laptop maker's app). Low power suggests hybrid mode, sets the power mode for battery as well as plugged in, and offers to start Energy saver at 50% battery.
 - **Auto HDR.** Gaming + Quality with HDR on offers to turn on Auto HDR for DirectX 11 and 12 games.

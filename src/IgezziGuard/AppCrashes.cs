@@ -15,7 +15,7 @@ internal static class AppCrashes
     internal const string Script = """
         $notes=@();$items=@()
         try{$e=@(Get-WinEvent -FilterHashtable @{LogName='Application';ProviderName='Application Error','Application Hang';Id=1000,1002;StartTime=(Get-Date).AddDays(-14)} -MaxEvents 500 -ErrorAction Stop)
-            $items=@($e|ForEach-Object{[pscustomobject]@{App=[string]$_.Properties[0].Value;Module=$(if($_.Id -eq 1000){[string]$_.Properties[3].Value});Hang=($_.Id -eq 1002);Time=$_.TimeCreated.ToUniversalTime().ToString('o')}})
+            $items=@($e|ForEach-Object{[pscustomobject]@{App=[string]$_.Properties[0].Value;Module=$(if($_.Id -eq 1000){[string]$_.Properties[3].Value}else{$null});Hang=($_.Id -eq 1002);Time=$_.TimeCreated.ToUniversalTime().ToString('o')}})
         }catch{if($_.FullyQualifiedErrorId -notmatch 'NoMatchingEventsFound'){$notes+='crash history'}}
         [pscustomobject]@{Days=14;Events=$items;Notes=($notes -join ', ')}|ConvertTo-Json -Depth 4 -Compress
         """;

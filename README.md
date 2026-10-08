@@ -4,11 +4,11 @@
 
 A Windows toolkit for understanding your PC, reviewing maintenance and investigating problems. Hanki diagnoses common Windows problems, explains results in plain language and offers reviewed, reversible fixes. It is not a vulnerability scanner.
 
-**Status: 0.18.0, not code-signed yet.** GitHub Actions builds every commit on Windows, runs the automated checks and a UI smoke test. Pre-release testing on Windows 11 is recorded in [VALIDATION-v0.18.md](VALIDATION-v0.18.md) (and, for 0.17, [VALIDATION-v0.17.md](VALIDATION-v0.17.md)). Code signing through the SignPath Foundation program is pending; until then Windows SmartScreen warns before the first run.
+**Status: 0.19.0, code-signed.** The executable is signed through Microsoft Artifact Signing and timestamped. GitHub Actions builds every commit on Windows, runs the automated checks and a UI smoke test. Pre-release testing on Windows 11 is recorded in [VALIDATION-v0.18.md](VALIDATION-v0.18.md); the laptop test plan for 0.19 is [VALIDATION-v0.19.md](VALIDATION-v0.19.md).
 
 ## Download
 
-Builds are published on [GitHub Releases](https://github.com/hankitools/hankitools-windows/releases). Until code signing is in place, releases are **not code-signed** and are labelled that way: Windows SmartScreen will warn before the first run. Each release lists a SHA-256 checksum; compare it before running. Hanki is a portable app: extract the ZIP and run `HankiTools.exe`.
+Builds are published on [GitHub Releases](https://github.com/hankitools/hankitools-windows/releases). Releases from 0.19.0 on are code-signed; check Digital Signatures in the file Properties. SmartScreen may still warn until the publisher has built reputation. Each release lists a SHA-256 checksum; compare it before running. Hanki is a portable app: extract the ZIP and run `HankiTools.exe`.
 
 With [Scoop](https://scoop.sh/), which checks the checksum for you:
 
@@ -19,7 +19,7 @@ scoop install hanki/hanki-tools
 
 ## Code signing policy
 
-Windows releases are intended to be signed through the [SignPath Foundation](https://signpath.org) program for open-source projects; the application is pending. Once approved, this section will read: *Free code signing provided by [SignPath.io](https://about.signpath.io), certificate by [SignPath Foundation](https://signpath.org).*
+Windows releases are signed through [Microsoft Artifact Signing](https://learn.microsoft.com/azure/artifact-signing/) (Public Trust). The publisher shown on the signature is Iikka Amos Isosaari. Every signature is timestamped, and the signing certificate never leaves Microsoft's service.
 
 Team roles:
 

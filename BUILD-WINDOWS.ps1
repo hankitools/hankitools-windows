@@ -1,7 +1,11 @@
 [CmdletBinding()]
 param(
     [string]$CertificateThumbprint,
-    [uri]$TimestampServer
+    [uri]$TimestampServer,
+    # Azure Artifact Signing (formerly Trusted Signing): metadata.json with Endpoint, CodeSigningAccountName and
+    # CertificateProfileName, plus the path to Azure.CodeSigning.Dlib.dll from the Microsoft.Trusted.Signing.Client package.
+    [string]$SigningMetadata,
+    [string]$SigningDlib
 )
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
@@ -14,6 +18,9 @@ if (-not (Get-Command dotnet -ErrorAction SilentlyContinue)) { throw 'Install th
 $sdk = (& dotnet --version).Trim()
 if ($LASTEXITCODE -ne 0 -or [int]($sdk.Split('.')[0]) -lt 10) { throw "A .NET SDK version 10 or later is required (found $sdk). Install it from https://dotnet.microsoft.com/download/dotnet/10.0." }
 if ($CertificateThumbprint -and -not $TimestampServer) { throw 'Signing requires -TimestampServer from your signing provider.' }
+if ($CertificateThumbprint -and $SigningMetadata) { throw 'Use either -CertificateThumbprint or -SigningMetadata, not both.' }
+if ($SigningMetadata -and -not $SigningDlib) { throw '-SigningMetadata also needs -SigningDlib (path to Azure.CodeSigning.Dlib.dll).' }
+if ($SigningMetadata -and -not $TimestampServer) { $TimestampServer = [uri]'http://timestamp.acs.microsoft.com' }
 if ($TimestampServer -and $TimestampServer.Scheme -notin @('http','https')) { throw 'TimestampServer must be an HTTP(S) RFC3161 endpoint.' }
 
 # Self-contained packages include their runtime: resolve the current supported .NET 10 patch.
@@ -41,10 +48,15 @@ if (-not (Test-Path -LiteralPath (Join-Path $publishDirectory 'Data\signatures.t
 foreach ($document in @('LICENSE','README-PORTABLE.md','PRIVACY.md','RELEASE-NOTES.md','RELEASE-CHECKLIST.md')) {
     Copy-Item -LiteralPath (Join-Path $projectRoot $document) -Destination $publishDirectory
 }
-if ($CertificateThumbprint) {
-    if ($CertificateThumbprint -notmatch '^[a-fA-F0-9]{40}$') { throw 'Expected a 40-character certificate thumbprint.' }
+if ($CertificateThumbprint -or $SigningMetadata) {
     $signtool = Get-Command signtool.exe -ErrorAction Stop
-    & $signtool.Source sign /sha1 $CertificateThumbprint /fd SHA256 /tr $TimestampServer.AbsoluteUri /td SHA256 $exe
+    if ($SigningMetadata) {
+        foreach ($path in @($SigningMetadata, $SigningDlib)) { if (-not (Test-Path -LiteralPath $path)) { throw "Signing file not found: $path" } }
+        & $signtool.Source sign /v /fd SHA256 /tr $TimestampServer.AbsoluteUri /td SHA256 /dlib (Resolve-Path -LiteralPath $SigningDlib).Path /dmdf (Resolve-Path -LiteralPath $SigningMetadata).Path $exe
+    } else {
+        if ($CertificateThumbprint -notmatch '^[a-fA-F0-9]{40}$') { throw 'Expected a 40-character certificate thumbprint.' }
+        & $signtool.Source sign /sha1 $CertificateThumbprint /fd SHA256 /tr $TimestampServer.AbsoluteUri /td SHA256 $exe
+    }
     if ($LASTEXITCODE -ne 0) { throw 'Signing failed.' }
     & $signtool.Source verify /pa /all /v $exe
     if ($LASTEXITCODE -ne 0) { throw 'Signature verification failed.' }
@@ -68,7 +80,7 @@ $payloadPaths = @('HankiTools.exe','Data\signatures.txt','LICENSE','README-PORTA
 $payload = @($payloadPaths | ForEach-Object { @{ Path=$_; SHA256=(Get-FileHash -LiteralPath (Join-Path $publishDirectory $_) -Algorithm SHA256).Hash } })
 $exeHash = (Get-FileHash -LiteralPath $exe -Algorithm SHA256).Hash
 @{ Version=$version; Runtime=$runtime; Sdk=$sdk; BuiltAt=(Get-Date).ToUniversalTime().ToString('o'); ExeSHA256=$exeHash;
-    Signed=[bool]$CertificateThumbprint; UiSmokePassed=$true; PublicReleaseApproved=$false; Payload=$payload } | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $publishDirectory 'build-info.json') -Encoding UTF8
+    Signed=[bool]($CertificateThumbprint -or $SigningMetadata); UiSmokePassed=$true; PublicReleaseApproved=$false; Payload=$payload } | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $publishDirectory 'build-info.json') -Encoding UTF8
 $required = @('clean-install-launch','dpi-keyboard-contrast','all-module-navigation','readonly-diagnostics','scan-cancel-history','cleanup-recycle-restore','startup-and-undo','power-dns-and-undo','defender-controls','monitor-save-load','ai-consent-cancel','upgrade-data-retention','full-system-scan-activation','diagnostic-history-privacy','community-edition-boundaries')
 @{ ExeSHA256=$exeHash; Tester=''; TestedAt=''; WindowsVersion=''; Checks=@($required | ForEach-Object { @{Id=$_; Passed=$false; Notes=''} }) } |
     ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $publishDirectory 'acceptance.json') -Encoding UTF8
