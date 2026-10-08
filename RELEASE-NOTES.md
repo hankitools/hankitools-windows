@@ -12,7 +12,7 @@ Hanki Tools has a new interface. Every page is rebuilt, nothing about what Hanki
 - **Setup installer.** A Windows setup EXE (current user or all users) is built next to the portable ZIP. The setup program itself is not signed; the installed HankiTools.exe is.
 - **Licence.** Hanki is now released under the PolyForm Noncommercial licence (see LICENSE).
 - **The old window** is still available: start HankiTools.exe with `--legacy-shell`.
-- **Under the hood.** The tested logic moved to a UI-free library (Hanki.Core) with 756+ automated checks; the new window is checked on a hidden desktop in all twelve languages so nothing appears on your screen.
+- **Under the hood.** The tested logic moved to a UI-free library (Hanki.Core) with 780+ automated checks; the new window is checked on a hidden desktop in all twelve languages so nothing appears on your screen.
 
 Testing: the automated checks, a hidden-desktop UI check that opens every page, and the owner's own tests of high contrast, 150% and 200% scaling and the light theme. Not exercised on a real PC: applying a Tune plan, ReTrim, the processor change, uninstalling an app, Defender scan/update/cancel, changing DNS, the Connect network checks, measuring a game, Tactical Vision on an NVIDIA display, and the setup installer scopes. Report anything that looks wrong.
 
