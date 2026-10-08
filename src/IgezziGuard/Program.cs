@@ -16,6 +16,9 @@ internal static class Program
             ShowFatal(args.ExceptionObject as Exception ?? new InvalidOperationException("Unknown fatal error."));
 
         if (args.Length is 2 or 3 && args[0] == "--ui-smoke-test") {
+            Shell.ShellSmokeTest.Run(args[1], args.Length == 3 ? args[2] : null); return;
+        }
+        if (args.Length is 2 or 3 && args[0] == "--legacy-ui-smoke-test") {
             UiSmokeTest.Run(args[1], args.Length == 3 ? args[2] : null); return;
         }
         try { SecurityPaths.EnsureCreated(); }
@@ -28,10 +31,12 @@ internal static class Program
         using var licenceHttp = new HttpClient { Timeout = TimeSpan.FromSeconds(20) };
         licenceHttp.DefaultRequestHeaders.UserAgent.TryParseAdd("HankiTools/" + AppInfo.Version);
         AppLicensing.Start(new PolarLicenseProvider(new WindowsLicenseStore(), LicenseStoreConfig.Current(), licenceHttp, () => DateTimeOffset.UtcNow));
-        Application.Run(new HankiForm());
+        // The WPF shell is the app; the WinForms window stays reachable with --legacy-shell while pages are ported.
+        if (args.Contains("--legacy-shell")) Application.Run(new HankiForm());
+        else Shell.ShellApp.Run();
     }
 
-    private static void ShowFatal(Exception exception)
+    internal static void ShowFatal(Exception exception)
     {
         // Nobody can close a dialog during the automated UI check: record the error and fail it at once.
         if (UiSmokeTest.Active) { UiSmokeTest.Note("FATAL " + exception); Environment.Exit(3); }

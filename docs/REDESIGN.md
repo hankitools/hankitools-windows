@@ -82,3 +82,19 @@ Rules: Core never references a UI assembly; pages talk to Core through small int
 2. Visual direction: keep the dark-first look and blue accent, or move to system light/dark following Windows.
 3. Version and release plan: ship phases as 0.20 previews, or hold everything for one 1.0 launch.
 4. Whether to keep the old WinForms build available (a branch/tag) while the new shell matures.
+
+## Phase 1 notes (2026-10-08)
+
+Implemented on `redesign/phase-1-shell`:
+
+- `LegacyWorkspace` (WinForms) now owns every page, the "Find a tool" routes, task tracking and cancel/close logic. `HankiForm` is only the old chrome around it and stays reachable with `--legacy-shell`.
+- New WPF shell (`src/IgezziGuard/Shell/`): navigation rail, header with back link and introduction, command palette (Ctrl+K, F1 for help, both working while a hosted page has focus), status/cancel footer, remembered window position, dark title bar. The workspace is hosted in a `WindowsFormsHost`.
+- `--ui-smoke-test` now runs against the shell (all 124 hosted views, rail navigation, back link, palette filtering, screenshots through `PrintWindow`). `--legacy-ui-smoke-test` keeps the old check.
+
+Findings that shape the next phases:
+
+- Fluent `ThemeMode.Dark` must not be enabled while WinForms pages are hosted. It is process-wide and tints native tab panes and transparent controls (page background (44,52,60) instead of (16,19,24)). The shell is styled by `Theme.xaml` alone; only the title bar is darkened per window. Revisit when the last WinForms page is gone.
+- The legacy pages use a fixed dark palette, so a light theme can only arrive page by page. `Theme.xaml` uses named brushes so a light dictionary can be added.
+- Adding WPF to the exe project grows the self-contained single-file exe (WPF runtime assemblies). The size is recorded in the phase 1 build notes; removing WinForms in phase 7 recovers part of it.
+- Enabling WPF drops `System.IO` and `System.Net.Http` from the implicit global usings; they are re-added in the project file.
+- `HankiTools.exe --ui-smoke-test <report>` without a screenshots folder never exits on its own (the window refuses to close while some page counts as busy). The build always passes a folder, so it is unaffected; worth fixing when the smoke test is next touched.

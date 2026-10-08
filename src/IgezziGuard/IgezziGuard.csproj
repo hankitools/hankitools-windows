@@ -3,6 +3,7 @@
     <OutputType>WinExe</OutputType>
     <TargetFramework>net10.0-windows</TargetFramework>
     <UseWindowsForms>true</UseWindowsForms>
+    <UseWPF>true</UseWPF>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <AssemblyName>HankiTools</AssemblyName>
@@ -16,15 +17,18 @@
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <!-- WFO1000 guards properties the Windows Forms designer would serialize. Hanki builds every control in code and has no
          designer files, so nothing is serialized; annotating each control property would add noise without protection. -->
-    <NoWarn>$(NoWarn);WFO1000</NoWarn>
+    <NoWarn>$(NoWarn);WFO1000;WPF0001</NoWarn>
     <ApplicationIcon>Brand/hanki.ico</ApplicationIcon>
     <ApplicationManifest>app.manifest</ApplicationManifest>
+    <StartupObject>IgezziGuard.Program</StartupObject>
     <InvariantGlobalization>false</InvariantGlobalization>
     <PublishTrimmed>false</PublishTrimmed>
   </PropertyGroup>
 
   <ItemGroup>
     <ProjectReference Include="../Hanki.Core/Hanki.Core.csproj" />
+    <Using Include="System.IO" />
+    <Using Include="System.Net.Http" />
     <EmbeddedResource Include="Brand/hanki.ico" />
     <EmbeddedResource Include="Brand/hanki-smile.png" />
     <Content Include="Data\signatures.txt">

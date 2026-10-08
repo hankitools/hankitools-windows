@@ -38,8 +38,16 @@ internal static class UiSmokeTest
         try { File.AppendAllText(progressPath, $"{DateTimeOffset.Now:HH:mm:ss.fff} {text}\n"); } catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
     }
 
-    private static T? Find<T>(Control root) where T : Control =>
+    internal static T? Find<T>(Control root) where T : Control =>
         root as T ?? root.Controls.Cast<Control>().Select(Find<T>).FirstOrDefault(c => c is not null);
+
+    /// <summary>Starts the progress log for a check that reports to <paramref name="reportPath"/>.</summary>
+    internal static void StartProgress(string reportPath)
+    {
+        progressPath = Path.GetFullPath(reportPath) + ".progress.txt";
+        try { File.Delete(progressPath); } catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
+        Note("start");
+    }
 
     // Opt-in structural UI check. No action buttons, diagnostics, repairs or network calls are invoked.
     internal static void Run(string reportPath, string? screenshotFolder = null)
