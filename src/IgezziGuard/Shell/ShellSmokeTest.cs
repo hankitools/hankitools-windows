@@ -72,8 +72,8 @@ internal static class ShellSmokeTest
                             UiSmokeTest.Note("screenshot " + route);
                             open.Open(); workspace.PerformLayout(); Flush(window.Dispatcher);
                             if (file == "tune-plan") { UiSmokeTest.Find<TunePanel>(workspace)?.Preview(UiSmokeTest.ExamplePlan()); workspace.PerformLayout(); Flush(window.Dispatcher); }
-                            if (file == "home-search") { UiSmokeTest.Find<HomeSearchBox>(workspace)?.Query("slow"); workspace.PerformLayout(); Flush(window.Dispatcher); }
-                            if (file == "home-glance" && UiSmokeTest.Find<HomePanel>(workspace) is { } home) { UiSmokeTest.Find<HomeSearchBox>(workspace)?.Query(""); home.AutoScrollPosition = new System.Drawing.Point(0, 460); Flush(window.Dispatcher); }
+                            if (file == "home-search" && window.CurrentNative is HomePage searching) { searching.SetQuery("slow"); window.UpdateLayout(); Flush(window.Dispatcher); }
+                            if (file == "home-glance" && window.CurrentNative is HomePage home) { home.SetQuery(""); home.ScrollTo(460); window.UpdateLayout(); Flush(window.Dispatcher); }
                             var path = Path.Combine(screenshotFolder, file + ".png");
                             Capture(window, path);
                             screenshots.Add(path);
@@ -99,15 +99,29 @@ internal static class ShellSmokeTest
     /// <summary>Checks of the shell itself: rail, header, back link and the command palette.</summary>
     private static void CheckShell(ShellWindow window, List<string> notes)
     {
+        notes.Add("handle:" + window.Workspace.IsHandleCreated + "/" + window.Workspace.Tabs.IsHandleCreated);
         if (window.Rail.Count != Navigation.Sidebar.Count) throw new IOException("Navigation rail does not list every destination.");
         foreach (var entry in window.Rail) {
             entry.Button.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Primitives.ButtonBase.ClickEvent)); Flush(window.Dispatcher);
             if (window.Workspace.Tabs.SelectedTab?.Text != entry.Page) throw new IOException("Rail item did not open " + entry.Page);
-            if (entry.Button.IsChecked != true) throw new IOException("Rail item not selected on " + entry.Page);
+            if (entry.Button.IsChecked != true) throw new IOException("Rail item not selected on " + entry.Page + " (" + string.Join(",", notes) + ")");
             if (window.CurrentTitle.Length == 0) throw new IOException("Empty header title on " + entry.Page);
             if (window.BackVisible) throw new IOException("A landing page shows a back link: " + entry.Page);
+            // Home and Fix my PC are native WPF pages; every other destination is still a hosted WinForms page.
+            bool expectNative = entry.Page is "Home" or "System overview";
+            if ((window.CurrentNative is not null) != expectNative) throw new IOException("Wrong kind of page shown for " + entry.Page);
             notes.Add("rail/" + entry.Page);
         }
+        window.Workspace.Navigate("Home"); Flush(window.Dispatcher);
+        if (window.CurrentNative is not HomePage home) throw new IOException("Home is not the native page.");
+        home.SetQuery("dns"); Flush(window.Dispatcher);
+        if (home.ResultCount == 0) throw new IOException("Home search finds nothing for dns.");
+        home.SetQuery("zzzzqqq"); Flush(window.Dispatcher);
+        if (home.ResultCount != 0) throw new IOException("Home search lists results for nonsense.");
+        home.SetQuery(""); notes.Add("home-search");
+        window.Workspace.Navigate("Fix My PC"); Flush(window.Dispatcher);
+        if (window.CurrentNative is not FixScanPage scanPage || !scanPage.CanStart) throw new IOException("The full-scan page is missing or cannot start a scan.");
+        notes.Add("full-scan-page");
         window.Workspace.Navigate("Maintain"); Flush(window.Dispatcher);
         if (!window.BackVisible || window.CurrentIntroduction.Length == 0) throw new IOException("A tool page lacks its back link or introduction.");
         var routes = window.Workspace.Routes;

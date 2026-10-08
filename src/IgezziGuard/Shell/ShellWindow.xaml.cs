@@ -23,13 +23,16 @@ internal sealed class Win32Owner(IntPtr handle) : IWin32Window { public IntPtr H
 /// The WPF shell: navigation rail, page header, command palette, status footer and window behavior around the hosted
 /// <see cref="LegacyWorkspace"/> pages. Pages are ported out of the workspace one at a time (docs/REDESIGN.md).
 /// </summary>
-internal sealed partial class ShellWindow : Window
+internal sealed partial class ShellWindow : Window, IShellServices
 {
     private readonly LegacyWorkspace workspace;
     private readonly List<(WpfRadioButton Button, ProductArea Area, string Page)> rail = [];
     private readonly DispatcherTimer taskTimer = new() { Interval = TimeSpan.FromMilliseconds(500) };
     private string? backTarget;
     private string statusMessage = "";
+    private readonly FullScanController scan = new();
+    private readonly Dictionary<string, NativePage> nativePages = [];
+    private Dictionary<string, Func<NativePage>> nativeFactories = [];
 
     internal LegacyWorkspace Workspace => workspace;
     internal IReadOnlyList<(WpfRadioButton Button, ProductArea Area, string Page)> Rail => rail;
@@ -47,6 +50,11 @@ internal sealed partial class ShellWindow : Window
         VersionText.Text = "v" + AppInfo.Version + "  ·  hanki.tools";
         LoadBranding();
         workspace = new LegacyWorkspace(() => Win32);
+        // Pages built natively take over their destination; every other page stays a hosted WinForms page.
+        nativeFactories = new() { ["Home"] = () => new HomePage(this), ["System overview"] = () => new FixLandingPage(this), ["Fix My PC"] = () => new FixScanPage(this) };
+        // Create the native handles up front: WinForms raises tab-change events only for a control that has one, and the workspace
+        // starts hidden when Home is a native page.
+        _ = workspace.Handle; _ = workspace.Tabs.Handle;
         Host.Child = workspace;
         BuildRail();
         BuildQuickAccess();
@@ -55,7 +63,8 @@ internal sealed partial class ShellWindow : Window
         SearchButton.Click += (_, _) => ShowPalette();
         BackButton.Click += (_, _) => { if (backTarget is not null) workspace.Navigate(backTarget); };
         AboutButton.Click += (_, _) => AboutDialog.Show(Win32);
-        CancelTasksButton.Click += (_, _) => workspace.CancelTasks();
+        CancelTasksButton.Click += (_, _) => { workspace.CancelTasks(); scan.Cancel(); };
+        scan.Changed += () => Dispatcher.BeginInvoke(UpdateFooter);
         taskTimer.Tick += (_, _) => UpdateFooter();
         taskTimer.Start();
         RefreshNavigation();
@@ -133,11 +142,12 @@ internal sealed partial class ShellWindow : Window
         // Pages with their own hero don't repeat an introduction.
         IntroText.Text = destination is null || destination.Page is "Home" or "System overview" or "Performance overview" ? "" : destination.Introduction;
         IntroText.Visibility = IntroText.Text.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
+        ShowDestination(current?.Text);
     }
 
     private void UpdateFooter()
     {
-        var active = workspace.ActiveTasks();
+        var active = ActiveTasks();
         CancelTasksButton.Visibility = active.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
         RunningText.Text = active.Length == 0 ? "" : "Running: " + string.Join(", ", active);
         StatusText.Text = statusMessage;
@@ -145,6 +155,49 @@ internal sealed partial class ShellWindow : Window
         FooterBar.Visibility = active.Length > 0 || statusMessage.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
     }
 
+
+    private string[] ActiveTasks() => scan.IsBusy ? ["Fix My PC", .. workspace.ActiveTasks()] : workspace.ActiveTasks();
+
+    /// <summary>The native page currently shown in place of the hosted workspace, or null while a hosted page is shown.</summary>
+    internal NativePage? CurrentNative { get; private set; }
+
+    /// <summary>Shows the native page for a destination if there is one, otherwise the hosted workspace.</summary>
+    private void ShowDestination(string? page)
+    {
+        NativePage? native = null;
+        try {
+            if (page is not null && nativeFactories.TryGetValue(page, out var create)) {
+                if (!nativePages.TryGetValue(page, out native)) nativePages[page] = native = create();
+            }
+            if (ReferenceEquals(native, CurrentNative) && native is null) return;
+            CurrentNative = native;
+            NativeHost.Content = native;
+            NativeHost.Visibility = native is null ? Visibility.Collapsed : Visibility.Visible;
+            // Hidden, not collapsed: the workspace keeps its size so its pages stay laid out.
+            Host.Visibility = native is null ? Visibility.Visible : Visibility.Hidden;
+            native?.OnShown();
+        } catch (Exception ex) {
+            // A native page that fails must not leave the window on the wrong page: log it and show the hosted page instead.
+            if (UiSmokeTest.Active) throw;
+            try { File.AppendAllText(SecurityPaths.ErrorLog, $"[{DateTimeOffset.Now:O}] Native page '{page}' failed: {ex}\n\n"); } catch (Exception io) when (io is IOException or UnauthorizedAccessException) { }
+            nativeFactories.Remove(page!); nativePages.Remove(page!);
+            CurrentNative = null; NativeHost.Content = null; NativeHost.Visibility = Visibility.Collapsed; Host.Visibility = Visibility.Visible;
+        }
+    }
+
+    // IShellServices: what native pages may ask of the shell.
+    void IShellServices.Navigate(string page) => workspace.Navigate(page);
+    IReadOnlyList<ToolLauncher.Route> IShellServices.Routes => workspace.Routes;
+    void IShellServices.OpenGuide(int index) => workspace.OpenGuide(index);
+    IWin32Window IShellServices.DialogOwner => Win32;
+    void IShellServices.PrepareForAssistant(string text) => workspace.PrepareForAssistant(text);
+    FullScanController IShellServices.Scan => scan;
+    /// <summary>Opens Fix my PC and starts its scan (no network probes, so nothing needs confirming).</summary>
+    public void StartFixMyPc()
+    {
+        workspace.Navigate("Fix My PC");
+        _ = scan.StartAsync(false, () => true);
+    }
     internal void ShowPalette()
     {
         var palette = new Palette(workspace.Routes) { Owner = this };
@@ -154,7 +207,7 @@ internal sealed partial class ShellWindow : Window
 
     private void OnClosing(object? sender, System.ComponentModel.CancelEventArgs e)
     {
-        if (workspace.CancelBeforeClose()) { e.Cancel = true; statusMessage = "Cancelling; close again when finished."; UpdateFooter(); return; }
+        if (workspace.CancelBeforeClose() | scan.IsBusy) { scan.Cancel(); e.Cancel = true; statusMessage = "Cancelling; close again when finished."; UpdateFooter(); return; }
         SavePlacement();
     }
 

@@ -71,7 +71,7 @@ internal sealed class LegacyWorkspace : Panel
         foreach (var item in Navigation.Items) Page(item.Page);
         TabPage At(string page) => tabs.TabPages.Cast<TabPage>().Single(p => p.Text == page);
         // Home's search opens a guided check with its symptom chosen.
-        void OpenGuide(int index) { Routes.FirstOrDefault(r => r.Name == "Diagnose  /  Guided checks")?.Open(); guidance.ShowSymptom(index); }
+        void OpenGuide(int index) => this.OpenGuide(index);
         At("Home").Controls.Add(new HomePanel(Navigate, StartFixMyPc, () => Routes, OpenGuide));
         At("System overview").Controls.Add(new Dashboard(Navigate, StartFixMyPc));
         At("Fix My PC").Controls.Add(fullScan);
@@ -97,11 +97,11 @@ internal sealed class LegacyWorkspace : Panel
         AddTab(maintenance, "Duplicates", duplicates); AddTab(maintenance, "Startup folders", startupFolders);
         apps.MapUsageRequested += app => { usage.Map(app); maintenance.SelectedTab = usagePage; };
         At("Maintain").Controls.Add(maintenance);
-        var assistantPage = At("Assistant"); assistantPage.Controls.Add(assistant);
+        var assistantPage = assistantTab = At("Assistant"); assistantPage.Controls.Add(assistant);
         AttachDetail(assistantPage, "Prepare / redact", "In-app AI (optional)", ai);
-        void SelectInner(Control control) { if (control.Parent is TabPage page && page.Parent is TabControl inner) inner.SelectedTab = page; }
+        void SelectInner(Control control) => SelectInnerTab(control);
         assistant.AiRequested += text => { if (ai.LoadDraft(text)) SelectInner(ai); };
-        void Prepare(string text) { if (assistant.LoadReport(text)) { tabs.SelectedTab = assistantPage; SelectInner(assistant); } }
+        void Prepare(string text) => PrepareForAssistant(text);
         // Guided checks lead: people start from a symptom, then open the tool each step points to.
         var diagnosePage = At("Diagnose"); diagnosePage.Controls.Add(guidance);
         AttachDetail(diagnosePage, "Guided checks", "Crash timeline", timeline);
@@ -178,6 +178,13 @@ internal sealed class LegacyWorkspace : Panel
         Controls.Add(tabs);
         HankiTheme.Apply(this);
     }
+
+    private TabPage? assistantTab;
+    private static void SelectInnerTab(Control control) { if (control.Parent is TabPage page && page.Parent is TabControl inner) inner.SelectedTab = page; }
+    /// <summary>Opens the guided checks with a symptom chosen.</summary>
+    internal void OpenGuide(int index) { Routes.FirstOrDefault(r => r.Name == "Diagnose  /  Guided checks")?.Open(); guidance.ShowSymptom(index); }
+    /// <summary>Hands report text to the Assistant to redact and review, and opens it.</summary>
+    internal void PrepareForAssistant(string text) { if (assistant.LoadReport(text)) { if (assistantTab is not null) tabs.SelectedTab = assistantTab; SelectInnerTab(assistant); } }
 
     /// <summary>Selects a workspace page by its title (a navigation destination).</summary>
     internal void Navigate(string name) { var page = tabs.TabPages.Cast<TabPage>().FirstOrDefault(p => p.Text == name); if (page is not null) tabs.SelectedTab = page; }

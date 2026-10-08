@@ -98,3 +98,15 @@ Findings that shape the next phases:
 - Adding WPF to the exe project grows the self-contained single-file exe (WPF runtime assemblies). The size is recorded in the phase 1 build notes; removing WinForms in phase 7 recovers part of it.
 - Enabling WPF drops `System.IO` and `System.Net.Http` from the implicit global usings; they are re-added in the project file.
 - `HankiTools.exe --ui-smoke-test <report>` without a screenshots folder never exits on its own (the window refuses to close while some page counts as busy). The build always passes a folder, so it is unaffected; worth fixing when the smoke test is next touched.
+
+## Phase 2 notes (2026-10-08)
+
+Implemented on `redesign/phase-2-home-fix`: Home, Fix my PC (landing) and Full scan are native WPF pages in `src/IgezziGuard/Shell/Pages/`.
+
+- `ShellWindow` shows a native page when the selected workspace tab has one (`nativeFactories`), otherwise the hosted workspace. The hidden workspace keeps its size (Visibility.Hidden) so hosted pages stay laid out. A native page that throws is logged and the hosted page is shown instead.
+- `FullScanController` is the single scan engine (progress, cancel, repair review, history). The page, the footer's "Running" list, "Cancel tasks" and closing the window all use it.
+- Home search, tiles, activity and last-scan summary use the same Core models as before (`HomeSearch`, `PcGlance`, `HomeActivity`, `StatusChips`); only the drawing is new.
+- Dialogs that are still WinForms (repair review, customer report, About, Assistant hand-off) are opened with the window as owner.
+- Gotcha: a WinForms control that has never had a window handle does not raise `SelectedIndexChanged`. Because Home is now native, the hosted workspace starts hidden, so the shell creates its handles up front (`workspace.Handle`, `Tabs.Handle`).
+- Not yet in the native pages: Windows high-contrast colors (the WinForms pages switch to system colors; the native pages use the dark palette), and per-monitor DPI testing. Both belong in the phase 2 acceptance pass.
+- The legacy Home, Dashboard and FullScan panels are still constructed inside the workspace so `--legacy-shell` keeps working; they are removed in phase 7.

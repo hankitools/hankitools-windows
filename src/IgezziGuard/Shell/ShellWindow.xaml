@@ -68,7 +68,10 @@
                        Foreground="{StaticResource TextMuted}" AutomationProperties.Name="About this page"/>
 
             <Border Grid.Row="2" Background="{StaticResource Canvas}">
-                <wfi:WindowsFormsHost x:Name="Host" Background="{StaticResource Canvas}"/>
+                <Grid>
+                    <wfi:WindowsFormsHost x:Name="Host" Background="{StaticResource Canvas}"/>
+                    <ContentPresenter x:Name="NativeHost" Visibility="Collapsed"/>
+                </Grid>
             </Border>
 
             <Border x:Name="FooterBar" Grid.Row="3" Visibility="Collapsed" Background="{StaticResource Canvas}"
