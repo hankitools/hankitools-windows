@@ -122,6 +122,11 @@ internal static class ShellSmokeTest
         window.Workspace.Navigate("Fix My PC"); Flush(window.Dispatcher);
         if (window.CurrentNative is not FixScanPage scanPage || !scanPage.CanStart) throw new IOException("The full-scan page is missing or cannot start a scan.");
         notes.Add("full-scan-page");
+        CheckDrawer(window, notes);
+        window.Workspace.Navigate("Recovery"); Flush(window.Dispatcher);
+        if (window.CurrentNative is not RecoveryPage) throw new IOException("Recovery is not the native page.");
+        notes.Add("recovery-page");
+        window.Workspace.Navigate("Home"); Flush(window.Dispatcher);
         window.Workspace.Navigate("Maintain"); Flush(window.Dispatcher);
         if (!window.BackVisible || window.CurrentIntroduction.Length == 0) throw new IOException("A tool page lacks its back link or introduction.");
         var routes = window.Workspace.Routes;
@@ -135,6 +140,40 @@ internal static class ShellSmokeTest
         notes.Add("back-link"); notes.Add("palette/" + routes.Count + " tools");
     }
 
+
+    /// <summary>The review drawer: choices, the "I understand" gate, validation and cancelling, all without a click.</summary>
+    private static void CheckDrawer(ShellWindow window, List<string> notes)
+    {
+        var delete = new ReviewRequest("Delete 2 files?", "2 files · 5 KB.") {
+            ListCaption = "Files", ListLines = ["   2 KB   C:\a.txt", "   3 KB   C:\b.txt"],
+            Choices = [new("recycle", "Move to Recycle Bin", "You can restore them.", "Move 2 files to Recycle Bin"),
+                new("permanent", "Delete permanently", "This can't be undone.", "Delete 2 files permanently", Danger: true, Acknowledge: "I understand these files can't be recovered")],
+        };
+        var drawer = new ReviewDrawer(delete, (FrameworkElement)window.Content) { Owner = window };
+        drawer.Show(); Flush(window.Dispatcher);
+        if (!drawer.ConfirmEnabled || drawer.ConfirmText != "Move 2 files to Recycle Bin" || drawer.AcknowledgeVisible) throw new IOException("The delete review does not start on the Recycle Bin choice.");
+        drawer.SelectChoice("permanent"); Flush(window.Dispatcher);
+        if (drawer.ConfirmEnabled || !drawer.AcknowledgeVisible || drawer.ConfirmText != "Delete 2 files permanently") throw new IOException("Permanent delete is not gated by the acknowledgement.");
+        drawer.Acknowledge(true); Flush(window.Dispatcher);
+        if (!drawer.ConfirmEnabled) throw new IOException("Acknowledging does not enable permanent delete.");
+        drawer.CancelButton.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Primitives.ButtonBase.ClickEvent)); Flush(window.Dispatcher);
+        if (drawer.Result is not { Confirmed: false }) throw new IOException("Cancel did not cancel the review.");
+
+        var repairs = new ReviewRequest("Review repairs", "Nothing changes until you choose Repair selected.") {
+            Items = [new("sfc", "Repair protected system files", ["What it does: runs SFC."]), new("dism", "Repair the component store", ["What it does: runs DISM."], Blocked: "Needs administrator rights.")],
+            Options = [new("network", "Allow network use", "Windows may download files.")], ConfirmLabel = "Repair selected",
+            Validate = state => state.Items.Count == 0 ? "Choose at least one repair." : null,
+        };
+        var second = new ReviewDrawer(repairs, (FrameworkElement)window.Content) { Owner = window };
+        second.Show(); Flush(window.Dispatcher);
+        if (second.ConfirmEnabled || second.ProblemText != "Choose at least one repair.") throw new IOException("Repairs can be confirmed with nothing ticked.");
+        second.Tick("dism", true); Flush(window.Dispatcher);
+        if (second.ConfirmEnabled) throw new IOException("A blocked repair can be ticked.");
+        second.Tick("sfc", true); Flush(window.Dispatcher);
+        if (!second.ConfirmEnabled) throw new IOException("Ticking a repair does not enable Repair selected.");
+        second.Close(); Flush(window.Dispatcher);
+        notes.Add("review-drawer");
+    }
     private static void Capture(ShellWindow window, string path)
     {
         var dpi = VisualTreeHelper.GetDpi(window);

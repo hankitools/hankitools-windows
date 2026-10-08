@@ -23,6 +23,7 @@ internal static class RemovalDialogs
     /// <summary>A yes/no question with a named action; the action is never the default button.</summary>
     internal static bool Confirm(IWin32Window owner, string title, string message, string confirm)
     {
+        if (Shell.ReviewPresenter.IsAvailable) return Shell.ReviewPresenter.Ask(new ReviewRequest(title, message) { ConfirmLabel = confirm, Danger = ReviewDanger(confirm) }).Confirmed;
         var (dialog, _, _) = Frame(title, message, confirm);
         using (dialog) { HankiTheme.Apply(dialog); return dialog.ShowDialog(owner) == DialogResult.OK; }
     }
@@ -33,6 +34,7 @@ internal static class RemovalDialogs
     /// </summary>
     internal static bool? DeleteFiles(IWin32Window owner, IReadOnlyList<(InventoryFile File, string? Blocked)> files)
     {
+        if (Shell.ReviewPresenter.IsAvailable) return DeleteInDrawer(files);
         var eligible = files.Where(f => f.Blocked is null).Select(f => f.File).ToArray();
         int skipped = files.Count - eligible.Length;
         string Count(int n) => n == 1 ? "1 file" : $"{n:N0} files";
@@ -64,5 +66,29 @@ internal static class RemovalDialogs
             HankiTheme.Apply(dialog);
             return dialog.ShowDialog(owner) == DialogResult.OK ? permanent.Selected : null;
         }
+    }
+
+    private static bool ReviewDanger(string confirm) => confirm.StartsWith("Remove", StringComparison.Ordinal) || confirm.StartsWith("Delete", StringComparison.Ordinal) || confirm.StartsWith("Uninstall", StringComparison.Ordinal);
+
+    /// <summary>The delete review as a drawer: the same choices, the same skipped-file explanations, the same "I understand" gate.</summary>
+    private static bool? DeleteInDrawer(IReadOnlyList<(InventoryFile File, string? Blocked)> files)
+    {
+        var eligible = files.Where(f => f.Blocked is null).Select(f => f.File).ToArray();
+        int skipped = files.Count - eligible.Length;
+        string Count(int n) => n == 1 ? "1 file" : $"{n:N0} files";
+        string message = eligible.Length == 0 ? "None of the selected files can be deleted. The list below says why."
+            : $"{Count(eligible.Length)} · {ByteSize.Text(eligible.Sum(f => f.Bytes))}" + (skipped > 0 ? $". {Count(skipped)} can't be deleted and will be skipped." : ".") +
+              " Close programs that use these files first. Files in a synced folder (OneDrive and similar) are removed from your other devices too.";
+        var request = new ReviewRequest(eligible.Length == 1 ? "Delete this file?" : $"Delete {Count(eligible.Length)}?", message) {
+            ListCaption = "Files",
+            ListLines = files.SelectMany(f => new[] { $"{ByteSize.Text(f.File.Bytes),10}   {f.File.FullPath}" }.Concat(f.Blocked is { } why ? [$"{"",13}Skipped: {why}"] : [])).ToArray(),
+            Choices = [
+                new("recycle", "Move to Recycle Bin", "You can restore them. The space is freed when you empty the Recycle Bin.", $"Move {Count(eligible.Length)} to Recycle Bin"),
+                new("permanent", "Delete permanently", "Frees the space now. This can't be undone.", $"Delete {Count(eligible.Length)} permanently", Danger: true, Acknowledge: "I understand these files can't be recovered"),
+            ],
+            Validate = _ => eligible.Length == 0 ? "None of the selected files can be deleted." : null,
+        };
+        var result = Shell.ReviewPresenter.Ask(request);
+        return result.Confirmed ? result.State.ChoiceId == "permanent" : null;
     }
 }

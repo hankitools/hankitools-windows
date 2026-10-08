@@ -8,6 +8,7 @@ internal static class RepairReviewDialog
 {
     internal static RepairApproval? Show(IWin32Window owner, DiagnosticScan scan, IReadOnlyList<IRepairAction> actions, bool administrator)
     {
+        if (Shell.ReviewPresenter.IsAvailable) return ShowInDrawer(scan, actions, administrator);
         var (dialog, approval) = Build(scan, actions, administrator);
         using (dialog) return dialog.ShowDialog(owner) == DialogResult.OK ? approval() : null;
     }
@@ -72,5 +73,29 @@ internal static class RepairReviewDialog
 
         return (dialog, () => RepairGuidance.ApprovalProblem(Selected(), network?.Checked ?? false) is not null ? null
             : new(scan.Id, Selected().Select(d => d.Id).ToHashSet(StringComparer.Ordinal), restore?.Checked ?? false, network?.Checked ?? false));
+    }
+
+    /// <summary>The same review as a drawer: one card per repair, the network and restore-point options, and the same approval rules.</summary>
+    private static RepairApproval? ShowInDrawer(DiagnosticScan scan, IReadOnlyList<IRepairAction> actions, bool administrator)
+    {
+        var definitions = actions.Select(a => a.Definition).ToList();
+        var items = definitions.Select(d => new ReviewItem(d.Id, d.Title, [
+            .. RepairGuidance.Reason(scan, d.Id) is { Length: > 0 } reason ? new[] { "Why: " + reason } : [],
+            "What it does: " + d.ChangeDescription,
+            $"{d.Risk} risk · {RepairGuidance.Restart(d.Restart)} · Undo: {d.RollbackInformation}"],
+            RepairGuidance.Blocker(d, administrator))).ToList();
+        var networkUsers = definitions.Where(d => d.RequiresNetwork).ToList();
+        var options = new List<ReviewOption>();
+        if (networkUsers.Count > 0) options.Add(new("network", "Allow network use", string.Join(" ", networkUsers.Select(RepairGuidance.NetworkUse))));
+        if (definitions.Any(d => d.RecommendRestorePoint))
+            options.Add(new("restore", "Continue if a restore point can't be created", "Hanki creates a Windows restore point before repairing Windows files. If that fails, the repair stops unless this is ticked."));
+        IReadOnlyCollection<RepairDefinition> Selected(ReviewState state) => definitions.Where(d => state.Items.Contains(d.Id)).ToList();
+        var request = new ReviewRequest("Review repairs", "Nothing changes until you choose Repair selected. Each repair checks the problem again just before it runs, and afterwards to see whether it worked.") {
+            Items = items, Options = options, ConfirmLabel = "Repair selected",
+            Validate = state => RepairGuidance.ApprovalProblem(Selected(state), state.Options.Contains("network")),
+        };
+        var result = Shell.ReviewPresenter.Ask(request);
+        if (!result.Confirmed || RepairGuidance.ApprovalProblem(Selected(result.State), result.State.Options.Contains("network")) is not null) return null;
+        return new(scan.Id, Selected(result.State).Select(d => d.Id).ToHashSet(StringComparer.Ordinal), result.State.Options.Contains("restore"), result.State.Options.Contains("network"));
     }
 }

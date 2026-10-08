@@ -46,12 +46,13 @@ internal sealed partial class ShellWindow : Window, IShellServices
     {
         InitializeComponent();
         DarkTitleBar.Apply(this);
+        ReviewPresenter.Provider = ShowReview;
         Title = "Hanki Tools • " + AppInfo.Version;
         VersionText.Text = "v" + AppInfo.Version + "  ·  hanki.tools";
         LoadBranding();
         workspace = new LegacyWorkspace(() => Win32);
         // Pages built natively take over their destination; every other page stays a hosted WinForms page.
-        nativeFactories = new() { ["Home"] = () => new HomePage(this), ["System overview"] = () => new FixLandingPage(this), ["Fix My PC"] = () => new FixScanPage(this) };
+        nativeFactories = new() { ["Home"] = () => new HomePage(this), ["System overview"] = () => new FixLandingPage(this), ["Fix My PC"] = () => new FixScanPage(this), ["Recovery"] = () => new RecoveryPage(this) };
         // Create the native handles up front: WinForms raises tab-change events only for a control that has one, and the workspace
         // starts hidden when Home is a native page.
         _ = workspace.Handle; _ = workspace.Tabs.Handle;
@@ -71,7 +72,7 @@ internal sealed partial class ShellWindow : Window, IShellServices
         RestorePlacement();
         SourceInitialized += (_, _) => ComponentDispatcher.ThreadPreprocessMessage += OnThreadMessage;
         Closing += OnClosing;
-        Closed += (_, _) => { ComponentDispatcher.ThreadPreprocessMessage -= OnThreadMessage; taskTimer.Stop(); };
+        Closed += (_, _) => { ComponentDispatcher.ThreadPreprocessMessage -= OnThreadMessage; taskTimer.Stop(); ReviewPresenter.Provider = null; };
         // Contacts Polar only when a Technician licence is due for its weekly check; offline, the stored licence keeps working.
         ContentRendered += async (_, _) => { RefreshNavigation(); try { await AppLicensing.RefreshAsync(CancellationToken.None); } catch (Exception ex) when (ex is IOException or HttpRequestException or InvalidOperationException) { } };
     }
@@ -198,6 +199,14 @@ internal sealed partial class ShellWindow : Window, IShellServices
         workspace.Navigate("Fix My PC");
         _ = scan.StartAsync(false, () => true);
     }
+    /// <summary>Shows a confirmation as the drawer on the right edge of the window and waits for the answer.</summary>
+    private ReviewResult ShowReview(ReviewRequest request)
+    {
+        var drawer = new ReviewDrawer(request, (FrameworkElement)Content) { Owner = this };
+        drawer.ShowDialog();
+        return drawer.Result ?? new ReviewResult(false, new ReviewState(null, new HashSet<string>(), new HashSet<string>(), false));
+    }
+
     internal void ShowPalette()
     {
         var palette = new Palette(workspace.Routes) { Owner = this };

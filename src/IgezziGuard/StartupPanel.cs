@@ -75,7 +75,7 @@ public sealed class StartupPanel : UserControl
             Run(() => { actions.Undo(action.Id); RefreshData(); });
         };
     }
-    private bool Confirm(string text) => MessageBox.Show(this, text, "Review startup change", MessageBoxButtons.OKCancel,
+    private bool Confirm(string text) => Shell.ReviewPresenter.IsAvailable ? Shell.ReviewPresenter.Ask(text) : MessageBox.Show(this, text, "Review startup change", MessageBoxButtons.OKCancel,
         MessageBoxIcon.Question, MessageBoxDefaultButton.Button2) == DialogResult.OK;
     private void Run(Action work) { try { work(); } catch (Exception ex) { MessageBox.Show(this, ex.Message + "\nRefresh and inspect Action history before retrying.", "Startup action stopped"); } }
     private void RefreshData() {

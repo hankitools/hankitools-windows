@@ -279,6 +279,59 @@
         </Setter>
     </Style>
 
+    <Style x:Key="DangerButton" TargetType="Button">
+        <Setter Property="Foreground" Value="White"/>
+        <Setter Property="Padding" Value="16,8"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="Frame" CornerRadius="8" Background="#B8383C" BorderThickness="2" BorderBrush="Transparent" Padding="{TemplateBinding Padding}">
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" RecognizesAccessKey="False"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Frame" Property="Background" Value="#D14449"/></Trigger>
+                        <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="Frame" Property="BorderBrush" Value="{StaticResource TextPrimary}"/></Trigger>
+                        <Trigger Property="IsEnabled" Value="False"><Setter TargetName="Frame" Property="Opacity" Value="0.45"/></Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- A selectable card: one of several choices, with a radio mark so selection never relies on color alone. -->
+    <Style x:Key="ChoiceCard" TargetType="RadioButton">
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="Foreground" Value="{StaticResource TextPrimary}"/>
+        <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="RadioButton">
+                    <Border x:Name="Frame" CornerRadius="10" Background="{StaticResource Canvas}" BorderBrush="{StaticResource Hairline}" BorderThickness="1" Padding="14,12">
+                        <DockPanel>
+                            <Grid DockPanel.Dock="Left" Width="18" Height="18" Margin="0,2,12,0" VerticalAlignment="Top">
+                                <Ellipse x:Name="Ring" Stroke="{StaticResource TextMuted}" StrokeThickness="1.6"/>
+                                <Ellipse x:Name="Dot" Margin="4" Fill="{Binding BorderBrush, ElementName=Frame}" Visibility="Collapsed"/>
+                            </Grid>
+                            <ContentPresenter RecognizesAccessKey="False"/>
+                        </DockPanel>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Frame" Property="Background" Value="{StaticResource Raised}"/></Trigger>
+                        <Trigger Property="IsChecked" Value="True">
+                            <Setter TargetName="Frame" Property="BorderBrush" Value="{Binding Tag, RelativeSource={RelativeSource TemplatedParent}}"/>
+                            <Setter TargetName="Frame" Property="BorderThickness" Value="2"/>
+                            <Setter TargetName="Dot" Property="Visibility" Value="Visible"/>
+                            <Setter TargetName="Ring" Property="Stroke" Value="{Binding Tag, RelativeSource={RelativeSource TemplatedParent}}"/>
+                        </Trigger>
+                        <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="Frame" Property="BorderBrush" Value="{StaticResource Accent}"/></Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
     <!-- Dark, slim scroll bars for every WPF scroller (hosted WinForms pages keep their own). -->
     <Style TargetType="ScrollBar">
         <Setter Property="Width" Value="10"/>

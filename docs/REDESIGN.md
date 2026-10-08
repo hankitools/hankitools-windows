@@ -110,3 +110,15 @@ Implemented on `redesign/phase-2-home-fix`: Home, Fix my PC (landing) and Full s
 - Gotcha: a WinForms control that has never had a window handle does not raise `SelectedIndexChanged`. Because Home is now native, the hosted workspace starts hidden, so the shell creates its handles up front (`workspace.Handle`, `Tabs.Handle`).
 - Not yet in the native pages: Windows high-contrast colors (the WinForms pages switch to system colors; the native pages use the dark palette), and per-monitor DPI testing. Both belong in the phase 2 acceptance pass.
 - The legacy Home, Dashboard and FullScan panels are still constructed inside the workspace so `--legacy-shell` keeps working; they are removed in phase 7.
+
+## Phase 3 notes (2026-10-08)
+
+Implemented on `redesign/phase-3-review-recovery`:
+
+- `ReviewRequest` (Core, no UI types) describes any confirmation: title, introduction, Before/After rows, marked notes (undo, warning, administrator), a file list, mutually exclusive choices with an acknowledgement gate, checkable items, options and a validation callback. `ReviewText.Parse` turns the plain-text confirmations that pages already write into one, keeping every sentence.
+- `ReviewDrawer` (WPF) shows it as a panel on the right edge of the window. Cancel has focus, Enter never confirms, Escape cancels, and blocked items can never be counted as ticked. `ReviewPresenter` installs it; when it is not installed (the legacy window) every caller falls back to the dialog it had before.
+- Routed through the drawer: `ToolPage.Review` (about 25 confirmations in the hosted pages), the startup-change confirm, uninstall and leftover-entry confirms, the delete-files review (Recycle Bin or permanent with "I understand"), the repair review, the network-probes confirm and Recovery's undo.
+- Recovery is a native page: plain names and values (power plans by name, empty DNS as Automatic), status words, and "Put back" through the drawer. The text rules live in `RecoveryText` (Core, tested).
+- Still native message boxes (not changes to the system, so not part of this phase): AI chat clear and replace, the Windows Performance Options prompt, Quick Assist warnings, and the app-usage mapping prompts.
+- The airspace rule shapes the design: WPF cannot draw over the hosted WinForms pages, so the drawer is a borderless owned window positioned over the right edge of the content area instead of an overlay inside the window.
+- NVIDIA values in Recovery still show raw hex (0x0000000A); naming them needs the NVIDIA catalog and belongs with the Tune my PC port.

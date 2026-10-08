@@ -88,9 +88,8 @@ internal sealed class FixScanPage : NativePage
 
     private async Task StartAsync()
     {
-        await scan.StartAsync(probes.IsChecked == true, () => MessageBox.Show(System.Windows.Application.Current.MainWindow,
-            "Include network probes? Gateway ICMP contacts your local network. " + WindowsDiagnosticCatalog.ProbeDisclosure + " Installed KMS clients may also query your organization DNS and contact the Windows-configured KMS host. These endpoints and your DNS resolver can see your source IP. No report is uploaded. You can run without these checks by clearing Include network probes.",
-            "Review action", MessageBoxButton.OKCancel, MessageBoxImage.Information, MessageBoxResult.Cancel) == MessageBoxResult.OK);
+        await scan.StartAsync(probes.IsChecked == true, () => ReviewPresenter.Ask(
+            "Include network probes? Gateway ICMP contacts your local network. " + WindowsDiagnosticCatalog.ProbeDisclosure + " Installed KMS clients may also query your organization DNS and contact the Windows-configured KMS host. These endpoints and your DNS resolver can see your source IP. No report is uploaded. You can run without these checks by clearing Include network probes."));
     }
 
     internal bool CanStart => start.IsEnabled;

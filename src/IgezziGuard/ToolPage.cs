@@ -150,7 +150,7 @@ public class ToolPage : UserControl
         var b = new HankiButton { Text = text, AutoSize = true, Primary = !Bar.Controls.OfType<HankiButton>().Any(x => x != barMore) };
         b.Click += (_, _) => { if (!IsBusy) action(); }; Bar.Controls.Add(b); return b;
     }
-    protected bool Review(string text) => MessageBox.Show(this, text, "Review action", MessageBoxButtons.OKCancel, MessageBoxIcon.Information, MessageBoxDefaultButton.Button2) == DialogResult.OK;
+    protected bool Review(string text) => Shell.ReviewPresenter.IsAvailable ? Shell.ReviewPresenter.Ask(text) : MessageBox.Show(this, text, "Review action", MessageBoxButtons.OKCancel, MessageBoxIcon.Information, MessageBoxDefaultButton.Button2) == DialogResult.OK;
 
     /// <summary>Show a plain-language summary in place of the report; the report stays one click away.</summary>
     protected void ShowSummary(Diagnosis diagnosis)
