@@ -154,6 +154,28 @@ internal static class ShellSmokeTest
         window.UpdateLayout(); Flush(window.Dispatcher);
         if (files.VisibleCount != 400) throw new IOException("The Files list does not show every file.");
         files.SelectRows(0, 1, 2); Flush(window.Dispatcher);
+        // Apps: a prepared list (filter, sort, leftover toggle); nothing is uninstalled.
+        page.Select("Apps & storage"); window.UpdateLayout(); Flush(window.Dispatcher);
+        if (page.Apps is not { } appsView) throw new IOException("Apps is not a native view.");
+        appsView.Load([
+            new InstalledApp("Alpha Tool", "Alpha Inc", "1.0", new DateTime(2026, 1, 2), 50_000_000, "Registry"),
+            new InstalledApp("Beta Suite", "Beta Ltd", "2.3", null, null, "Registry"),
+            new InstalledApp("Gone App", "Gone Co", "0.9", new DateTime(2025, 5, 5), 1_000, "Registry", Leftover: true)]);
+        Flush(window.Dispatcher);
+        if (appsView.ShownCount != 3) throw new IOException("Apps does not list the prepared apps.");
+        // Startup: reads the current user's Run key (read-only) and shows both sections.
+        page.Select("Startup / undo"); window.UpdateLayout(); Flush(window.Dispatcher);
+        if (page.Startup is not { } startupView) throw new IOException("Startup is not a native view.");
+        startupView.RefreshData(); startupView.ShowSection("Action history / undo"); Flush(window.Dispatcher); startupView.ShowSection("Startup entries");
+        window.Workspace.Routes.First(r => r.Name == "Maintain  /  Startup / undo").Open(); Flush(window.Dispatcher);
+        if (page.CurrentTab != "Startup / undo") throw new IOException("The Startup route did not open the Startup tab.");
+        // Duplicates: a prepared result with one group.
+        page.Select("Duplicates"); window.UpdateLayout(); Flush(window.Dispatcher);
+        if (page.Duplicates is not { } duplicatesView) throw new IOException("Duplicates is not a native view.");
+        var copy1 = new InventoryFile(@"C:\fixture\a\same.bin", 4096, now, now); var copy2 = new InventoryFile(@"C:\fixture\b\same.bin", 4096, now, now);
+        duplicatesView.Load(new DuplicateResult([new DuplicateGroup("ABCDEF", [copy1, copy2])], 0, "Compared 2 files."));
+        Flush(window.Dispatcher);
+        if (duplicatesView.GroupCount != 1) throw new IOException("Duplicates does not list the prepared group.");
         window.Workspace.Routes.First(r => r.Name == "Maintain  /  Startup folders").Open(); Flush(window.Dispatcher);
         if (page.CurrentTab != "Startup folders") throw new IOException("A route did not select its Maintain tab.");
         foreach (var key in page.TabKeys) { page.Select(key); window.UpdateLayout(); Flush(window.Dispatcher); }
