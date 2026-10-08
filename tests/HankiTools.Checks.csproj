@@ -6,85 +6,8 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="../src/IgezziGuard/Scheduling/ScheduledHealthChecks.cs" Link="Scheduling/ScheduledHealthChecks.cs" />
-    <Compile Include="../src/IgezziGuard/Diagnostics/Modules/ActivationDiagnostic.cs" Link="Diagnostics/Modules/ActivationDiagnostic.cs" />
-    <Compile Include="../src/IgezziGuard/Sharing/ReviewedContext.cs" Link="Sharing/ReviewedContext.cs" />
-    <Compile Include="../src/IgezziGuard/Technician/TechnicianSession.cs" Link="Technician/TechnicianSession.cs" />
-    <Compile Include="../src/IgezziGuard/Technician/TechnicianReport.cs" Link="Technician/TechnicianReport.cs" />
-    <Compile Include="../src/IgezziGuard/Repairs/RepairGuidance.cs" Link="Repairs/RepairGuidance.cs" />
-    <Compile Include="../src/IgezziGuard/Navigation.cs" Link="Navigation.cs" />
-    <Compile Include="../src/IgezziGuard/NetworkAdapterFilter.cs" Link="NetworkAdapterFilter.cs" />
-    <Compile Include="../src/IgezziGuard/Performance/PerformanceSessions.cs" Link="Performance/PerformanceSessions.cs" />
-    <Compile Include="../src/IgezziGuard/History/SystemActions.cs" Link="History/SystemActions.cs" />
-    <Compile Include="../src/IgezziGuard/Performance/GraphicsModel.cs" Link="Performance/GraphicsModel.cs" />
-    <Compile Include="../src/IgezziGuard/Performance/GpuBus.cs" Link="Performance/GpuBus.cs" />
-    <Compile Include="../src/IgezziGuard/Performance/GraphicsProbe.cs" Link="Performance/GraphicsProbe.cs" />
-    <Compile Include="../src/IgezziGuard/Performance/WindowsGamingProbe.cs" Link="Performance/WindowsGamingProbe.cs" />
-    <Compile Include="../src/IgezziGuard/Performance/NvidiaModel.cs" Link="Performance/NvidiaModel.cs" />
-    <Compile Include="../src/IgezziGuard/Performance/NvidiaPresets.cs" Link="Performance/NvidiaPresets.cs" />
-    <Compile Include="../src/IgezziGuard/Performance/TunePlanner.cs" Link="Performance/TunePlanner.cs" />
-    <Compile Include="../src/IgezziGuard/Performance/GamingBackground.cs" Link="Performance/GamingBackground.cs" />
-    <Compile Include="../src/IgezziGuard/Performance/LaunchMeasure.cs" Link="Performance/LaunchMeasure.cs" />
-    <Compile Include="../src/IgezziGuard/Performance/ObsSettings.cs" Link="Performance/ObsSettings.cs" />
-    <Compile Include="../src/IgezziGuard/Performance/Nvidia.cs" Link="Performance/Nvidia.cs" />
-    <Compile Include="../src/IgezziGuard/Performance/AmdModel.cs" Link="Performance/AmdModel.cs" />
-    <Compile Include="../src/IgezziGuard/Performance/Amd.cs" Link="Performance/Amd.cs" />
-    <Compile Include="../src/IgezziGuard/Performance/GamingHealth.cs" Link="Performance/GamingHealth.cs" />
-    <Compile Include="../src/IgezziGuard/Performance/GamingProfiles.cs" Link="Performance/GamingProfiles.cs" />
-    <Compile Include="../src/IgezziGuard/Performance/GameLibrary.cs" Link="Performance/GameLibrary.cs" />
-    <Compile Include="../src/IgezziGuard/Performance/PerformanceSettings.cs" Link="Performance/PerformanceSettings.cs" />
-    <Compile Include="../src/IgezziGuard/Performance/GamingDiagnostic.cs" Link="Performance/GamingDiagnostic.cs" />
-    <Compile Include="../src/IgezziGuard/Performance/MonitorModel.cs" Link="Performance/MonitorModel.cs" />
-    <Compile Include="../src/IgezziGuard/Performance/SystemFacts.cs" Link="Performance/SystemFacts.cs" />
-    <Compile Include="../src/IgezziGuard/Performance/Guardrails.cs" Link="Performance/Guardrails.cs" />
-    <Compile Include="../src/IgezziGuard/Entitlements/Entitlements.cs" Link="Entitlements/Entitlements.cs" />
-    <Compile Include="../src/IgezziGuard/Entitlements/PolarLicensing.cs" Link="Entitlements/PolarLicensing.cs" />
-    <Compile Include="../src/IgezziGuard/Identity/IdentitySession.cs" Link="Identity/IdentitySession.cs" />
-    <Compile Include="../src/IgezziGuard/Repairs/RepairWorkflow.cs" Link="Repairs/RepairWorkflow.cs" />
-    <Compile Include="../src/IgezziGuard/History/DiagnosticHistory.cs" Link="History/DiagnosticHistory.cs" />
-    <Compile Include="../src/IgezziGuard/Privacy/DiagnosticPrivacy.cs" Link="Privacy/DiagnosticPrivacy.cs" />
-    <Compile Include="../src/IgezziGuard/Recommendations/FindingAnalysis.cs" Link="Recommendations/FindingAnalysis.cs" />
-    <Compile Include="../src/IgezziGuard/Diagnostics/Modules/WindowsDiagnostics.cs" Link="Diagnostics/Modules/WindowsDiagnostics.cs" />
-    <Compile Include="../src/IgezziGuard/Diagnostics/IDiagnosticModule.cs" Link="Diagnostics/IDiagnosticModule.cs" />
-    <Compile Include="../src/IgezziGuard/Diagnostics/DiagnosticOrchestrator.cs" Link="Diagnostics/DiagnosticOrchestrator.cs" />
-    <Compile Include="../src/IgezziGuard/Diagnostics/DiagnosticResult.cs" Link="Diagnostics/DiagnosticResult.cs" />
+    <ProjectReference Include="../src/Hanki.Core/Hanki.Core.csproj" />
     <Compile Include="../build/ArchiveBuilder.cs" Link="ArchiveBuilder.cs" />
-    <Compile Include="../src/IgezziGuard/WindowsCommand.cs" Link="WindowsCommand.cs" />
-    <Compile Include="../src/IgezziGuard/SessionValidation.cs" Link="SessionValidation.cs" />
-    <Compile Include="../src/IgezziGuard/Models.cs" Link="Models.cs" />
-    <Compile Include="../src/IgezziGuard/ScannerService.cs" Link="ScannerService.cs" />
-    <Compile Include="../src/IgezziGuard/SignatureDatabase.cs" Link="SignatureDatabase.cs" />
-    <Compile Include="../src/IgezziGuard/SecurityPaths.cs" Link="SecurityPaths.cs" />
-    <Compile Include="../src/IgezziGuard/HistoryStore.cs" Link="HistoryStore.cs" />
 
-    <Compile Include="../src/IgezziGuard/ResultPresentation.cs" Link="ResultPresentation.cs" />
-    <Compile Include="../src/IgezziGuard/NetworkDiagnostics.cs" Link="NetworkDiagnostics.cs" />
-    <Compile Include="../src/IgezziGuard/EventInsights.cs" Link="EventInsights.cs" />
-    <Compile Include="../src/IgezziGuard/ShieldInsights.cs" Link="ShieldInsights.cs" />
-    <Compile Include="../src/IgezziGuard/PerformanceInsights.cs" Link="PerformanceInsights.cs" />
-    <Compile Include="../src/IgezziGuard/MaintainInsights.cs" Link="MaintainInsights.cs" />
-    <Compile Include="../src/IgezziGuard/DefenderAuditSummary.cs" Link="DefenderAuditSummary.cs" />
-    <Compile Include="../src/IgezziGuard/ChangeJournal.cs" Link="ChangeJournal.cs" />
-    <Compile Include="../src/IgezziGuard/HomeModel.cs" Link="HomeModel.cs" />
-    <Compile Include="../src/IgezziGuard/AppRemoval.cs" Link="AppRemoval.cs" />
-    <Compile Include="../src/IgezziGuard/RemovalLog.cs" Link="RemovalLog.cs" />
-    <Compile Include="../src/IgezziGuard/UpdateHealth.cs" Link="UpdateHealth.cs" />
-    <Compile Include="../src/IgezziGuard/BatteryStartup.cs" Link="BatteryStartup.cs" />
-    <Compile Include="../src/IgezziGuard/AppCrashes.cs" Link="AppCrashes.cs" />
-    <Compile Include="../src/IgezziGuard/NetworkLink.cs" Link="NetworkLink.cs" />
-    <Compile Include="../src/IgezziGuard/TimeSync.cs" Link="TimeSync.cs" />
-    <Compile Include="../src/IgezziGuard/DuplicateFinder.cs" Link="DuplicateFinder.cs" />
-    <Compile Include="../src/IgezziGuard/DumpInspector.cs" Link="DumpInspector.cs" />
-    <Compile Include="../src/IgezziGuard/DefenderReview.cs" Link="DefenderReview.cs" />
-    <Compile Include="../src/IgezziGuard/CrashTimeline.cs" Link="CrashTimeline.cs" />
-    <Compile Include="../src/IgezziGuard/StartupActions.cs" Link="StartupActions.cs" />
-    <Compile Include="../src/IgezziGuard/UsageReview.cs" Link="UsageReview.cs" />
-    <Compile Include="../src/IgezziGuard/PagefileAdvisor.cs" Link="PagefileAdvisor.cs" />
-    <Compile Include="../src/IgezziGuard/AiClient.cs" Link="AiClient.cs" />
-    <Compile Include="../src/IgezziGuard/DiagnosticRules.cs" Link="DiagnosticRules.cs" />
-    <Compile Include="../src/IgezziGuard/AssistantPrompt.cs" Link="AssistantPrompt.cs" />
-    <Compile Include="../src/IgezziGuard/ReviewModels.cs" Link="ReviewModels.cs" />
-    <Compile Include="../src/IgezziGuard/FileInventory.cs" Link="FileInventory.cs" />
-    <Compile Include="../src/IgezziGuard/RecycleService.cs" Link="RecycleService.cs" />
   </ItemGroup>
 </Project>
