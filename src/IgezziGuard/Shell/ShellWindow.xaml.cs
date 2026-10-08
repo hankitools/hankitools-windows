@@ -28,7 +28,9 @@ internal sealed partial class ShellWindow : Window, IShellServices
     private readonly LegacyWorkspace workspace;
     private readonly List<(WpfRadioButton Button, ProductArea Area, string Page)> rail = [];
     private readonly DispatcherTimer taskTimer = new() { Interval = TimeSpan.FromMilliseconds(500) };
-    private string? backTarget;
+    private readonly NavigationHistory history = new();
+    private bool restoring;
+    private string? subKey;
     private string statusMessage = "";
     private readonly FullScanController scan = new();
     private readonly TaskTracker tasks = new();
@@ -63,7 +65,8 @@ internal sealed partial class ShellWindow : Window, IShellServices
         workspace.Tabs.SelectedIndexChanged += (_, _) => RefreshNavigation();
         workspace.StatusMessage += message => Dispatcher.BeginInvoke(() => { statusMessage = message; UpdateFooter(); });
         SearchButton.Click += (_, _) => ShowPalette();
-        BackButton.Click += (_, _) => { if (backTarget is not null) workspace.Navigate(backTarget); };
+        BackButton.Click += (_, _) => GoBack();
+        SubTabs.AnySelected += OnSubTab;
         AboutButton.Click += (_, _) => AboutDialog.Show(Win32);
         CancelTasksButton.Click += (_, _) => { workspace.CancelTasks(); scan.Cancel(); tasks.CancelAll(); };
         scan.Changed += () => Dispatcher.BeginInvoke(UpdateFooter);
@@ -75,7 +78,7 @@ internal sealed partial class ShellWindow : Window, IShellServices
         RestorePlacement();
         SourceInitialized += (_, _) => ComponentDispatcher.ThreadPreprocessMessage += OnThreadMessage;
         Closing += OnClosing;
-        Closed += (_, _) => { ComponentDispatcher.ThreadPreprocessMessage -= OnThreadMessage; taskTimer.Stop(); ReviewPresenter.Provider = null; UsageObserver.Shared.Stop(); foreach (var page in nativePages.Values.OfType<ShieldPage>()) page.StopMonitoring(); };
+        Closed += (_, _) => { SubTabs.AnySelected -= OnSubTab; ComponentDispatcher.ThreadPreprocessMessage -= OnThreadMessage; taskTimer.Stop(); ReviewPresenter.Provider = null; UsageObserver.Shared.Stop(); foreach (var page in nativePages.Values.OfType<ShieldPage>()) page.StopMonitoring(); };
         // Contacts Polar only when a Technician licence is due for its weekly check; offline, the stored licence keeps working.
         ContentRendered += async (_, _) => { RefreshNavigation(); try { await AppLicensing.RefreshAsync(CancellationToken.None); } catch (Exception ex) when (ex is IOException or HttpRequestException or InvalidOperationException) { } };
     }
@@ -136,18 +139,49 @@ internal sealed partial class ShellWindow : Window, IShellServices
         var area = destination?.Area ?? ProductArea.Home;
         foreach (var entry in rail) entry.Button.IsChecked = entry.Area == area;
         TitleText.Text = destination is null ? current?.Text ?? "" : Navigation.Title(destination);
-        bool landing = destination is null || Navigation.IsLanding(destination.Page);
-        backTarget = landing ? null : Navigation.Landing(area);
-        BackButton.Visibility = backTarget is null ? Visibility.Collapsed : Visibility.Visible;
-        if (backTarget is not null) {
-            BackButton.Content = "←  " + Navigation.Title(Navigation.Find(backTarget)!);
-            System.Windows.Automation.AutomationProperties.SetName(BackButton, "Back to " + Navigation.Title(Navigation.Find(backTarget)!));
-        }
         // Pages with their own hero don't repeat an introduction.
         IntroText.Text = destination is null || destination.Page is "Home" or "System overview" or "Performance overview" ? "" : destination.Introduction;
         IntroText.Visibility = IntroText.Text.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
         ShowDestination(current?.Text);
+        Record();
     }
+
+    /// <summary>The page and, on a native page with tabs, the tab being shown, named as the routes are ("Connect  /  Basic checks").</summary>
+    internal string CurrentRoute => RouteNow();
+    private string RouteNow()
+    {
+        var tab = workspace.Tabs.SelectedTab ?? (workspace.Tabs.TabCount > 0 ? workspace.Tabs.TabPages[0] : null);
+        string page = tab?.Text ?? "Home";
+        return subKey is null ? page : page + "  /  " + subKey;
+    }
+
+    private void OnSubTab(SubTabs tabs, string key)
+    {
+        if (CurrentNative is null || !ReferenceEquals(tabs.Parent, CurrentNative)) return;
+        subKey = key; Record();
+    }
+
+    private void Record()
+    {
+        if (!restoring) history.Visit(RouteNow());
+        var target = history.BackTarget;
+        BackButton.Visibility = target is null ? Visibility.Collapsed : Visibility.Visible;
+        if (target is null) return;
+        var label = target is "Diagnose  /  Guided checks" or "Connect  /  Guided troubleshooting" ? Localizer.T("Return to troubleshooting") : Localizer.Format("Back to {0}", Localizer.Route(target));
+        BackButton.Content = "←  " + label;
+        System.Windows.Automation.AutomationProperties.SetName(BackButton, label);
+    }
+
+    /// <summary>Back follows the places actually visited, including tabs inside a page; going back does not add a visit.</summary>
+    internal void GoBack()
+    {
+        if (history.Back() is not { } target) return;
+        restoring = true;
+        try { workspace.Routes.FirstOrDefault(r => r.Name == target)?.Open(); }
+        finally { restoring = false; }
+        Record();
+    }
+
 
     private void UpdateFooter()
     {
@@ -168,6 +202,7 @@ internal sealed partial class ShellWindow : Window, IShellServices
     /// <summary>Shows the native page for a destination if there is one, otherwise the hosted workspace.</summary>
     private void ShowDestination(string? page)
     {
+        subKey = null;
         NativePage? native = null;
         try {
             if (page is not null && nativeFactories.TryGetValue(page, out var create)) {
@@ -228,12 +263,15 @@ internal sealed partial class ShellWindow : Window, IShellServices
     }
 
     // Ctrl+K and F1 work wherever focus is, including inside a hosted page.
-    private const int WmKeyDown = 0x0100, VkK = 0x4B, VkControl = 0x11;
+    private const int WmKeyDown = 0x0100, WmSysKeyDown = 0x0104, VkK = 0x4B, VkControl = 0x11, VkLeft = 0x25;
     [DllImport("user32.dll")] private static extern short GetKeyState(int key);
     private void OnThreadMessage(ref MSG msg, ref bool handled)
     {
-        if (handled || msg.message != WmKeyDown || !IsActive) return;
+        if (handled || msg.message is not (WmKeyDown or WmSysKeyDown) || !IsActive) return;
         int key = (int)msg.wParam;
+        // Alt+Left goes back, as in a browser.
+        if (msg.message == WmSysKeyDown && key == VkLeft) { handled = true; Dispatcher.BeginInvoke(GoBack); return; }
+        if (msg.message != WmKeyDown) return;
         if (key == VkK && (GetKeyState(VkControl) & 0x8000) != 0) { handled = true; Dispatcher.BeginInvoke(ShowPalette); }
         else if (key == 0x70) { handled = true; Dispatcher.BeginInvoke(() => workspace.Navigate("Help & community")); }
     }

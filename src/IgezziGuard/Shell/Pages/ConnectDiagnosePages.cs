@@ -36,6 +36,7 @@ internal static class DiagnoseActions
 internal sealed class ConnectPage : NativePage
 {
     private readonly SubTabs tabs = new();
+    internal InternetGuideView? Guide => tabs.ContentOf("Guided troubleshooting") as InternetGuideView;
     internal ReportView? Basic => tabs.ContentOf("Basic checks") as ReportView;
     internal ReportView? Wifi => tabs.ContentOf("Wi-Fi / latency") as ReportView;
     internal string? CurrentTab => tabs.Current;
@@ -43,6 +44,7 @@ internal sealed class ConnectPage : NativePage
 
     internal ConnectPage(IShellServices shell)
     {
+        tabs.Add("Guided troubleshooting", "Guided troubleshooting", () => new InternetGuideView(shell));
         tabs.Add("Basic checks", "Basic checks", () => new ReportView(shell, "Connect",
             "Checks your network adapter, router, name lookups (DNS for www.microsoft.com, cloudflare.com and example.com) and whether Cloudflare (1.1.1.1) and the first site that resolves answer on port 443. Those servers can see your IP address. Nothing is uploaded and no settings are changed.", DiagnoseActions.Connection()));
         tabs.Add("Wi-Fi / latency", "Wi-Fi / latency", () => new ReportView(shell, "Connect",
@@ -50,7 +52,7 @@ internal sealed class ConnectPage : NativePage
         tabs.Add("Advanced / DNS repair", "Network tools", () => DiagnoseTools.NetworkTools(shell));
         Content = tabs;
     }
-    internal override void OnShown() { if (tabs.Current is null) tabs.Select("Basic checks"); }
+    internal override void OnShown() { if (tabs.Current is null) tabs.Select("Guided troubleshooting"); }
     internal override void OnRoute(IReadOnlyList<string> path) { if (path.Count > 1 && tabs.Keys.Contains(path[1])) tabs.Select(path[1]); }
 }
 

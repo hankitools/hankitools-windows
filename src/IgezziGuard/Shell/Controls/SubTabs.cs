@@ -14,6 +14,8 @@ internal sealed class SubTabs : DockPanel
     private readonly string group = "subtabs" + Guid.NewGuid().ToString("N");
     /// <summary>Raised after a tab was shown, with its key.</summary>
     internal event Action<string>? Changed;
+    /// <summary>Raised for every SubTabs in the app after a tab was shown; the shell uses it to keep the Back history.</summary>
+    internal static event Action<SubTabs, string>? AnySelected;
     internal string? Current { get; private set; }
     internal IEnumerable<string> Keys => tabs.Keys;
 
@@ -39,6 +41,6 @@ internal sealed class SubTabs : DockPanel
         if (!tabs.TryGetValue(key, out var tab)) return;
         tab.Content ??= tab.Create(); tabs[key] = tab;
         foreach (var (k, t) in tabs) t.Button.IsChecked = k == key;
-        area.Content = tab.Content; Current = key; Changed?.Invoke(key);
+        area.Content = tab.Content; Current = key; Changed?.Invoke(key); AnySelected?.Invoke(this, key);
     }
 }

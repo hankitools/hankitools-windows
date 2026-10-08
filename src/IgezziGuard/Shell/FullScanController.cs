@@ -15,6 +15,8 @@ internal sealed class FullScanController
     /// <summary>Repairs run from <see cref="Latest"/>; they stop further proposals from it and go into the customer report.</summary>
     internal RepairReport? Repairs { get; private set; }
     internal bool IsBusy { get; private set; }
+    /// <summary>False when the last scan could not be saved to history (the results stay available).</summary>
+    internal bool HistorySaved { get; private set; } = true;
     /// <summary>What the scan is doing now, or the outcome of the last operation.</summary>
     internal string Message { get; private set; } = "";
     /// <summary>Completed and planned checks while a scan runs, otherwise null.</summary>
@@ -23,10 +25,15 @@ internal sealed class FullScanController
     internal bool IsAdministrator => FullScanPanel.Context(false).IsAdministrator;
     internal bool CanReportForCustomers => entitlements.Allows(HankiCapability.CustomerReports);
     internal bool CanRepair => entitlements.Allows(HankiCapability.AutomaticRepair);
+    /// <summary>Review repairs is offered only for a recent scan with a supported proposal, an eligible edition and administrator access.</summary>
+    internal bool CanOfferRepairs => Latest is { } scan && Repairs is null && CanRepair && IsAdministrator && RepairGuidance.Stale(scan, false, DateTimeOffset.UtcNow) is null
+        && scan.Results.Any(r => FindingAnalysis.Recommend(r)?.RepairActionId is not null);
     /// <summary>Raised on the UI thread whenever any property above changed.</summary>
     internal event Action? Changed;
 
     private void Notify() => Changed?.Invoke();
+    /// <summary>Shows a scan without running one (the UI check uses fixed example data).</summary>
+    internal void Preview(DiagnosticScan scan) { Latest = scan; Repairs = null; HistorySaved = true; Message = ""; Notify(); }
     internal void Cancel() { try { pending?.Cancel(); } catch (ObjectDisposedException) { } }
 
     /// <summary>Runs a full scan. <paramref name="confirmProbes"/> is asked only when network probes are included; false stops before anything runs.</summary>
@@ -34,14 +41,14 @@ internal sealed class FullScanController
     {
         if (IsBusy) return;
         if (includeNetworkProbes && !confirmProbes()) return;
-        Latest = null; Repairs = null;
+        Latest = null; Repairs = null; HistorySaved = true;
         var context = FullScanPanel.Context(includeNetworkProbes);
         var progress = new Progress<ScanProgressUpdate>(p => { if (IsBusy) { Progress = (p.CompletedModules, p.TotalModules); Activity = p.Activity; Notify(); } });
         await RunAsync(async token => {
             var scan = await new DiagnosticOrchestrator(WindowsDiagnosticCatalog.Create(includeExternal: includeNetworkProbes)).ScanAsync(context, progress, token);
             Latest = scan;
             string summary = FullScanPanel.Summary(scan);
-            try { history.Add(scan); } catch { summary += "\r\nHistory could not be saved. Current results remain available; existing history was preserved."; }
+            try { history.Add(scan); } catch { HistorySaved = false; summary += "\r\nHistory could not be saved. Current results remain available; existing history was preserved."; }
             return summary;
         }, readOnly: true);
     }
@@ -54,7 +61,7 @@ internal sealed class FullScanController
         var latest = Latest;
         if (latest is null) { Say("Run a full scan first. Manual tools remain available in each module."); return; }
         if (!CanRepair) {
-            Say("Automatic repair is part of Hanki Pro. See the Hanki Pro page in the sidebar.\r\n\r\nYour scan, findings and manual guidance stay free. Select a finding to see its manual next steps.");
+            Say("Automatic repair is part of Hanki Pro. See Help → Hanki Pro.\r\n\r\nYour scan, findings and manual guidance stay free. Select a finding to see its manual next steps.");
             return;
         }
         if (RepairGuidance.Stale(latest, Repairs is not null, DateTimeOffset.UtcNow) is { } stale) { Say(stale); return; }

@@ -41,6 +41,7 @@ internal sealed class LegacyWorkspace : Panel
     private readonly DefenderToolsPanel defenderTools = new();
     private readonly DumpAnalysisPanel dumps = new();
     private readonly TroubleshootingPanel guidance = new();
+    private readonly InternetTroubleshootingPanel internetGuide = new();
     private readonly RecoveryPanel recovery = new();
     private readonly SystemActionsPanel systemActions = new();
     private readonly PerformanceSessionsPanel performanceSessions = new();
@@ -62,7 +63,7 @@ internal sealed class LegacyWorkspace : Panel
     internal IReadOnlyList<ToolLauncher.Route> Routes { get; private set; } = [];
     /// <summary>A message for the status area (for example a Defender protection alert).</summary>
     internal event Action<string>? StatusMessage;
-    private ToolPage[] ExtraPages => [activation, updateHealth, batteryStartup, diagnosticHistory, systemActions, performanceSessions, gamingOverview, gamesPanel, nvidiaPanel, amdPanel, gpuPanel, bottleneck, stutter, cpuPanel, memoryHealth, storagePanel, fullScan, duplicates, startupFolders, longPerformance, tuning, networkTools, defenderTools, dumps, guidance, recovery, scanner];
+    private ToolPage[] ExtraPages => [internetGuide, activation, updateHealth, batteryStartup, diagnosticHistory, systemActions, performanceSessions, gamingOverview, gamesPanel, nvidiaPanel, amdPanel, gpuPanel, bottleneck, stutter, cpuPanel, memoryHealth, storagePanel, fullScan, duplicates, startupFolders, longPerformance, tuning, networkTools, defenderTools, dumps, guidance, recovery, scanner];
 
     internal LegacyWorkspace(Func<IWin32Window> owner)
     {
@@ -79,7 +80,7 @@ internal sealed class LegacyWorkspace : Panel
         At("Fix My PC").Controls.Add(fullScan);
         var shield = At("Shield");
         shield.Controls.Add(defender);
-        var net = At("Connect"); net.Controls.Add(connection);
+        var net = At("Connect"); net.Controls.Add(internetGuide);
         var historyText = Report();
         historyText.VisibleChanged += (_, _) => {
             if (!historyText.Visible) return;
@@ -116,7 +117,8 @@ internal sealed class LegacyWorkspace : Panel
         AttachDetail(shield, "Defender audit", "Defender controls / alerts", defenderTools);
         var shieldTabs = shield.Controls.OfType<TabControl>().Single();
         AddTab(shieldTabs, "File scanner (experimental)", scanner); AddTab(shieldTabs, "File scan history", historyText);
-        AttachDetail(net, "Basic checks", "Wi-Fi / latency", networkDeep);
+        AttachDetail(net, "Guided troubleshooting", "Basic checks", connection);
+        AddTab(net.Controls.OfType<TabControl>().Single(), "Wi-Fi / latency", networkDeep);
         AddTab(net.Controls.OfType<TabControl>().Single(), "Advanced / DNS repair", networkTools);
         At("Recovery").Controls.Add(recovery);
 
@@ -171,6 +173,7 @@ internal sealed class LegacyWorkspace : Panel
         AddRoutes(tabs);
         Routes = routes;
         guidance.OpenRequested += name => routes.FirstOrDefault(r => r.Name == name)?.Open();
+        internetGuide.OpenRequested += name => routes.FirstOrDefault(r => r.Name == name)?.Open();
         foreach (var shortcut in new[] { ("Windows / Task Manager", "task-manager"), ("Windows / Event Viewer", "event-viewer"), ("Windows / Settings", "settings"), ("Windows / File Explorer", "explorer") }) {
             var item = shortcut;
             routes.Add(new ToolLauncher.Route(item.Item1, () => DesktopShortcuts.Open(owner(), item.Item2)));

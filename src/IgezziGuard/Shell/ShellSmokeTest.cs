@@ -106,7 +106,6 @@ internal static class ShellSmokeTest
             if (window.Workspace.Tabs.SelectedTab?.Text != entry.Page) throw new IOException("Rail item did not open " + entry.Page);
             if (entry.Button.IsChecked != true) throw new IOException("Rail item not selected on " + entry.Page + " (" + string.Join(",", notes) + ")");
             if (window.CurrentTitle.Length == 0) throw new IOException("Empty header title on " + entry.Page);
-            if (window.BackVisible) throw new IOException("A landing page shows a back link: " + entry.Page);
             // Home, Fix my PC and Tune my PC are native WPF pages; every other destination is still a hosted WinForms page.
             bool expectNative = entry.Page is "Home" or "System overview" or "Performance overview" or "History" or "Help" or "Hanki Pro";
             if ((window.CurrentNative is not null) != expectNative) throw new IOException("Wrong kind of page shown for " + entry.Page);
@@ -128,6 +127,7 @@ internal static class ShellSmokeTest
         CheckLab(window, notes);
         CheckSystemPages(window, notes);
         CheckDiagnose(window, notes);
+        CheckGuided(window, notes);
         window.Workspace.Navigate("Recovery"); Flush(window.Dispatcher);
         if (window.CurrentNative is not RecoveryPage) throw new IOException("Recovery is not the native page.");
         notes.Add("recovery-page");
@@ -148,6 +148,42 @@ internal static class ShellSmokeTest
 
 
 
+
+
+    /// <summary>Guided troubleshooting: the scan summary with fixed example data, the internet journey and Back that follows real visits.</summary>
+    private static void CheckGuided(ShellWindow window, List<string> notes)
+    {
+        void Require(bool condition, string message) { if (!condition) throw new IOException("Guided: " + message); }
+        window.Workspace.Navigate("Fix My PC"); Flush(window.Dispatcher);
+        var page = (FixScanPage)window.CurrentNative!;
+        Require(!page.RepairsOffered, "Repairs must not appear before a scan.");
+        var now = DateTimeOffset.UtcNow;
+        DiagnosticResult Result(string id, string title, CollectionOutcome outcome, FindingSeverity severity) => new("storage", id, DiagnosticCategory.Storage, outcome, severity,
+            title, "Example data for the UI check. Nothing was read or changed.", now, now, coverage: "Example coverage");
+        var low = Result("capacity", "Example — low free space", CollectionOutcome.Completed, FindingSeverity.Warning);
+        ((IShellServices)window).Scan.Preview(new(Guid.NewGuid(), now, now, 3, 3, false, [low, Result("healthy", "Example healthy check", CollectionOutcome.Completed, FindingSeverity.Healthy), Result("missing", "Example unavailable check", CollectionOutcome.Unavailable, FindingSeverity.Unknown)]));
+        Flush(window.Dispatcher);
+        Require(page.ResultCardCount == 3, "Expected one finding to review plus the incomplete and other-checks cards, found " + page.ResultCardCount);
+        page.ToggleOther(); Require(page.ResultCardCount == 4, "Expanding other checks must reveal the healthy finding.");
+        page.ToggleOther(); page.ToggleGaps(); Require(page.ResultCardCount == 4, "Missing evidence must be available separately."); page.ToggleGaps();
+        page.ShowDetail(low); Require(page.InDetail && page.ResultCardCount == 3, "A finding must lead with what was found, a manual next step and coverage.");
+        page.ShowResults(); Require(!page.InDetail, "Back to scan results must leave the detail.");
+        ((IShellServices)window).Scan.Preview(new(Guid.NewGuid(), now, now, 1, 1, false, []));
+        notes.Add("guided-scan");
+
+        window.Workspace.Navigate("Home"); Flush(window.Dispatcher);
+        window.Workspace.Routes.First(r => r.Name == "Connect  /  Guided troubleshooting").Open(); Flush(window.Dispatcher);
+        if (window.CurrentNative is not ConnectPage { Guide: { } guide }) throw new IOException("Guided: Connect does not lead with guided troubleshooting.");
+        Require(guide.Result.CardCount == 2, "The journey must start with its introduction.");
+        guide.Preview(new ConnectionCheck(new(1, "Example Wi-Fi", true, true, false, false, null, true, 20, null, null), "Example report. No probes were run."));
+        Require(guide.Result.CardCount == 2, "A check must lead with one next step.");
+        window.Workspace.Routes.First(r => r.Name == "Connect  /  Basic checks").Open(); Flush(window.Dispatcher);
+        Require(window.BackVisible && window.CurrentRoute == "Connect  /  Basic checks", "A tab inside a page must be recorded as a visit.");
+        window.GoBack(); Flush(window.Dispatcher);
+        Require(window.CurrentRoute == "Connect  /  Guided troubleshooting" && ReferenceEquals(((ConnectPage)window.CurrentNative!).Guide, guide), "Back must restore the exact guided tab and keep its state.");
+        Require(guide.Result.CardCount == 2 && !guide.Resolved, "Returning must retain the previous finding.");
+        notes.Add("guided-internet-back");
+    }
 
     private static void WaitFor(Task task, ShellWindow window, int seconds = 90)
     {
@@ -193,7 +229,7 @@ internal static class ShellSmokeTest
     {
         IShellServices services = window;
         window.Workspace.Navigate("Connect"); Flush(window.Dispatcher);
-        if (window.CurrentNative is not ConnectPage connect || connect.CurrentTab != "Basic checks") throw new IOException("Connect is not the native page.");
+        if (window.CurrentNative is not ConnectPage connect || connect.CurrentTab != "Guided troubleshooting") throw new IOException("Connect is not the native page.");
         foreach (var key in connect.TabKeys) { window.Workspace.Routes.First(r => r.Name == "Connect  /  " + key).Open(); window.UpdateLayout(); Flush(window.Dispatcher); if (connect.CurrentTab != key) throw new IOException("A route did not select the Connect tab " + key); }
         if (connect.Basic is null || connect.Wifi is null) throw new IOException("A Connect check did not build.");
         window.Workspace.Navigate("Diagnose"); Flush(window.Dispatcher);

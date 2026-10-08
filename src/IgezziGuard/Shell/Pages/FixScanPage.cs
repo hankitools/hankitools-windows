@@ -18,14 +18,14 @@ internal sealed class FixScanPage : NativePage
 {
     private readonly IShellServices shell;
     private readonly FullScanController scan;
-    private readonly Button start = new(), cancel = new(), repairs = new(), copy = new(), assistant = new(), customer = new();
+    private readonly Button start = new(), cancel = new(), repairs = new(), recovery = new(), copy = new(), assistant = new(), customer = new();
     private readonly CheckBox probes = new() { Content = "Include network probes", Margin = new Thickness(8, 0, 12, 0), VerticalAlignment = VerticalAlignment.Center };
     private readonly Border progressCard = new() { Visibility = Visibility.Collapsed };
     private readonly ProgressBar bar = new() { Height = 6, Minimum = 0, Maximum = 1 };
     private readonly TextBlock progressText = UiKit.Text("", 14), activityText = UiKit.Text("", 13, UiKit.Res("TextMuted"), wrap: true);
-    private readonly StackPanel summary = new();
-    private readonly StackPanel list = new();
-    private readonly Border listCard = new() { Visibility = Visibility.Collapsed };
+    private readonly DiagnosisView guided = new();
+    private readonly Button backToResults = new();
+    private bool showOther, showGaps;
     private readonly Border emptyCard = new();
     private readonly TextBox output = new();
     private readonly Border outputCard = new() { Visibility = Visibility.Collapsed };
@@ -50,10 +50,9 @@ internal sealed class FixScanPage : NativePage
         var emptyText = UiKit.Text("Start a full scan to see what Windows, storage, devices and security report. Results appear here, ranked by what to look at first.", 14, UiKit.Res("TextMuted"), wrap: true); emptyText.Margin = new Thickness(0, 6, 0, 0);
         emptyStack.Children.Add(emptyText); emptyCard.Child = emptyStack; root.Children.Add(emptyCard);
 
-        listCard.Style = (Style)Application.Current.FindResource("Card"); listCard.Padding = new Thickness(0, 0, 0, 4);
-        var resultsStack = new StackPanel(); summary.Margin = new Thickness(20, 16, 20, 12); resultsStack.Children.Add(summary);
-        resultsStack.Children.Add(new Border { Height = 1, Background = UiKit.Res("Hairline") }); resultsStack.Children.Add(list);
-        listCard.Child = resultsStack; root.Children.Add(listCard);
+        backToResults.Style = (Style)Application.Current.FindResource("QuietButton"); backToResults.Content = Localizer.T("Back to scan results"); backToResults.HorizontalAlignment = HorizontalAlignment.Left; backToResults.Visibility = Visibility.Collapsed;
+        backToResults.Click += (_, _) => { RenderResults(); };
+        root.Children.Add(backToResults); root.Children.Add(guided);
 
         outputCard.Style = (Style)Application.Current.FindResource("Card"); outputCard.Padding = new Thickness(20, 14, 20, 14); outputCard.Margin = new Thickness(0, 14, 0, 0);
         output.IsReadOnly = true; output.TextWrapping = TextWrapping.Wrap; output.Background = System.Windows.Media.Brushes.Transparent; output.BorderThickness = new Thickness(0); output.Foreground = UiKit.Res("TextPrimary"); output.FontSize = 13.5;
@@ -73,7 +72,8 @@ internal sealed class FixScanPage : NativePage
         Set(start, "Start full scan", true, () => _ = StartAsync());
         Set(cancel, "Cancel scan", false, scan.Cancel); cancel.Visibility = Visibility.Collapsed;
         row.Children.Add(probes);
-        Set(repairs, "Review automatic repairs", false, () => _ = scan.ReviewRepairsAsync(shell.DialogOwner));
+        Set(repairs, Localizer.T("Review repairs"), false, () => _ = scan.ReviewRepairsAsync(shell.DialogOwner));
+        Set(recovery, Localizer.T("Recovery"), false, () => OpenRoute("Recovery"));
         Set(copy, "Copy summary", false, () => { if (scan.Latest is { } s) { try { Clipboard.SetText(FullScanPanel.Summary(s)); } catch (System.Runtime.InteropServices.ExternalException) { } } });
         Set(assistant, "Prepare for Assistant", false, () => { if (scan.Latest is { } s) shell.PrepareForAssistant(FullScanPanel.Summary(s)); });
         // Technician only; the licence can change while Hanki is open, so visibility follows it.
@@ -93,12 +93,20 @@ internal sealed class FixScanPage : NativePage
     }
 
     internal bool CanStart => start.IsEnabled;
+    internal int ResultCardCount => guided.CardCount;
+    internal bool RepairsOffered => repairs.Visibility == Visibility.Visible;
+    internal bool InDetail => backToResults.Visibility == Visibility.Visible;
+    internal string Report => guided.ReportText;
+    internal void ToggleOther() { showOther = !showOther; RenderResults(); }
+    internal void ToggleGaps() { showGaps = !showGaps; RenderResults(); }
+    internal void ShowDetail(DiagnosticResult finding) => RenderFinding(finding);
+    internal void ShowResults() => RenderResults();
     internal override void OnShown() { customer.Visibility = scan.CanReportForCustomers ? Visibility.Visible : Visibility.Collapsed; Refresh(); }
 
     private void Refresh()
     {
         bool busy = scan.IsBusy;
-        start.IsEnabled = !busy; repairs.IsEnabled = !busy; copy.IsEnabled = !busy && scan.Latest is not null; assistant.IsEnabled = !busy && scan.Latest is not null;
+        start.IsEnabled = !busy; repairs.IsEnabled = !busy; repairs.Visibility = scan.CanOfferRepairs ? Visibility.Visible : Visibility.Collapsed; copy.IsEnabled = !busy && scan.Latest is not null; assistant.IsEnabled = !busy && scan.Latest is not null;
         customer.Visibility = scan.CanReportForCustomers ? Visibility.Visible : Visibility.Collapsed; customer.IsEnabled = !busy;
         probes.IsEnabled = !busy; cancel.Visibility = busy ? Visibility.Visible : Visibility.Collapsed;
         progressCard.Visibility = busy ? Visibility.Visible : Visibility.Collapsed;
@@ -111,45 +119,56 @@ internal sealed class FixScanPage : NativePage
         outputCard.Visibility = !busy && scan.Message.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
         if (!busy) output.Text = scan.Message;
         var latest = scan.Latest;
-        if (!ReferenceEquals(latest, shown)) { shown = latest; ShowFindings(latest); }
+        if (!ReferenceEquals(latest, shown)) { shown = latest; showOther = showGaps = false; if (latest is null) { guided.Clear(); backToResults.Visibility = Visibility.Collapsed; } else RenderResults(); }
         emptyCard.Visibility = latest is null && !busy ? Visibility.Visible : Visibility.Collapsed;
     }
 
-    private void ShowFindings(DiagnosticScan? latest)
+    private void OpenRoute(string name) => shell.Routes.FirstOrDefault(r => r.Name == name)?.Open();
+
+    /// <summary>The scan as a short list: what needs attention first, then incomplete checks and the ones that need no action, each expandable.</summary>
+    private void RenderResults()
     {
-        list.Children.Clear(); summary.Children.Clear();
-        listCard.Visibility = latest is null || latest.Results.Count == 0 ? Visibility.Collapsed : Visibility.Visible;
-        if (latest is null) return;
-        var headline = UiKit.Text($"{latest.Results.Count} results", 14, UiKit.Res("TextMuted"), FontWeights.SemiBold); headline.Margin = new Thickness(0, 0, 0, 8); summary.Children.Add(headline);
-        summary.Children.Add(ResultChips.Build(latest.Results));
-        System.Windows.Automation.AutomationProperties.SetName(summary, $"{latest.Results.Count} results: " + string.Join(", ", StatusChips.Count(latest.Results).Select(c => c.Text)));
-        foreach (var r in FindingAnalysis.Rank(FindingAnalysis.Normalize(latest.Results)).SelectMany(g => g.Group.Sources)) list.Children.Add(Row(latest, r));
+        backToResults.Visibility = Visibility.Collapsed;
+        if (shown is not { } latest) return;
+        var cards = new List<ResultCard>();
+        if (!scan.HistorySaved) cards.Add(new(Localizer.T("History could not be saved"), Localizer.T("Results remain available in this window. Your existing history was preserved."), CardStatus.Unknown));
+        var ordered = FindingAnalysis.Rank(FindingAnalysis.Normalize(latest.Results)).SelectMany(g => g.Group.Sources).ToArray();
+        ResultCard Card(DiagnosticResult r) => new(DisplayTitle(latest, r), r.Explanation, ScanPresentation.Status(r), Localizer.T("See next step"), () => RenderFinding(r));
+        cards.AddRange(ordered.Where(ScanPresentation.NeedsAttention).Select(Card));
+        if (latest.Cancelled || latest.CompletedModules < latest.PlannedModules) cards.Add(new(Localizer.T("Some checks are incomplete"),
+            Localizer.Format("Checks processed: {0}/{1}. Run a new scan to check the remaining items.", latest.CompletedModules, latest.PlannedModules), CardStatus.Unknown));
+        var gaps = ordered.Where(ScanPresentation.HasGap).ToArray();
+        if (gaps.Length > 0) {
+            cards.Add(new(Localizer.Format("Checks with missing evidence: {0}", gaps.Length), Localizer.T("These checks cannot establish that everything is OK."), CardStatus.Unknown,
+                Localizer.T(showGaps ? "Hide incomplete checks" : "Review incomplete checks"), () => { showGaps = !showGaps; RenderResults(); }));
+            if (showGaps) cards.AddRange(gaps.Select(Card));
+        }
+        var other = ordered.Where(r => !ScanPresentation.NeedsAttention(r) && !ScanPresentation.HasGap(r)).ToArray();
+        if (other.Length > 0) {
+            cards.Add(new(Localizer.Format("Other completed checks: {0}", other.Length), Localizer.T("Healthy checks and information are kept here. No action is required just because a result is listed."), CardStatus.Info,
+                Localizer.T(showOther ? "Hide other checks" : "Show other checks"), () => { showOther = !showOther; RenderResults(); }));
+            if (showOther) cards.AddRange(other.Select(Card));
+        }
+        if (cards.Count == 0) cards.Add(new(Localizer.T("No results yet"), Localizer.T("Run the scan again when you are ready."), CardStatus.Unknown));
+        guided.Show(new Diagnosis(FullScanPanel.Summary(latest), ordered.Any(r => r.Severity == FindingSeverity.Critical) ? CardStatus.Problem : ordered.Any(ScanPresentation.NeedsAttention) ? CardStatus.Review : latest.Complete && ordered.Length > 0 ? CardStatus.Good : CardStatus.Unknown,
+            ScanPresentation.Headline(latest), cards));
+    }
+
+    /// <summary>One finding: what was found, a manual next step (with the tool that helps), and what the check covers. Technical details hold the raw evidence.</summary>
+    private void RenderFinding(DiagnosticResult finding)
+    {
+        backToResults.Visibility = Visibility.Visible;
+        var recommendation = FindingAnalysis.Recommend(finding);
+        var route = ScanPresentation.Route(finding);
+        guided.Show(new Diagnosis(FindingAnalysis.Describe(finding), ScanPresentation.Status(finding), finding.Title, [
+            new(Localizer.T("What we found"), finding.Explanation, ScanPresentation.Status(finding)),
+            new(Localizer.T("Try this next"), recommendation?.ManualAction ?? Localizer.T("Review the coverage below. A missing result is not a diagnosis."), CardStatus.Info,
+                route is null ? null : Localizer.T("Open recommended tool"), route is null ? null : () => OpenRoute(route)),
+            new(Localizer.T("What this check covers"), finding.Coverage + (ScanPresentation.HasGap(finding) ? "\n" + Localizer.T("This check is incomplete.") : ""), ScanPresentation.HasGap(finding) ? CardStatus.Unknown : CardStatus.Info)
+        ]));
     }
 
     // Several findings share a module title (for example two services); the finding id tells them apart.
     private static string DisplayTitle(DiagnosticScan latest, DiagnosticResult r) =>
         latest.Results.Count(x => x.Title == r.Title) > 1 && r.FindingId != "collection" ? r.Title + " · " + r.FindingId.Replace("service-", "", StringComparison.Ordinal) : r.Title;
-
-    private UIElement Row(DiagnosticScan latest, DiagnosticResult r)
-    {
-        var color = UiKit.FromDrawing(HankiTheme.SeverityColor(r.Severity, r.Outcome));
-        var head = new Grid { Margin = new Thickness(8, 8, 8, 8) };
-        head.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(104) });
-        head.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-        head.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        var pill = new Border { CornerRadius = new CornerRadius(11), Background = UiKit.Tint(color, 46), Padding = new Thickness(0, 3, 0, 3), Margin = new Thickness(0, 0, 14, 0), VerticalAlignment = VerticalAlignment.Center };
-        pill.Child = new TextBlock { Text = HankiTheme.SeverityLabel(r.Severity, r.Outcome), FontSize = 12, FontWeight = FontWeights.SemiBold, Foreground = color, HorizontalAlignment = HorizontalAlignment.Center };
-        var title = UiKit.Text(DisplayTitle(latest, r), 15); title.VerticalAlignment = VerticalAlignment.Center; Grid.SetColumn(title, 1);
-        var category = UiKit.Text(r.Category.ToString(), 13, UiKit.Res("TextMuted")); category.VerticalAlignment = VerticalAlignment.Center; category.Margin = new Thickness(12, 0, 6, 0); Grid.SetColumn(category, 2);
-        head.Children.Add(pill); head.Children.Add(title); head.Children.Add(category);
-        var button = new Button { Style = (Style)Application.Current.FindResource("RowButton"), Content = head };
-        System.Windows.Automation.AutomationProperties.SetName(button, $"{HankiTheme.SeverityLabel(r.Severity, r.Outcome)}: {DisplayTitle(latest, r)}. {r.Category}");
-        var details = new TextBox { IsReadOnly = true, TextWrapping = TextWrapping.Wrap, Background = UiKit.Res("Canvas"), BorderThickness = new Thickness(0), Foreground = UiKit.Res("TextPrimary"), FontSize = 13.5, Padding = new Thickness(18, 12, 18, 14), Text = FindingAnalysis.Describe(r) };
-        System.Windows.Automation.AutomationProperties.SetName(details, "Explanation of " + DisplayTitle(latest, r));
-        var detailsHost = new Border { Visibility = Visibility.Collapsed, Child = details, BorderBrush = UiKit.Res("Hairline"), BorderThickness = new Thickness(0, 1, 0, 1) };
-        button.Click += (_, _) => detailsHost.Visibility = detailsHost.Visibility == Visibility.Visible ? Visibility.Collapsed : Visibility.Visible;
-        var stack = new StackPanel(); stack.Children.Add(button); stack.Children.Add(detailsHost);
-        var line = new Border { BorderBrush = UiKit.Res("Hairline"), BorderThickness = new Thickness(0, 0, 0, 1), Child = stack };
-        return line;
-    }
 }
