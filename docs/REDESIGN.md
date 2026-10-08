@@ -138,3 +138,13 @@ Findings:
 - The native folder picker (`OpenFolderDialog`) works; the earlier "won't close" was my test tool, not the app. Pick the folder by double-clicking into it, then Select Folder.
 - Defender scan, update and cancel were reviewed in the drawer but not run: they raise UAC. Everything else on Shield was exercised live.
 - Not yet native: Usage review, Startup folders; Diagnose, Connect, the Performance area, Assistant, Help pages, History pages.
+
+## Phase 5 notes (2026-10-08), first slice
+
+Implemented on `redesign/phase-5-performance`:
+
+- `TrendChart` and a dark ComboBox style.
+- Performance Lab is native: Monitor (real measurement, verdict, cards, one trend chart per counter, baseline / compare / save to sessions / save and load file), Bottleneck Analyzer, Stutter Diagnostics. Comparisons is still a hosted page; Benchmarks and Advanced Tuning are the same "still being built" notes.
+- Bug found only by running it: WPF controls must be read on the UI thread, and the Monitor read its duration list from inside the background measurement. The UI check cannot see this because it never measures. Rule for native pages: read control values before `Task.Run`.
+
+Not done in phase 5 (all still hosted): Tune my PC (plan, apply through Recovery), Gaming (overview, games, NVIDIA, AMD), GPU, CPU and power plans, Memory and pagefile, Storage, Performance sessions. Tune my PC changes Windows, NVIDIA and AMD settings, so it deserves its own careful port and live test.
