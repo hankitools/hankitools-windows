@@ -15,11 +15,10 @@ internal sealed class MaintainPage : NativePage
     {
         tabs.Add("Files & storage", "Files", () => new FilesView(shell));
         tabs.Add("Apps & storage", "Apps", () => new AppsView(shell));
-        // Usage review and Startup folders are still the existing pages, shown through a host until their native versions exist.
-        tabs.Add("Usage review", "Usage review", () => new HostedView(shell, "Usage review"));
+        tabs.Add("Usage review", "Usage review", () => new UsageView());
         tabs.Add("Startup / undo", "Startup", () => new StartupView(shell));
         tabs.Add("Duplicates", "Duplicates", () => new DuplicatesView(shell));
-        tabs.Add("Startup folders", "Startup folders", () => new HostedView(shell, "Startup folders"));
+        tabs.Add("Startup folders", "Startup folders", () => new StartupFoldersView(shell));
         Content = tabs;
     }
 

@@ -113,7 +113,7 @@ internal sealed class CpuPage : NativePage
     internal CpuPage(IShellServices shell)
     {
         tabs.Add("Processor", "Processor", () => new ReportView(shell, "CPU", "How your processor is configured: cores and clocks, the power plan's processor limits on mains power and battery, and the Windows power mode. To see how busy each thread gets in a game, measure it in Performance Lab → Monitor.", SystemPages.CpuActions(shell)));
-        tabs.Add("Power plans", "Power plans", () => new HostedView(shell, "Power plans"));
+        tabs.Add("Power plans", "Power plans", () => new PowerPlansView(shell));
         Content = tabs;
     }
     internal override void OnShown() { if (tabs.Current is null) tabs.Select("Processor"); }
@@ -128,7 +128,7 @@ internal sealed class MemoryPage : NativePage
     internal string? CurrentTab => tabs.Current;
     internal MemoryPage(IShellServices shell)
     {
-        tabs.Add("Memory & pagefile", "Memory & pagefile", () => new HostedView(shell, "Memory & pagefile"));
+        tabs.Add("Memory & pagefile", "Memory & pagefile", () => new ReportView(shell, "Memory", "A read-only snapshot of free memory, the apps using the most, drive space and the pagefile. Nothing is changed or uploaded. Reads memory counters, active pagefiles, configured pagefile/dump settings, fixed-drive free space and process working sets.", MemoryActions.Memory(shell)));
         tabs.Add("Memory health", "Memory health", () => new ReportView(shell, "Memory", "Your memory modules and the speed they run at, how much memory programs have reserved, and whether the pagefile is set up sensibly. Hanki doesn't change BIOS or pagefile settings for you; it points to where they are.", SystemPages.MemoryActions(shell)));
         Content = tabs;
     }

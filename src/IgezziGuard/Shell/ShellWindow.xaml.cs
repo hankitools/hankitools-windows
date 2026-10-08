@@ -75,7 +75,7 @@ internal sealed partial class ShellWindow : Window, IShellServices
         RestorePlacement();
         SourceInitialized += (_, _) => ComponentDispatcher.ThreadPreprocessMessage += OnThreadMessage;
         Closing += OnClosing;
-        Closed += (_, _) => { ComponentDispatcher.ThreadPreprocessMessage -= OnThreadMessage; taskTimer.Stop(); ReviewPresenter.Provider = null; foreach (var page in nativePages.Values.OfType<ShieldPage>()) page.StopMonitoring(); };
+        Closed += (_, _) => { ComponentDispatcher.ThreadPreprocessMessage -= OnThreadMessage; taskTimer.Stop(); ReviewPresenter.Provider = null; UsageObserver.Shared.Stop(); foreach (var page in nativePages.Values.OfType<ShieldPage>()) page.StopMonitoring(); };
         // Contacts Polar only when a Technician licence is due for its weekly check; offline, the stored licence keeps working.
         ContentRendered += async (_, _) => { RefreshNavigation(); try { await AppLicensing.RefreshAsync(CancellationToken.None); } catch (Exception ex) when (ex is IOException or HttpRequestException or InvalidOperationException) { } };
     }
@@ -199,7 +199,7 @@ internal sealed partial class ShellWindow : Window, IShellServices
     TaskTracker IShellServices.Tasks => tasks;
     void IShellServices.Say(string text) { statusMessage = text; UpdateFooter(); }
     System.Windows.Forms.Control? IShellServices.HostedPanel(string key) => workspace.HostedPanel(key);
-    void IShellServices.MapUsage(InstalledApp app) { workspace.MapUsage(app); }
+    void IShellServices.MapUsage(InstalledApp app) { UsageObserver.Shared.Map(app); }
     /// <summary>Opens Fix my PC and starts its scan (no network probes, so nothing needs confirming).</summary>
     public void StartFixMyPc()
     {

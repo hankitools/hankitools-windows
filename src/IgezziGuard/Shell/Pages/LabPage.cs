@@ -19,7 +19,7 @@ internal sealed class LabPage : NativePage
     {
         var state = LegacyWorkspace.Lab;
         tabs.Add("Monitor", "Monitor", () => new MonitorView(shell, state));
-        tabs.Add("Comparisons", "Comparisons", () => new HostedView(shell, "Comparisons"));
+        tabs.Add("Comparisons", "Comparisons", () => new ReportView(shell, "Comparisons", "Measures how busy the processor is and how full memory gets over 30 seconds. Keep doing what normally feels slow while it runs. The first run becomes your baseline, and later runs are compared with it, so you can see whether a change helped. Nothing is changed or uploaded. Disk and GPU are measured in the Monitor tab.", MemoryActions.Comparisons()));
         tabs.Add("Bottleneck Analyzer", "Bottleneck Analyzer", () => new BottleneckView(shell, state));
         tabs.Add("Stutter Diagnostics", "Stutter Diagnostics", () => new StutterView(state));
         tabs.Add("Benchmarks", "Benchmarks", () => Planned("Benchmarks", "Repeatable measurements so before/after comparisons are fair."));
