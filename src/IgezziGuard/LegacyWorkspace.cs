@@ -31,6 +31,8 @@ internal sealed class LegacyWorkspace : Panel
     private readonly DuplicatePanel duplicates = new();
     private readonly StartupFoldersPanel startupFolders = new();
     private static readonly LabState lab = new();
+    /// <summary>The Lab's latest measurement and baseline, shared by the native Lab page and the hosted Comparisons tab.</summary>
+    internal static LabState Lab => lab;
     private readonly LabMonitorPanel longPerformance = new(lab);
     private readonly BottleneckPanel bottleneck = new(lab);
     private readonly StutterPanel stutter = new(lab);
@@ -197,7 +199,7 @@ internal sealed class LegacyWorkspace : Panel
         return path;
     }
     /// <summary>Pages a native page still shows through a host while its own version is not written.</summary>
-    internal Control? HostedPanel(string key) => key switch { "Apps & storage" => apps, "Usage review" => usage, "Startup / undo" => startup, "Duplicates" => duplicates, "Startup folders" => startupFolders, _ => null };
+    internal Control? HostedPanel(string key) => key switch { "Apps & storage" => apps, "Usage review" => usage, "Startup / undo" => startup, "Duplicates" => duplicates, "Startup folders" => startupFolders, "Comparisons" => sampling, _ => null };
     /// <summary>Maps an installed app for usage review (the Usage review page's own action).</summary>
     internal void MapUsage(InstalledApp app) => usage.Map(app);
 

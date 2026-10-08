@@ -100,7 +100,7 @@ public sealed class LabMonitorPanel : ToolPage
             "\r\n\r\nChanges made in between (from Recovery):\r\n" + (changes.Count == 0 ? "none recorded" : string.Join("\r\n", changes.Select(c => $"• {c.Kind}: {c.Target}: {c.Before} → {c.After} ({c.Status})"))) +
             "\r\n\r\nSave to Performance sessions keeps this comparison. To undo the changes, use Recovery or the session's Restore settings.";
     }
-    private static IReadOnlyList<SettingChange> ChangesBetween(MonitorRun baseline, MonitorRun latest)
+    internal static IReadOnlyList<SettingChange> ChangesBetween(MonitorRun baseline, MonitorRun latest)
     {
         try { return WindowsSettings.Journal().Read().Where(c => Navigation.IsPerformanceChange(c.Kind) && c.Status == "Applied" && c.At >= baseline.Ended && c.At <= latest.Started).ToArray(); }
         catch (Exception ex) when (ex is IOException or JsonException) { return []; }

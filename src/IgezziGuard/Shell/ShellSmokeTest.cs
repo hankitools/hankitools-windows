@@ -125,6 +125,7 @@ internal static class ShellSmokeTest
         CheckDrawer(window, notes);
         CheckMaintain(window, notes);
         CheckShield(window, notes);
+        CheckLab(window, notes);
         window.Workspace.Navigate("Recovery"); Flush(window.Dispatcher);
         if (window.CurrentNative is not RecoveryPage) throw new IOException("Recovery is not the native page.");
         notes.Add("recovery-page");
@@ -158,6 +159,29 @@ internal static class ShellSmokeTest
         if (page.CurrentTab != "File scan history") throw new IOException("A route did not select its Shield tab.");
         window.Workspace.Navigate("Home"); Flush(window.Dispatcher);
         notes.Add("shield-page");
+    }
+
+    /// <summary>Performance Lab: native tabs, a prepared measurement shown with its charts, and the analysis views. Nothing is measured.</summary>
+    private static void CheckLab(ShellWindow window, List<string> notes)
+    {
+        window.Workspace.Navigate("Performance Lab"); Flush(window.Dispatcher);
+        if (window.CurrentNative is not LabPage page) throw new IOException("Performance Lab is not the native page.");
+        if (page.CurrentTab != "Monitor" || page.Monitor is not { } monitor) throw new IOException("The Lab does not open on Monitor.");
+        var start = DateTimeOffset.Now.AddMinutes(-1);
+        var samples = Enumerable.Range(0, 40).Select(i => new MonitorSample(start.AddSeconds(i), 20 + i % 15, [10.0 + i, 30.0 + i % 40, 5], null, 3500, 8000, 55 + i % 5, 0, 10 + i % 20, 2, 5, 1,
+            i % 7 == 0 ? null : 40 + i, 3000, 55, 1800, null, [], null)).ToArray();
+        var run = new MonitorRun(start, start.AddSeconds(40), null, null, samples, null, 12288, 2500, 16384, 144, []);
+        LegacyWorkspace.Lab.Latest = run;
+        monitor.Show(run); window.UpdateLayout(); Flush(window.Dispatcher);
+        if (monitor.CpuChart.PointCount != 40 || monitor.Result.CardCount < 4) throw new IOException("The Monitor does not show the prepared measurement.");
+        foreach (var key in page.TabKeys) { page.Select(key); window.UpdateLayout(); Flush(window.Dispatcher); }
+        page.Stutter!.Analyze(); if (page.Stutter.ItemCount == 0) throw new IOException("Stutter diagnostics shows nothing for a measurement.");
+        page.Bottleneck!.Result.Show(BottleneckPanel.Diagnose(run)); if (page.Bottleneck.Result.CardCount == 0) throw new IOException("The Bottleneck Analyzer shows no cards.");
+        window.Workspace.Routes.First(r => r.Name == "Performance Lab  /  Stutter Diagnostics").Open(); Flush(window.Dispatcher);
+        if (page.CurrentTab != "Stutter Diagnostics") throw new IOException("A route did not select its Lab tab.");
+        LegacyWorkspace.Lab.Latest = null;
+        window.Workspace.Navigate("Home"); Flush(window.Dispatcher);
+        notes.Add("lab-page");
     }
     /// <summary>Maintain: native tabs, route selection, and the Files list with a prepared inventory (sort, filter, selection).</summary>
     private static void CheckMaintain(ShellWindow window, List<string> notes)
