@@ -87,9 +87,9 @@ internal sealed class GamingPage : NativePage
     internal GamingPage(IShellServices shell)
     {
         tabs.Add("Overview", "Overview", () => new GamingOverviewView(shell, LegacyWorkspace.Gaming));
-        tabs.Add("Games", "Games", () => new HostedView(shell, "Games"));
-        tabs.Add("NVIDIA", "NVIDIA", () => new HostedView(shell, "NVIDIA"));
-        tabs.Add("AMD Radeon", "AMD Radeon", () => new HostedView(shell, "AMD Radeon"));
+        tabs.Add("Games", "Games", () => GameTools.Games(shell, LegacyWorkspace.Gaming));
+        tabs.Add("NVIDIA", "NVIDIA", () => GameTools.NvidiaPage(shell, LegacyWorkspace.Gaming));
+        tabs.Add("AMD Radeon", "AMD Radeon", () => GameTools.AmdPage(shell, LegacyWorkspace.Gaming));
         Content = tabs;
     }
     internal override void OnShown() { if (tabs.Current is null) tabs.Select("Overview"); }

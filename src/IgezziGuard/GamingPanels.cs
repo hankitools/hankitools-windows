@@ -339,6 +339,7 @@ internal static class KeepDisplayDialog
 {
     internal static bool Keep(IWin32Window owner, string mode)
     {
+        if (Shell.ReviewPresenter.IsAvailable) return Shell.Dialogs.KeepDisplayMode(mode);
         using var dialog = new Form { Text = "Keep this display mode?", StartPosition = FormStartPosition.CenterParent, FormBorderStyle = FormBorderStyle.FixedDialog, MaximizeBox = false, MinimizeBox = false,
             ShowInTaskbar = false, AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink, Padding = new Padding(20), TopMost = true };
         var layout = new FlowLayoutPanel { FlowDirection = FlowDirection.TopDown, AutoSize = true, Dock = DockStyle.Fill, WrapContents = false };
