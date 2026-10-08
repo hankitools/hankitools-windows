@@ -4,11 +4,11 @@
 
 A Windows toolkit for understanding your PC, reviewing maintenance and investigating problems. Hanki diagnoses common Windows problems, explains results in plain language and offers reviewed, reversible fixes. It is not a vulnerability scanner.
 
-**Status: 0.19.0, code-signed.** The executable is signed through Microsoft Artifact Signing and timestamped. GitHub Actions builds every commit on Windows, runs the automated checks and a UI smoke test. Pre-release testing on Windows 11 is recorded in [VALIDATION-v0.18.md](VALIDATION-v0.18.md); the laptop test plan for 0.19 is [VALIDATION-v0.19.md](VALIDATION-v0.19.md).
+**Status: 0.20.0, code-signed.** The executable is signed through Microsoft Artifact Signing and timestamped. GitHub Actions builds every commit on Windows, runs the automated checks and a UI smoke test. Pre-release testing on Windows 11 is recorded in [VALIDATION-v0.18.md](VALIDATION-v0.18.md); the laptop test plan for 0.19 is [VALIDATION-v0.19.md](VALIDATION-v0.19.md).
 
 ## Download
 
-Builds are published on [GitHub Releases](https://github.com/hankitools/hankitools-windows/releases). Releases from 0.19.0 on are code-signed; check Digital Signatures in the file Properties. SmartScreen may still warn until the publisher has built reputation. Each release provides the portable ZIP and a Windows setup EXE, each with its own SHA-256 checksum; compare the matching checksum before opening either file. It offers installation for just your Windows account (under `%LOCALAPPDATA%\Programs`) or for all users (under Program Files, which requires administrator approval). The portable ZIP remains available if you prefer not to install.
+Builds are published on [GitHub Releases](https://github.com/hankitools/hankitools-windows/releases). Releases from 0.20.0 on are code-signed; check Digital Signatures in the file Properties. SmartScreen may still warn until the publisher has built reputation. Each release provides the portable ZIP and a Windows setup EXE, each with its own SHA-256 checksum; compare the matching checksum before opening either file. It offers installation for just your Windows account (under `%LOCALAPPDATA%\Programs`) or for all users (under Program Files, which requires administrator approval). The portable ZIP remains available if you prefer not to install.
 
 The installer creates a Start menu shortcut and standard Windows uninstall entry; an optional desktop shortcut is unchecked by default. It does not install a service or auto-start entry, and Hanki still requests UAC only when an action needs it. Updating replaces the app files. Uninstalling removes those files but preserves `%LOCALAPPDATA%\IgezziGuard` history and recovery data. Neither install scope changes this behavior.
 

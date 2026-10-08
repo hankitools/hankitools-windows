@@ -1,6 +1,24 @@
+# Hanki Tools 0.20.0 — a new look
+
+The first code-signed release: HankiTools.exe is signed through Microsoft Artifact Signing (publisher Iikka Amos Isosaari) with a trusted timestamp. Check the signature in the file Properties under Digital Signatures. This release also carries everything planned for 0.19.0 (below), which was never published on its own.
+
+Hanki Tools has a new interface. Every page is rebuilt, nothing about what Hanki checks or changes is different: the same engine, the same review before every change, the same Recovery.
+
+- **A new window.** Dark, with a rail on the left (Home, Fix my PC, Tune my PC, History, Help), a header with Find a tool (Ctrl+K), and a footer that shows what is running with one Cancel tasks button. Closing the window waits for running work.
+- **Review drawer.** Every change, uninstall, delete and repair is reviewed in a drawer beside the page instead of a pop-up. Optional changes start unticked. Nothing runs until you confirm.
+- **Every page is new.** Home, Fix my PC (scan results are a short list: what needs attention first, then incomplete checks and the checks that need no action, each expandable), Recovery, Maintain (files, apps, startup, duplicates, usage review, startup folders), Shield, Tune my PC, Performance Lab with charts, GPU, CPU, memory, storage, Gaming (games, NVIDIA, AMD Radeon, Tactical Vision), Connect, Diagnose, History, Help, Hanki Pro and the Assistant.
+- **Back follows where you have been**, including tabs inside a page (Alt+Left too). Guided troubleshooting for the internet, the twelve interface languages and Tactical Vision from the 0.19 previews are all in the new window.
+- **Language.** The language button at the bottom of the rail chooses one of twelve languages or follows Windows. It applies the next time Hanki opens. Detailed reports and some secondary text are still English.
+- **Setup installer.** A Windows setup EXE (current user or all users) is built next to the portable ZIP. The setup program itself is not signed; the installed HankiTools.exe is.
+- **Licence.** Hanki is now released under the PolyForm Noncommercial licence (see LICENSE).
+- **The old window** is still available: start HankiTools.exe with `--legacy-shell`.
+- **Under the hood.** The tested logic moved to a UI-free library (Hanki.Core) with 756+ automated checks; the new window is checked on a hidden desktop in all twelve languages so nothing appears on your screen.
+
+Testing: the automated checks, a hidden-desktop UI check that opens every page, and the owner's own tests of high contrast, 150% and 200% scaling and the light theme. Not exercised on a real PC: applying a Tune plan, ReTrim, the processor change, uninstalling an app, Defender scan/update/cancel, changing DNS, the Connect network checks, measuring a game, Tactical Vision on an NVIDIA display, and the setup installer scopes. Report anything that looks wrong.
+
 # Hanki Tools 0.19.0 — Tune my PC looks further
 
-The first code-signed release: HankiTools.exe is signed through Microsoft Artifact Signing (publisher Iikka Amos Isosaari) with a trusted timestamp. Check the signature in the file Properties under Digital Signatures. Tune my PC checks more of your PC and turns more of what Hanki already measures into advice. It still changes nothing until you apply, and each new change is saved in Recovery first.
+Included in 0.20.0. Tune my PC checks more of your PC and turns more of what Hanki already measures into advice. It still changes nothing until you apply, and each new change is saved in Recovery first.
 
 - **Laptops.** Gaming on a laptop whose screen runs through the integrated graphics suggests the MUX switch or Advanced Optimus (the dedicated-GPU mode in your laptop maker's app). Low power suggests hybrid mode, sets the power mode for battery as well as plugged in, and offers to start Energy saver at 50% battery.
 - **Auto HDR.** Gaming + Quality with HDR on offers to turn on Auto HDR for DirectX 11 and 12 games.

@@ -172,3 +172,17 @@ Never exercised for real (they change the system or contact the network): applyi
 ## Owner testing (2026-10-08)
 
 The owner reports having tested high contrast, 150% and 200% scaling and a light theme on the redesign build, with no problems found. This is the owner's own report; it was not run by the assistant and no evidence files were recorded. The acceptance checks `dpi-keyboard-contrast` and the others in RELEASE-CHECKLIST.md still need their evidence notes (tester, Windows version, date) entered in acceptance.json for the exact exe before packaging.
+
+## Phase 7: everything native, merged with main (2026-10-08)
+
+Every page is now WPF; no page is shown through the WinForms host any more (`HostedView` is unused). Ported in this phase: History, Help, Support, Hanki Pro, System actions, Performance sessions, Usage review, Startup folders, Power plans, Memory & pagefile, Comparisons, Guided checks, Crash timeline, Windows Activation, Dump analysis, Network tools, Games, NVIDIA, AMD Radeon, Assistant and the in-app AI. Shared pieces: `Blocks`, `Dialogs` (choice editor, one-line question, Keep display mode, language), `ReportView` (plain-text output, extra controls on the button row), `PrepareView`/`AiChatView`.
+
+Merged `origin/main` (0.19.0-rc.2 to rc.10: twelve-language UI, Tactical Vision, guided troubleshooting and internet journey, back history, installer pipeline, PolyForm licence). Upstream's WinForms-only changes were carried into the WPF shell:
+
+- `Localizer`, `NavigationHistory`, `ScanPresentation` and `InternetJourney` moved to Hanki.Core. `Localizer.T` is applied where the shell builds text (`UiKit.Text`, `Buttons`, `SubTabs`, rail, header, footer); the language button opens `LanguagePicker`. `--ui-smoke-test-localized <lang>` now runs the shell check.
+- Scan results: attention first, incomplete checks and "other completed checks" expandable, a finding opens its next step (`FixScanPage.RenderResults/RenderFinding`).
+- Connect starts with Guided troubleshooting (`InternetGuideView`); Back is a visit history (`ShellWindow.Record/GoBack`, `SubTabs.AnySelected`), Alt+Left works.
+- Tactical Vision: the controller runs for the lifetime of the app; the Games page has the status line and the per-game dialog.
+- The upstream change that removed Home search and recent activity was not carried over: the native Home keeps both.
+
+Still WinForms (dialogs, not pages): QuickAssist, DesktopShortcuts, CustomerReportFlow, RemovalDialogs, RepairReviewDialog and the legacy shell reached with `--legacy-shell`. `LegacyWorkspace` stays as the navigation model (tabs and routes); removing it and Core's WindowsForms reference is a separate refactor.
