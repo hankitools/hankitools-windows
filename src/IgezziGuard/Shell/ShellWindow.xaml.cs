@@ -53,7 +53,7 @@ internal sealed partial class ShellWindow : Window, IShellServices
         LoadBranding();
         workspace = new LegacyWorkspace(() => Win32);
         // Pages built natively take over their destination; every other page stays a hosted WinForms page.
-        nativeFactories = new() { ["Home"] = () => new HomePage(this), ["System overview"] = () => new FixLandingPage(this), ["Fix My PC"] = () => new FixScanPage(this), ["Recovery"] = () => new RecoveryPage(this), ["Maintain"] = () => new MaintainPage(this), ["Shield"] = () => new ShieldPage(this), ["Performance Lab"] = () => new LabPage(this), ["Performance overview"] = () => new PerformanceOverviewPage(this), ["GPU"] = () => new GpuPage(this), ["Storage"] = () => new StoragePage(this), ["CPU"] = () => new CpuPage(this), ["Gaming"] = () => new GamingPage(this), ["Connect"] = () => new ConnectPage(this), ["Diagnose"] = () => new DiagnosePage(this), ["Memory"] = () => new MemoryPage(this), ["History"] = () => new HistoryLandingPage(this), ["Help"] = () => new HelpLandingPage(this), ["Help & community"] = () => new SupportPage(this), ["Hanki Pro"] = () => new LicensePage(this), ["System actions"] = () => new SystemActionsPage(this), ["Performance sessions"] = () => new SessionsPage(this) };
+        nativeFactories = new() { ["Home"] = () => new HomePage(this), ["System overview"] = () => new FixLandingPage(this), ["Fix My PC"] = () => new FixScanPage(this), ["Recovery"] = () => new RecoveryPage(this), ["Maintain"] = () => new MaintainPage(this), ["Shield"] = () => new ShieldPage(this), ["Performance Lab"] = () => new LabPage(this), ["Performance overview"] = () => new PerformanceOverviewPage(this), ["GPU"] = () => new GpuPage(this), ["Storage"] = () => new StoragePage(this), ["CPU"] = () => new CpuPage(this), ["Gaming"] = () => new GamingPage(this), ["Connect"] = () => new ConnectPage(this), ["Diagnose"] = () => new DiagnosePage(this), ["Memory"] = () => new MemoryPage(this), ["History"] = () => new HistoryLandingPage(this), ["Help"] = () => new HelpLandingPage(this), ["Help & community"] = () => new SupportPage(this), ["Hanki Pro"] = () => new LicensePage(this), ["System actions"] = () => new SystemActionsPage(this), ["Performance sessions"] = () => new SessionsPage(this), ["Assistant"] = () => new AssistantPage(this) };
         // Create the native handles up front: WinForms raises tab-change events only for a control that has one, and the workspace
         // starts hidden when Home is a native page.
         _ = workspace.Handle; _ = workspace.Tabs.Handle;
@@ -194,7 +194,7 @@ internal sealed partial class ShellWindow : Window, IShellServices
     IReadOnlyList<ToolLauncher.Route> IShellServices.Routes => workspace.Routes;
     void IShellServices.OpenGuide(int index) { workspace.Routes.FirstOrDefault(r => r.Name == "Diagnose  /  Guided checks")?.Open(); (nativePages.GetValueOrDefault("Diagnose") as DiagnosePage)?.ShowGuide(index); }
     IWin32Window IShellServices.DialogOwner => Win32;
-    void IShellServices.PrepareForAssistant(string text) => workspace.PrepareForAssistant(text);
+    void IShellServices.PrepareForAssistant(string text) { workspace.Navigate("Assistant"); if (nativePages.GetValueOrDefault("Assistant") is AssistantPage page) page.LoadReport(text); else workspace.PrepareForAssistant(text); }
     FullScanController IShellServices.Scan => scan;
     TaskTracker IShellServices.Tasks => tasks;
     void IShellServices.Say(string text) { statusMessage = text; UpdateFooter(); }

@@ -77,4 +77,22 @@ internal static class Dialogs
         window.Loaded += (_, _) => timer.Start(); window.Closed += (_, _) => timer.Stop();
         return window.ShowDialog() == true;
     }
+
+    /// <summary>Shows exactly what will be sent and a consent box; true only when it was ticked and Send was chosen.</summary>
+    internal static bool ReviewSend(string title, string text, string consent, string sendLabel)
+    {
+        var window = Create(title, 900, 650); window.SizeToContent = SizeToContent.Manual; window.ResizeMode = ResizeMode.CanResize; window.MinHeight = 420;
+        var root = new Grid { Margin = new Thickness(18) };
+        root.RowDefinitions.Add(new RowDefinition()); root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        var box = new TextBox { Style = (Style)Application.Current.FindResource("FieldBox"), Text = text, IsReadOnly = true, AcceptsReturn = true, TextWrapping = TextWrapping.Wrap, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, FontSize = 13 };
+        System.Windows.Automation.AutomationProperties.SetName(box, "Exactly what will be sent");
+        var bottom = new StackPanel { Margin = new Thickness(0, 12, 0, 0) }; Grid.SetRow(bottom, 1);
+        var agree = new System.Windows.Controls.CheckBox { Content = consent, Margin = new Thickness(0, 0, 0, 10) };
+        var bar = new WrapPanel();
+        var send = Buttons.Primary(sendLabel); send.IsEnabled = false; var cancel = Buttons.Secondary("Cancel"); cancel.IsCancel = true;
+        agree.Checked += (_, _) => send.IsEnabled = true; agree.Unchecked += (_, _) => send.IsEnabled = false; send.Click += (_, _) => window.DialogResult = true;
+        bar.Children.Add(send); bar.Children.Add(cancel); bottom.Children.Add(agree); bottom.Children.Add(bar);
+        root.Children.Add(box); root.Children.Add(bottom); window.Content = root;
+        return window.ShowDialog() == true && agree.IsChecked == true;
+    }
 }
