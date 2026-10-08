@@ -16,7 +16,7 @@ internal sealed class ReportView : ScrollViewer
     private readonly string taskName;
     private readonly WrapPanel bar = new() { Margin = new Thickness(0, 14, 0, 4) };
     private readonly List<Button> buttons = [];
-    private readonly Button cancel = Buttons.Secondary("Cancel");
+    private readonly Button cancel = Buttons.Secondary("Cancel"), assistant = Buttons.Quiet("Prepare for Assistant");
     private readonly TextBlock status = UiKit.Text("", 13.5, UiKit.Res("TextMuted"), wrap: true);
     private readonly DiagnosisView view = new();
     private CancellationTokenSource? running;
@@ -37,6 +37,7 @@ internal sealed class ReportView : ScrollViewer
             buttons.Add(button); bar.Children.Add(button);
         }
         cancel.IsEnabled = false; cancel.Click += (_, _) => running?.Cancel(); bar.Children.Add(cancel);
+        assistant.IsEnabled = false; assistant.Click += (_, _) => { if (view.ReportText.Length > 0) shell.PrepareForAssistant(view.ReportText); }; bar.Children.Add(assistant);
         root.Children.Add(bar); root.Children.Add(status); view.Margin = new Thickness(0, 6, 0, 0); root.Children.Add(view);
         Content = root;
     }
@@ -54,9 +55,9 @@ internal sealed class ReportView : ScrollViewer
         using var cts = new CancellationTokenSource(); running = cts;
         foreach (var b in buttons) b.IsEnabled = false; cancel.IsEnabled = true;
         using var ticket = shell.Tasks.Begin(taskName, cts.Cancel);
-        status.Text = "Collecting results. Your previous report remains available after this operation."; view.Clear();
+        status.Text = "Collecting results. Your previous report remains available after this operation."; view.Clear(); assistant.IsEnabled = false;
         try {
-            if (action.Diagnose is { } diagnose) { view.Show(await diagnose(this, cts.Token)); status.Text = "Report ready · " + DateTime.Now.ToString("t"); }
+            if (action.Diagnose is { } diagnose) { view.Show(await diagnose(this, cts.Token)); status.Text = "Report ready · " + DateTime.Now.ToString("t"); assistant.IsEnabled = view.ReportText.Length > 0; }
             else if (action.Text is { } text) status.Text = await text(this, cts.Token);
         }
         catch (OperationCanceledException) { status.Text = "Cancelled. Nothing on your PC was changed; incomplete results were discarded. Run it again when you're ready."; }

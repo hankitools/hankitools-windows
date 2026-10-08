@@ -127,6 +127,7 @@ internal static class ShellSmokeTest
         CheckShield(window, notes);
         CheckLab(window, notes);
         CheckSystemPages(window, notes);
+        CheckDiagnose(window, notes);
         window.Workspace.Navigate("Recovery"); Flush(window.Dispatcher);
         if (window.CurrentNative is not RecoveryPage) throw new IOException("Recovery is not the native page.");
         notes.Add("recovery-page");
@@ -185,6 +186,27 @@ internal static class ShellSmokeTest
         if (storage.View.Result.CardCount == 0) throw new IOException("The storage check produced no cards.");
         window.Workspace.Navigate("Home"); Flush(window.Dispatcher);
         notes.Add("system-pages");
+    }
+
+    /// <summary>Connect and Diagnose: native tabs and routes, every hosted tab builds, and the local read-only checks really run. Network checks are not run.</summary>
+    private static void CheckDiagnose(ShellWindow window, List<string> notes)
+    {
+        IShellServices services = window;
+        window.Workspace.Navigate("Connect"); Flush(window.Dispatcher);
+        if (window.CurrentNative is not ConnectPage connect || connect.CurrentTab != "Basic checks") throw new IOException("Connect is not the native page.");
+        foreach (var key in connect.TabKeys) { window.Workspace.Routes.First(r => r.Name == "Connect  /  " + key).Open(); window.UpdateLayout(); Flush(window.Dispatcher); if (connect.CurrentTab != key) throw new IOException("A route did not select the Connect tab " + key); }
+        if (connect.Basic is null || connect.Wifi is null) throw new IOException("A Connect check did not build.");
+        window.Workspace.Navigate("Diagnose"); Flush(window.Dispatcher);
+        if (window.CurrentNative is not DiagnosePage diagnose) throw new IOException("Diagnose is not the native page.");
+        foreach (var key in diagnose.TabKeys) { window.Workspace.Routes.First(r => r.Name == "Diagnose  /  " + key).Open(); window.UpdateLayout(); Flush(window.Dispatcher); if (diagnose.CurrentTab != key) throw new IOException("A route did not select the Diagnose tab " + key); }
+        WaitFor(diagnose.EventLogs!.RunAsync("Check the last 7 days", DiagnoseActions.EventLogs()), window);
+        if (diagnose.EventLogs.Result.CardCount == 0) throw new IOException("The event log check produced no cards.");
+        WaitFor(diagnose.Update!.RunAsync("Check Windows Update", DiagnoseActions.WindowsUpdate(services)), window);
+        if (diagnose.Update.Result.CardCount == 0) throw new IOException("The Windows Update check produced no cards.");
+        WaitFor(diagnose.Battery!.RunAsync("Check battery and startup", DiagnoseActions.BatteryStartup(services)), window);
+        if (diagnose.Battery.Result.CardCount == 0) throw new IOException("The battery and startup check produced no cards.");
+        window.Workspace.Navigate("Home"); Flush(window.Dispatcher);
+        notes.Add("diagnose-connect");
     }
     /// <summary>Shield: native tabs, the Defender views build without running anything, and the scan history loads.</summary>
     private static void CheckShield(ShellWindow window, List<string> notes)
