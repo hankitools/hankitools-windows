@@ -117,3 +117,18 @@ internal static class ResultChips
         return panel;
     }
 }
+
+internal static class Buttons
+{
+    private static Button Make(string text, string style, bool bold = false) =>
+        new() { Style = (Style)Application.Current.FindResource(style), Content = text, Margin = new Thickness(0, 0, 8, 8), FontWeight = bold ? FontWeights.SemiBold : FontWeights.Normal };
+    internal static Button Primary(string text) => Make(text, "PrimaryButton", true);
+    internal static Button Secondary(string text) => Make(text, "SecondaryButton");
+    internal static Button Quiet(string text) => Make(text, "QuietButton");
+    internal static System.Windows.Controls.TextBox Field(string placeholder, double width)
+    {
+        var box = new System.Windows.Controls.TextBox { Style = (Style)Application.Current.FindResource("FieldBox"), Width = width, Margin = new Thickness(0, 0, 8, 8), ToolTip = placeholder, Tag = placeholder };
+        System.Windows.Automation.AutomationProperties.SetName(box, placeholder);
+        return box;
+    }
+}

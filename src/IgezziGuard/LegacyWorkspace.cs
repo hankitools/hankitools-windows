@@ -161,6 +161,7 @@ internal sealed class LegacyWorkspace : Panel
                 routes.Add(new ToolLauncher.Route(name, () => {
                     for (Control? current = destination; current is not null; current = current.Parent)
                         if (current is TabPage selected && selected.Parent is TabControl inner) inner.SelectedTab = selected;
+                    PathChanged?.Invoke();
                 }));
                 foreach (var child in page.Controls.OfType<TabControl>()) AddRoutes(child, name + "  /  ");
             }
@@ -186,8 +187,22 @@ internal sealed class LegacyWorkspace : Panel
     /// <summary>Hands report text to the Assistant to redact and review, and opens it.</summary>
     internal void PrepareForAssistant(string text) { if (assistant.LoadReport(text)) { if (assistantTab is not null) tabs.SelectedTab = assistantTab; SelectInnerTab(assistant); } }
 
+    /// <summary>Raised after a navigation changed which page or nested tab is selected (including by a Find-a-tool route).</summary>
+    internal event Action? PathChanged;
+    /// <summary>The selected page and nested tabs, outermost first, for example ["Maintain", "Apps &amp; storage"].</summary>
+    internal IReadOnlyList<string> CurrentPath()
+    {
+        var path = new List<string>();
+        for (TabControl? group = tabs; group?.SelectedTab is { } page; group = page.Controls.OfType<TabControl>().FirstOrDefault()) path.Add(page.Text);
+        return path;
+    }
+    /// <summary>Pages a native page still shows through a host while its own version is not written.</summary>
+    internal Control? HostedPanel(string key) => key switch { "Apps & storage" => apps, "Usage review" => usage, "Startup / undo" => startup, "Duplicates" => duplicates, "Startup folders" => startupFolders, _ => null };
+    /// <summary>Maps an installed app for usage review (the Usage review page's own action).</summary>
+    internal void MapUsage(InstalledApp app) => usage.Map(app);
+
     /// <summary>Selects a workspace page by its title (a navigation destination).</summary>
-    internal void Navigate(string name) { var page = tabs.TabPages.Cast<TabPage>().FirstOrDefault(p => p.Text == name); if (page is not null) tabs.SelectedTab = page; }
+    internal void Navigate(string name) { var page = tabs.TabPages.Cast<TabPage>().FirstOrDefault(p => p.Text == name); if (page is not null) { tabs.SelectedTab = page; PathChanged?.Invoke(); } }
     /// <summary>Opens Fix my PC and starts its scan.</summary>
     internal void StartFixMyPc() { Navigate("Fix My PC"); fullScan.Start(); }
     /// <summary>Re-applies the theme, for example after Windows colors change.</summary>

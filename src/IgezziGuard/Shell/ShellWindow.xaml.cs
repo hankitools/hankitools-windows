@@ -31,6 +31,7 @@ internal sealed partial class ShellWindow : Window, IShellServices
     private string? backTarget;
     private string statusMessage = "";
     private readonly FullScanController scan = new();
+    private readonly TaskTracker tasks = new();
     private readonly Dictionary<string, NativePage> nativePages = [];
     private Dictionary<string, Func<NativePage>> nativeFactories = [];
 
@@ -52,7 +53,7 @@ internal sealed partial class ShellWindow : Window, IShellServices
         LoadBranding();
         workspace = new LegacyWorkspace(() => Win32);
         // Pages built natively take over their destination; every other page stays a hosted WinForms page.
-        nativeFactories = new() { ["Home"] = () => new HomePage(this), ["System overview"] = () => new FixLandingPage(this), ["Fix My PC"] = () => new FixScanPage(this), ["Recovery"] = () => new RecoveryPage(this) };
+        nativeFactories = new() { ["Home"] = () => new HomePage(this), ["System overview"] = () => new FixLandingPage(this), ["Fix My PC"] = () => new FixScanPage(this), ["Recovery"] = () => new RecoveryPage(this), ["Maintain"] = () => new MaintainPage(this) };
         // Create the native handles up front: WinForms raises tab-change events only for a control that has one, and the workspace
         // starts hidden when Home is a native page.
         _ = workspace.Handle; _ = workspace.Tabs.Handle;
@@ -64,8 +65,10 @@ internal sealed partial class ShellWindow : Window, IShellServices
         SearchButton.Click += (_, _) => ShowPalette();
         BackButton.Click += (_, _) => { if (backTarget is not null) workspace.Navigate(backTarget); };
         AboutButton.Click += (_, _) => AboutDialog.Show(Win32);
-        CancelTasksButton.Click += (_, _) => { workspace.CancelTasks(); scan.Cancel(); };
+        CancelTasksButton.Click += (_, _) => { workspace.CancelTasks(); scan.Cancel(); tasks.CancelAll(); };
         scan.Changed += () => Dispatcher.BeginInvoke(UpdateFooter);
+        tasks.Changed += () => Dispatcher.BeginInvoke(UpdateFooter);
+        workspace.PathChanged += () => CurrentNative?.OnRoute(workspace.CurrentPath());
         taskTimer.Tick += (_, _) => UpdateFooter();
         taskTimer.Start();
         RefreshNavigation();
@@ -157,7 +160,7 @@ internal sealed partial class ShellWindow : Window, IShellServices
     }
 
 
-    private string[] ActiveTasks() => scan.IsBusy ? ["Fix My PC", .. workspace.ActiveTasks()] : workspace.ActiveTasks();
+    private string[] ActiveTasks() => [.. scan.IsBusy ? new[] { "Fix My PC" } : [], .. tasks.Names, .. workspace.ActiveTasks()];
 
     /// <summary>The native page currently shown in place of the hosted workspace, or null while a hosted page is shown.</summary>
     internal NativePage? CurrentNative { get; private set; }
@@ -177,6 +180,7 @@ internal sealed partial class ShellWindow : Window, IShellServices
             // Hidden, not collapsed: the workspace keeps its size so its pages stay laid out.
             Host.Visibility = native is null ? Visibility.Visible : Visibility.Hidden;
             native?.OnShown();
+            native?.OnRoute(workspace.CurrentPath());
         } catch (Exception ex) {
             // A native page that fails must not leave the window on the wrong page: log it and show the hosted page instead.
             if (UiSmokeTest.Active) throw;
@@ -193,6 +197,10 @@ internal sealed partial class ShellWindow : Window, IShellServices
     IWin32Window IShellServices.DialogOwner => Win32;
     void IShellServices.PrepareForAssistant(string text) => workspace.PrepareForAssistant(text);
     FullScanController IShellServices.Scan => scan;
+    TaskTracker IShellServices.Tasks => tasks;
+    void IShellServices.Say(string text) { statusMessage = text; UpdateFooter(); }
+    System.Windows.Forms.Control? IShellServices.HostedPanel(string key) => workspace.HostedPanel(key);
+    void IShellServices.MapUsage(InstalledApp app) { workspace.MapUsage(app); }
     /// <summary>Opens Fix my PC and starts its scan (no network probes, so nothing needs confirming).</summary>
     public void StartFixMyPc()
     {
@@ -216,7 +224,7 @@ internal sealed partial class ShellWindow : Window, IShellServices
 
     private void OnClosing(object? sender, System.ComponentModel.CancelEventArgs e)
     {
-        if (workspace.CancelBeforeClose() | scan.IsBusy) { scan.Cancel(); e.Cancel = true; statusMessage = "Cancelling; close again when finished."; UpdateFooter(); return; }
+        if (workspace.CancelBeforeClose() | scan.IsBusy | tasks.Any) { scan.Cancel(); tasks.CancelAll(); e.Cancel = true; statusMessage = "Cancelling; close again when finished."; UpdateFooter(); return; }
         SavePlacement();
     }
 

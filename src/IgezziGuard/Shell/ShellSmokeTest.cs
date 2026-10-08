@@ -123,6 +123,7 @@ internal static class ShellSmokeTest
         if (window.CurrentNative is not FixScanPage scanPage || !scanPage.CanStart) throw new IOException("The full-scan page is missing or cannot start a scan.");
         notes.Add("full-scan-page");
         CheckDrawer(window, notes);
+        CheckMaintain(window, notes);
         window.Workspace.Navigate("Recovery"); Flush(window.Dispatcher);
         if (window.CurrentNative is not RecoveryPage) throw new IOException("Recovery is not the native page.");
         notes.Add("recovery-page");
@@ -141,6 +142,25 @@ internal static class ShellSmokeTest
     }
 
 
+
+    /// <summary>Maintain: native tabs, route selection, and the Files list with a prepared inventory (sort, filter, selection).</summary>
+    private static void CheckMaintain(ShellWindow window, List<string> notes)
+    {
+        window.Workspace.Navigate("Maintain"); Flush(window.Dispatcher);
+        if (window.CurrentNative is not MaintainPage page) throw new IOException("Maintain is not the native page.");
+        if (page.CurrentTab != "Files & storage" || page.Files is not { } files) throw new IOException("Maintain does not open on Files & storage.");
+        var now = DateTime.UtcNow;
+        files.Load(Enumerable.Range(1, 400).Select(i => new InventoryFile($@"C:\fixture\folder{i % 7}\file{i:000}{(i % 3 == 0 ? ".zip" : i % 3 == 1 ? ".txt" : ".mp4")}", i * 10_000L, now.AddDays(-i), now.AddDays(-i))), "fixture");
+        window.UpdateLayout(); Flush(window.Dispatcher);
+        if (files.VisibleCount != 400) throw new IOException("The Files list does not show every file.");
+        files.SelectRows(0, 1, 2); Flush(window.Dispatcher);
+        window.Workspace.Routes.First(r => r.Name == "Maintain  /  Startup folders").Open(); Flush(window.Dispatcher);
+        if (page.CurrentTab != "Startup folders") throw new IOException("A route did not select its Maintain tab.");
+        foreach (var key in page.TabKeys) { page.Select(key); window.UpdateLayout(); Flush(window.Dispatcher); }
+        page.Select("Files & storage");
+        window.Workspace.Navigate("Home"); Flush(window.Dispatcher);
+        notes.Add("maintain-page");
+    }
     /// <summary>The review drawer: choices, the "I understand" gate, validation and cancelling, all without a click.</summary>
     private static void CheckDrawer(ShellWindow window, List<string> notes)
     {
