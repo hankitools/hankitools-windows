@@ -95,4 +95,29 @@ internal static class Dialogs
         root.Children.Add(box); root.Children.Add(bottom); window.Content = root;
         return window.ShowDialog() == true && agree.IsChecked == true;
     }
+
+    /// <summary>Tactical Vision for one game: off, or a Digital Vibrance strength from 51 to 100. Null when cancelled.</summary>
+    internal static int? TacticalVision(GameEntry game)
+    {
+        var window = Create("Tactical Vision · " + game.Name, 560, 200);
+        var stack = new StackPanel { Margin = new Thickness(24) };
+        stack.Children.Add(UiKit.Text("Boost color saturation while this game is focused. NVIDIA Digital Vibrance affects the entire display containing the game. Your previous colors return when you switch away, exit the game, or close Hanki.\n\nKeep Hanki open. Requires an SDR display connected directly to NVIDIA; HDR is not supported. This changes color, not FPS.", 13.5, UiKit.Res("TextMuted"), wrap: true));
+        var enabled = new System.Windows.Controls.CheckBox { Content = Localizer.T("Enable Tactical Vision for this game"), IsChecked = game.TacticalVision > 0, Margin = new Thickness(0, 16, 0, 12) };
+        var label = UiKit.Text("Digital Vibrance % (50 = neutral, 100 = maximum)", 13.5);
+        var box = new TextBox { Style = (Style)Application.Current.FindResource("FieldBox"), Width = 100, HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0, 6, 0, 0), MaxLength = 3,
+            Text = (game.TacticalVision is >= 51 and <= 100 ? game.TacticalVision : 70).ToString(), IsEnabled = game.TacticalVision > 0 };
+        System.Windows.Automation.AutomationProperties.SetName(box, "Digital Vibrance percentage");
+        enabled.Click += (_, _) => box.IsEnabled = enabled.IsChecked == true;
+        var error = UiKit.Text("", 13, UiKit.Res("Problem"), wrap: true); error.Margin = new Thickness(0, 8, 0, 0);
+        var bar = new WrapPanel { Margin = new Thickness(0, 14, 0, 0) };
+        var save = Buttons.Primary("Save"); var cancel = Buttons.Secondary("Cancel"); save.IsDefault = true; cancel.IsCancel = true;
+        save.Click += (_, _) => {
+            if (enabled.IsChecked == true && !(int.TryParse(box.Text, out var v) && v is >= 51 and <= 100)) { error.Text = "Enter a whole number from 51 to 100."; return; }
+            window.DialogResult = true;
+        };
+        bar.Children.Add(save); bar.Children.Add(cancel);
+        foreach (var item in new UIElement[] { enabled, label, box, error, bar }) stack.Children.Add(item);
+        window.Content = stack;
+        return window.ShowDialog() == true ? (enabled.IsChecked == true ? int.Parse(box.Text) : 0) : null;
+    }
 }

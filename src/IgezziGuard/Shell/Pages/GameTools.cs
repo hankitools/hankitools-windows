@@ -61,6 +61,7 @@ internal static class GameTools
                     if (state.Graphics is null) state.Collect();
                     var context = Context(game);
                     var text = new StringBuilder($"{game.Name}\n{game.Executable}{(File.Exists(game.Executable) ? "" : "\nThis file isn't there any more; the game may have been moved or uninstalled.")}\nFound in: {game.Source}\n\n");
+                    text.AppendLine(game.TacticalVision > 0 ? $"Tactical Vision: {game.TacticalVision}% Digital Vibrance while focused (keep Hanki open)." : "Tactical Vision: off. Choose Tactical Vision to boost color saturation for this game.");
                     text.AppendLine($"Windows GPU choice: {(context.WindowsPreference is { } p ? WindowsGamingParsing.PreferenceText(p) : "Let Windows decide")}");
                     if (context.NvidiaGlobal is not null) {
                         text.AppendLine(context.Nvidia is null ? "NVIDIA profile: none, so your global NVIDIA settings apply." : $"NVIDIA profile: {context.Nvidia.ProfileName}{(context.Nvidia.Predefined ? " (made by NVIDIA)" : "")}");
@@ -77,7 +78,7 @@ internal static class GameTools
         }
 
         view = new ReportView(shell, "Games",
-            "Games Hanki found in Steam, Epic, GOG and other launchers' records on this PC, plus any you add. Nothing is looked up online. Settings are changed for one game at a time, in its own driver profile, and only after you review them.", [
+            "Games Hanki found in Steam, Epic, GOG and other launchers' records on this PC, plus any you add. Nothing is looked up online. Review optimization changes per game, or enable Tactical Vision to boost your NVIDIA display's color saturation only while that game is focused.", [
             new("Optimize this game", Primary: true, Text: async (_, token) => {
                 if (Selected() is not { } game) return "Choose a game first, or add one.";
                 if (!File.Exists(game.Executable)) return "The game's .exe isn't there any more. Add it again with Add a game…";
@@ -86,6 +87,11 @@ internal static class GameTools
                 string result = "";
                 await ChangeReview.ReviewAndApply(shell.DialogOwner, changes, $"{game.Name}: {GamingProfiles.Name(chosen)}", $"Optimize {game.Name} ({GamingProfiles.Name(chosen)})", text => { result = Lines(text); view.Say(result); });
                 return result;
+            }),
+            new("Tactical Vision…", Open: () => {
+                if (Selected() is not { } game) { view.ShowPlain("Choose a game first, or add one."); return; }
+                if (Dialogs.TacticalVision(game) is not { } strength) return;
+                Save(list.Select(g => g.Id == game.Id ? g with { TacticalVision = strength } : g).ToArray(), game.Id);
             }),
             new("Launch and measure", Diagnose: async (_, token) => {
                 if (Selected() is not { } game) throw new InvalidOperationException("Choose a game first, or add one.");
@@ -158,6 +164,12 @@ internal static class GameTools
                 }, token);
             }),
         ]);
+        var visionStatus = UiKit.Text(TacticalVisionController.Status, 13.5, UiKit.Res("TextMuted"), wrap: true); visionStatus.Margin = new Thickness(0, 8, 0, 0);
+        System.Windows.Automation.AutomationProperties.SetName(visionStatus, "Tactical Vision status");
+        void UpdateVision() => view.Dispatcher.BeginInvoke(() => visionStatus.Text = TacticalVisionController.Status);
+        view.InsertNote(visionStatus);
+        view.Loaded += (_, _) => { TacticalVisionController.StatusChanged += UpdateVision; visionStatus.Text = TacticalVisionController.Status; };
+        view.Unloaded += (_, _) => TacticalVisionController.StatusChanged -= UpdateVision;
         view.AddToBar(games, first: true); view.AddToBar(goal, first: false);
         games.SelectionChanged += (_, _) => ShowGame();
         goal.SelectionChanged += (_, _) => {

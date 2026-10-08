@@ -22,6 +22,9 @@ internal sealed class ReportView : ScrollViewer
     private CancellationTokenSource? running;
 
     private readonly System.Windows.Controls.TextBox plain = Blocks.Output(620);
+    private readonly StackPanel root = new() { Margin = new Thickness(24, 0, 24, 28) };
+    /// <summary>Puts a note under the introduction, above the buttons.</summary>
+    internal void InsertNote(UIElement element) => root.Children.Insert(1, element);
     internal DiagnosisView Result => view;
     internal string PlainText => plain.Text;
 
@@ -37,7 +40,6 @@ internal sealed class ReportView : ScrollViewer
     {
         this.shell = shell; this.taskName = taskName;
         VerticalScrollBarVisibility = ScrollBarVisibility.Auto;
-        var root = new StackPanel { Margin = new Thickness(24, 0, 24, 28) };
         root.Children.Add(UiKit.Text(intro, 14, UiKit.Res("TextMuted"), wrap: true));
         foreach (var action in actions) {
             var button = action.Primary ? Buttons.Primary(action.Label) : Buttons.Secondary(action.Label);
