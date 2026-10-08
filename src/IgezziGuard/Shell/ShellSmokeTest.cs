@@ -124,6 +124,7 @@ internal static class ShellSmokeTest
         notes.Add("full-scan-page");
         CheckDrawer(window, notes);
         CheckMaintain(window, notes);
+        CheckShield(window, notes);
         window.Workspace.Navigate("Recovery"); Flush(window.Dispatcher);
         if (window.CurrentNative is not RecoveryPage) throw new IOException("Recovery is not the native page.");
         notes.Add("recovery-page");
@@ -143,6 +144,21 @@ internal static class ShellSmokeTest
 
 
 
+
+    /// <summary>Shield: native tabs, the Defender views build without running anything, and the scan history loads.</summary>
+    private static void CheckShield(ShellWindow window, List<string> notes)
+    {
+        window.Workspace.Navigate("Shield"); Flush(window.Dispatcher);
+        if (window.CurrentNative is not ShieldPage page) throw new IOException("Shield is not the native page.");
+        if (page.CurrentTab != "Defender audit" || page.Audit is null) throw new IOException("Shield does not open on the Defender audit.");
+        foreach (var key in page.TabKeys) { page.Select(key); window.UpdateLayout(); Flush(window.Dispatcher); }
+        if (page.Controls is null || page.Scanner is null || page.History is null) throw new IOException("A Shield tab did not build.");
+        if (page.Controls.MonitoringOn) throw new IOException("Defender monitoring starts switched on.");
+        window.Workspace.Routes.First(r => r.Name == "Shield  /  File scan history").Open(); Flush(window.Dispatcher);
+        if (page.CurrentTab != "File scan history") throw new IOException("A route did not select its Shield tab.");
+        window.Workspace.Navigate("Home"); Flush(window.Dispatcher);
+        notes.Add("shield-page");
+    }
     /// <summary>Maintain: native tabs, route selection, and the Files list with a prepared inventory (sort, filter, selection).</summary>
     private static void CheckMaintain(ShellWindow window, List<string> notes)
     {

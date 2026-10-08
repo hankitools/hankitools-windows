@@ -53,7 +53,7 @@ internal sealed partial class ShellWindow : Window, IShellServices
         LoadBranding();
         workspace = new LegacyWorkspace(() => Win32);
         // Pages built natively take over their destination; every other page stays a hosted WinForms page.
-        nativeFactories = new() { ["Home"] = () => new HomePage(this), ["System overview"] = () => new FixLandingPage(this), ["Fix My PC"] = () => new FixScanPage(this), ["Recovery"] = () => new RecoveryPage(this), ["Maintain"] = () => new MaintainPage(this) };
+        nativeFactories = new() { ["Home"] = () => new HomePage(this), ["System overview"] = () => new FixLandingPage(this), ["Fix My PC"] = () => new FixScanPage(this), ["Recovery"] = () => new RecoveryPage(this), ["Maintain"] = () => new MaintainPage(this), ["Shield"] = () => new ShieldPage(this) };
         // Create the native handles up front: WinForms raises tab-change events only for a control that has one, and the workspace
         // starts hidden when Home is a native page.
         _ = workspace.Handle; _ = workspace.Tabs.Handle;
@@ -75,7 +75,7 @@ internal sealed partial class ShellWindow : Window, IShellServices
         RestorePlacement();
         SourceInitialized += (_, _) => ComponentDispatcher.ThreadPreprocessMessage += OnThreadMessage;
         Closing += OnClosing;
-        Closed += (_, _) => { ComponentDispatcher.ThreadPreprocessMessage -= OnThreadMessage; taskTimer.Stop(); ReviewPresenter.Provider = null; };
+        Closed += (_, _) => { ComponentDispatcher.ThreadPreprocessMessage -= OnThreadMessage; taskTimer.Stop(); ReviewPresenter.Provider = null; foreach (var page in nativePages.Values.OfType<ShieldPage>()) page.StopMonitoring(); };
         // Contacts Polar only when a Technician licence is due for its weekly check; offline, the stored licence keeps working.
         ContentRendered += async (_, _) => { RefreshNavigation(); try { await AppLicensing.RefreshAsync(CancellationToken.None); } catch (Exception ex) when (ex is IOException or HttpRequestException or InvalidOperationException) { } };
     }
@@ -180,7 +180,6 @@ internal sealed partial class ShellWindow : Window, IShellServices
             // Hidden, not collapsed: the workspace keeps its size so its pages stay laid out.
             Host.Visibility = native is null ? Visibility.Visible : Visibility.Hidden;
             native?.OnShown();
-            native?.OnRoute(workspace.CurrentPath());
         } catch (Exception ex) {
             // A native page that fails must not leave the window on the wrong page: log it and show the hosted page instead.
             if (UiSmokeTest.Active) throw;

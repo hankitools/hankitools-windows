@@ -122,3 +122,19 @@ Implemented on `redesign/phase-3-review-recovery`:
 - Still native message boxes (not changes to the system, so not part of this phase): AI chat clear and replace, the Windows Performance Options prompt, Quick Assist warnings, and the app-usage mapping prompts.
 - The airspace rule shapes the design: WPF cannot draw over the hosted WinForms pages, so the drawer is a borderless owned window positioned over the right edge of the content area instead of an overlay inside the window.
 - NVIDIA values in Recovery still show raw hex (0x0000000A); naming them needs the NVIDIA catalog and belongs with the Tune my PC port.
+
+## Phase 4 notes (2026-10-08)
+
+Implemented on `redesign/phase-4-maintain-shield` in three commits:
+
+- Shared controls: `DataList` (sortable, virtualized dark table), `DiagnosisView`, `SubTabs`, `TaskTracker`, dark field/list/chip styles. Native pages register their work with `TaskTracker`, so the footer lists it, Cancel tasks cancels it and closing the window waits for it.
+- Route support: `LegacyWorkspace.CurrentPath` and `NativePage.OnRoute` let Find a tool entries such as "Maintain / Apps & storage" select the native tab.
+- Maintain is native: Files & storage, Apps, Startup, Duplicates. Usage review and Startup folders are still hosted pages inside it.
+- Shield is native: Defender audit, Scans & alerts (with the optional minute-by-minute watch), File scanner, File scan history.
+- All confirmations (delete, uninstall, startup change, repair, Defender scan/update/cancel, duplicate recycle) go through the review drawer.
+
+Findings:
+
+- The native folder picker (`OpenFolderDialog`) works; the earlier "won't close" was my test tool, not the app. Pick the folder by double-clicking into it, then Select Folder.
+- Defender scan, update and cancel were reviewed in the drawer but not run: they raise UAC. Everything else on Shield was exercised live.
+- Not yet native: Usage review, Startup folders; Diagnose, Connect, the Performance area, Assistant, Help pages, History pages.

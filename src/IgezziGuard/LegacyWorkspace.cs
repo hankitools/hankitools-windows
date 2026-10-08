@@ -202,7 +202,7 @@ internal sealed class LegacyWorkspace : Panel
     internal void MapUsage(InstalledApp app) => usage.Map(app);
 
     /// <summary>Selects a workspace page by its title (a navigation destination).</summary>
-    internal void Navigate(string name) { var page = tabs.TabPages.Cast<TabPage>().FirstOrDefault(p => p.Text == name); if (page is not null) { tabs.SelectedTab = page; PathChanged?.Invoke(); } }
+    internal void Navigate(string name) { var page = tabs.TabPages.Cast<TabPage>().FirstOrDefault(p => p.Text == name); if (page is not null) tabs.SelectedTab = page; }
     /// <summary>Opens Fix my PC and starts its scan.</summary>
     internal void StartFixMyPc() { Navigate("Fix My PC"); fullScan.Start(); }
     /// <summary>Re-applies the theme, for example after Windows colors change.</summary>

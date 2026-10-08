@@ -30,7 +30,7 @@ public sealed class DefenderToolsPanel : ToolPage
         };
         Disposed += (_, _) => watch.Dispose();
     }
-    private static string Exe() { var exe = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "Windows Defender", "MpCmdRun.exe"); return File.Exists(exe) ? exe : throw new IOException("Microsoft Defender command tool is not present at its standard location. Use Windows Security."); }
+    internal static string Exe() { var exe = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "Windows Defender", "MpCmdRun.exe"); return File.Exists(exe) ? exe : throw new IOException("Microsoft Defender command tool is not present at its standard location. Use Windows Security."); }
     private void Start(int type) {
         if (!Review($"Start a Defender {(type == 1 ? "quick" : "full")} scan?\nWindows policy may automatically remediate or quarantine detections. Full scans can be lengthy and disk-intensive. Windows may request administrator approval (UAC). The scan continues if Hanki closes; Hanki's general Cancel button does not stop it. Use Cancel active Defender scan or Windows Security.")) return;
         Launch(["-Scan", "-ScanType", type.ToString()], "Defender scan command launched, not a completion or acceptance confirmation. Refresh protection/findings and inspect QuickScan/FullScan start/end times. Windows Security is authoritative; policy can reject the request.");
@@ -40,8 +40,8 @@ public sealed class DefenderToolsPanel : ToolPage
         catch (System.ComponentModel.Win32Exception ex) when (ex.NativeErrorCode == 1223) { Output.Text = "Windows administrator approval was declined. No retry made."; }
         catch (Exception ex) { Output.Text = ex.Message; }
     }
-    private static Task<string> Status(CancellationToken token) => WindowsCommand.PowerShell("Get-MpComputerStatus | Select-Object AMRunningMode,AMServiceEnabled,AntivirusEnabled,RealTimeProtectionEnabled,BehaviorMonitorEnabled,IsTamperProtected,AntivirusSignatureAge,AntivirusSignatureLastUpdated,QuickScanStartTime,QuickScanEndTime,FullScanStartTime,FullScanEndTime | ConvertTo-Json", token);
-    private static async Task<Diagnosis> Report(CancellationToken token) {
+    internal static Task<string> Status(CancellationToken token) => WindowsCommand.PowerShell("Get-MpComputerStatus | Select-Object AMRunningMode,AMServiceEnabled,AntivirusEnabled,RealTimeProtectionEnabled,BehaviorMonitorEnabled,IsTamperProtected,AntivirusSignatureAge,AntivirusSignatureLastUpdated,QuickScanStartTime,QuickScanEndTime,FullScanStartTime,FullScanEndTime | ConvertTo-Json", token);
+    internal static async Task<Diagnosis> Report(CancellationToken token) {
         var json = await Status(token); using var doc = JsonDocument.Parse(json);
         var capture = await WindowsCommand.PowerShellCapture("$detections=@(Get-MpThreatDetection | Sort-Object InitialDetectionTime -Descending | Select-Object -First 30 ThreatID,InitialDetectionTime,LastThreatStatusChangeTime,ActionSuccess,ThreatStatusID,Resources); $threats=@(Get-MpThreat | Select-Object ThreatID,ThreatName,SeverityID,IsActive,DidThreatExecute); [pscustomobject]@{Detections=$detections;ThreatNames=$threats} | ConvertTo-Json -Depth 5", token);
         var findings = capture.DisplayText;
