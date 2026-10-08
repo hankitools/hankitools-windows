@@ -131,6 +131,9 @@ internal static class ShellSmokeTest
         window.Workspace.Navigate("Recovery"); Flush(window.Dispatcher);
         if (window.CurrentNative is not RecoveryPage) throw new IOException("Recovery is not the native page.");
         notes.Add("recovery-page");
+        if (LanguagePicker.Choices().Count != 13 || LanguagePicker.Choices()[0].Code.Length != 0) throw new IOException("The language selector must offer Windows language plus twelve languages.");
+        foreach (var entry in window.Rail) { var text = ((System.Windows.Controls.TextBlock)((System.Windows.Controls.StackPanel)entry.Button.Content).Children[1]).Text; if (text != Localizer.T(Navigation.Find(entry.Page)!.Label)) throw new IOException("Rail label not translated: " + entry.Page); }
+        notes.Add("language/" + Localizer.CurrentLanguage);
         window.Workspace.Navigate("Home"); Flush(window.Dispatcher);
         window.Workspace.Navigate("Maintain"); Flush(window.Dispatcher);
         if (!window.BackVisible || window.CurrentIntroduction.Length == 0) throw new IOException("A tool page lacks its back link or introduction.");

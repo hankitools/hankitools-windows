@@ -27,6 +27,7 @@ internal sealed class SubTabs : DockPanel
     /// <summary>Adds a tab. The key is what routes call it (for example "Apps &amp; storage"); the label is what is shown.</summary>
     internal void Add(string key, string label, Func<UIElement> create)
     {
+        label = Localizer.T(label);
         var button = new RadioButton { Style = (Style)Application.Current.FindResource("SubTab"), GroupName = group, Content = label };
         System.Windows.Automation.AutomationProperties.SetName(button, label);
         button.Click += (_, _) => Select(key);

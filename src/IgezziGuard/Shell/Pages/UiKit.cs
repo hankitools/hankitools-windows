@@ -41,7 +41,7 @@ internal static class UiKit
     }
 
     internal static TextBlock Text(string text, double size = 14, Brush? brush = null, FontWeight? weight = null, bool wrap = false) =>
-        new() { Text = text, FontSize = size, Foreground = brush ?? Res("TextPrimary"), FontWeight = weight ?? FontWeights.Normal, TextWrapping = wrap ? TextWrapping.Wrap : TextWrapping.NoWrap, TextTrimming = wrap ? TextTrimming.None : TextTrimming.CharacterEllipsis };
+        new() { Text = Localizer.T(text), FontSize = size, Foreground = brush ?? Res("TextPrimary"), FontWeight = weight ?? FontWeights.Normal, TextWrapping = wrap ? TextWrapping.Wrap : TextWrapping.NoWrap, TextTrimming = wrap ? TextTrimming.None : TextTrimming.CharacterEllipsis };
 
     /// <summary>A status tile (Your PC at a glance): icon, label, value, detail and an optional usage bar. The whole tile opens a page.</summary>
     internal static Button StatusTile(GlanceTileModel model, Action open)
@@ -121,7 +121,7 @@ internal static class ResultChips
 internal static class Buttons
 {
     private static Button Make(string text, string style, bool bold = false) =>
-        new() { Style = (Style)Application.Current.FindResource(style), Content = text, Margin = new Thickness(0, 0, 8, 8), FontWeight = bold ? FontWeights.SemiBold : FontWeights.Normal };
+        new() { Style = (Style)Application.Current.FindResource(style), Content = Localizer.T(text), Margin = new Thickness(0, 0, 8, 8), FontWeight = bold ? FontWeights.SemiBold : FontWeights.Normal };
     internal static Button Primary(string text) => Make(text, "PrimaryButton", true);
     internal static Button Secondary(string text) => Make(text, "SecondaryButton");
     internal static Button Quiet(string text) => Make(text, "QuietButton");

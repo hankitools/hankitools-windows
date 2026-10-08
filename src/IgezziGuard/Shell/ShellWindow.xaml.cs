@@ -60,6 +60,7 @@ internal sealed partial class ShellWindow : Window, IShellServices
         // starts hidden when Home is a native page.
         _ = workspace.Handle; _ = workspace.Tabs.Handle;
         Host.Child = workspace;
+        LocalizeChrome();
         BuildRail();
         BuildQuickAccess();
         workspace.Tabs.SelectedIndexChanged += (_, _) => RefreshNavigation();
@@ -68,6 +69,7 @@ internal sealed partial class ShellWindow : Window, IShellServices
         BackButton.Click += (_, _) => GoBack();
         SubTabs.AnySelected += OnSubTab;
         AboutButton.Click += (_, _) => AboutDialog.Show(Win32);
+        LanguageButton.Click += (_, _) => LanguagePicker.Show();
         CancelTasksButton.Click += (_, _) => { workspace.CancelTasks(); scan.Cancel(); tasks.CancelAll(); };
         scan.Changed += () => Dispatcher.BeginInvoke(UpdateFooter);
         tasks.Changed += () => Dispatcher.BeginInvoke(UpdateFooter);
@@ -81,6 +83,17 @@ internal sealed partial class ShellWindow : Window, IShellServices
         Closed += (_, _) => { SubTabs.AnySelected -= OnSubTab; ComponentDispatcher.ThreadPreprocessMessage -= OnThreadMessage; taskTimer.Stop(); ReviewPresenter.Provider = null; UsageObserver.Shared.Stop(); foreach (var page in nativePages.Values.OfType<ShieldPage>()) page.StopMonitoring(); };
         // Contacts Polar only when a Technician licence is due for its weekly check; offline, the stored licence keeps working.
         ContentRendered += async (_, _) => { RefreshNavigation(); try { await AppLicensing.RefreshAsync(CancellationToken.None); } catch (Exception ex) when (ex is IOException or HttpRequestException or InvalidOperationException) { } };
+    }
+
+    /// <summary>Texts written in the window's markup go through the same translation as everything else.</summary>
+    private void LocalizeChrome()
+    {
+        QuickToggle.Content = "›  " + Localizer.T("Quick access");
+        AboutButton.Content = Localizer.T("About & privacy");
+        CancelTasksButton.Content = Localizer.T("Cancel tasks");
+        LanguageButton.Content = Localizer.CurrentLanguage == "en" ? "Language" : Localizer.T("Language") + " / Language";
+        SearchLabel.Text = Localizer.T("Find a tool…");
+        System.Windows.Automation.AutomationProperties.SetName(SearchButton, Localizer.T("Find a tool, Control K"));
     }
 
     private void LoadBranding()
@@ -104,9 +117,9 @@ internal sealed partial class ShellWindow : Window, IShellServices
             var accent = (Brush)FindResource(item.Area == ProductArea.Performance ? "AccentPerformance" : "Accent");
             var content = new WpfStackPanel { Orientation = WpfOrientation.Horizontal };
             content.Children.Add(new WpfTextBlock { Text = Glyph(item.Icon), FontFamily = (FontFamily)FindResource("IconFont"), FontSize = 18, Width = 28, VerticalAlignment = VerticalAlignment.Center, Foreground = accent });
-            content.Children.Add(new WpfTextBlock { Text = item.Label, FontWeight = FontWeights.SemiBold, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(8, 0, 0, 0) });
+            content.Children.Add(new WpfTextBlock { Text = Localizer.T(item.Label), FontWeight = FontWeights.SemiBold, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(8, 0, 0, 0) });
             var button = new WpfRadioButton { Style = (Style)FindResource("RailButton"), GroupName = "rail", Tag = accent, Content = content };
-            System.Windows.Automation.AutomationProperties.SetName(button, "Open " + item.Label);
+            System.Windows.Automation.AutomationProperties.SetName(button, Localizer.Format("Open {0}", Localizer.T(item.Label)));
             var page = item.Page;
             button.Click += (_, _) => workspace.Navigate(page);
             rail.Add((button, item.Area, page));
@@ -138,9 +151,9 @@ internal sealed partial class ShellWindow : Window, IShellServices
         var destination = current is null ? null : Navigation.Find(current.Text);
         var area = destination?.Area ?? ProductArea.Home;
         foreach (var entry in rail) entry.Button.IsChecked = entry.Area == area;
-        TitleText.Text = destination is null ? current?.Text ?? "" : Navigation.Title(destination);
+        TitleText.Text = Localizer.T(destination is null ? current?.Text ?? "" : Navigation.Title(destination));
         // Pages with their own hero don't repeat an introduction.
-        IntroText.Text = destination is null || destination.Page is "Home" or "System overview" or "Performance overview" ? "" : destination.Introduction;
+        IntroText.Text = destination is null || destination.Page is "Home" or "System overview" or "Performance overview" ? "" : Localizer.T(destination.Introduction);
         IntroText.Visibility = IntroText.Text.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
         ShowDestination(current?.Text);
         Record();
@@ -187,7 +200,7 @@ internal sealed partial class ShellWindow : Window, IShellServices
     {
         var active = ActiveTasks();
         CancelTasksButton.Visibility = active.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
-        RunningText.Text = active.Length == 0 ? "" : "Running: " + string.Join(", ", active);
+        RunningText.Text = active.Length == 0 ? "" : Localizer.T("Running") + ": " + string.Join(", ", active.Select(Localizer.T));
         StatusText.Text = statusMessage;
         // The footer appears only while something runs or has a message; idle, the page gets the space.
         FooterBar.Visibility = active.Length > 0 || statusMessage.Length > 0 ? Visibility.Visible : Visibility.Collapsed;

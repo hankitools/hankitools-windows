@@ -24,7 +24,7 @@ internal static class Program
         }
         if (args.Length is 3 or 4 && args[0] == "--ui-smoke-test-localized") {
             Localizer.SetLanguage(args[1]);
-            UiSmokeTest.Run(args[2], args.Length == 4 ? args[3] : null); return;
+            Shell.ShellSmokeTest.Run(args[2], args.Length == 4 ? args[3] : null); return;
         }
         try { SecurityPaths.EnsureCreated(); }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { MessageBox.Show("Hanki cannot open its local data folder.\n\n" + ex.Message, "Startup unavailable"); return; }
