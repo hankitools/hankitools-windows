@@ -5,12 +5,12 @@ namespace IgezziGuard;
 /// <summary>Shared card building for the CPU, Memory and Storage checks.</summary>
 internal static class PerformanceCards
 {
-    internal static ResultCard Card(Control owner, DiagnosticResult f, Action<DiagnosticResult>? review = null)
+    internal static ResultCard Card(IWin32Window owner, DiagnosticResult f, Action<DiagnosticResult>? review = null, Action<Action>? post = null)
     {
         string body = f.Explanation + (f.Severity is FindingSeverity.Warning or FindingSeverity.Critical && f.Metadata.GetValueOrDefault("recommended") is { Length: > 0 } rec && rec != f.Metadata.GetValueOrDefault("current")
             ? $"\r\nNow: {f.Metadata.GetValueOrDefault("current")} · Recommended: {rec}" : "") + (f.Recommendation is { Length: > 0 } how && f.Severity is FindingSeverity.Warning ? "\r\n" + how : "");
         var remedy = f.Metadata.GetValueOrDefault("remedy");
-        if (remedy == GamingHealth.RemedyProcessor && review is not null) return new(f.Title, body, GamingState.Status(f), "Review change", () => owner.BeginInvoke(() => review(f)));
+        if (remedy == GamingHealth.RemedyProcessor && review is not null) return new(f.Title, body, GamingState.Status(f), "Review change", () => { if (post is not null) post(() => review(f)); else ((Control)owner).BeginInvoke(() => review(f)); });
         if (f.Metadata.GetValueOrDefault("settings") is { } uri)
             return new(f.Title, body, GamingState.Status(f), "Open settings", uri == "pagefile" ? () => DesktopShortcuts.Open(owner, "pagefile") : () => HealthSettings.Open(owner, uri, f.Title));
         return new(f.Title, body, GamingState.Status(f));
@@ -83,7 +83,7 @@ public sealed class StoragePanel : ToolPage
         Button("ReTrim SSDs…", ReTrim);
         Button("Optimize Drives", () => DesktopShortcuts.Open(this, "defrag"));
     }
-    private static IReadOnlyList<GameEntry> Games() { try { return GameLibrary.Read(GameLibrary.StorePath); } catch (IOException) { return []; } }
+    internal static IReadOnlyList<GameEntry> Games() { try { return GameLibrary.Read(GameLibrary.StorePath); } catch (IOException) { return []; } }
 
     /// <summary>Windows' own ReTrim for SSD volumes (HANKI-PERF-307): only for SSDs, only when it hasn't run recently, only with approval.</summary>
     private async void ReTrim()

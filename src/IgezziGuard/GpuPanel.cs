@@ -14,7 +14,7 @@ public sealed class GpuPanel : ToolPage
         Button("Windows Graphics settings", () => HealthSettings.Open(this, "ms-settings:display-advancedgraphics", "Settings → System → Display → Graphics"));
     }
 
-    private static Diagnosis Details()
+    internal static Diagnosis Details()
     {
         var graphics = GraphicsProbe.Collect();
         var cards = new List<ResultCard>();

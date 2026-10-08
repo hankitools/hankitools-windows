@@ -126,6 +126,7 @@ internal static class ShellSmokeTest
         CheckMaintain(window, notes);
         CheckShield(window, notes);
         CheckLab(window, notes);
+        CheckSystemPages(window, notes);
         window.Workspace.Navigate("Recovery"); Flush(window.Dispatcher);
         if (window.CurrentNative is not RecoveryPage) throw new IOException("Recovery is not the native page.");
         notes.Add("recovery-page");
@@ -146,6 +147,42 @@ internal static class ShellSmokeTest
 
 
 
+
+    private static void WaitFor(Task task, ShellWindow window, int seconds = 90)
+    {
+        var until = DateTime.UtcNow.AddSeconds(seconds);
+        while (!task.IsCompleted && DateTime.UtcNow < until) { Flush(window.Dispatcher); Thread.Sleep(20); }
+        if (!task.IsCompleted) throw new IOException("A check did not finish in " + seconds + " seconds.");
+        task.GetAwaiter().GetResult();
+    }
+
+    /// <summary>GPU, CPU, Memory and Storage: native pages that really run their read-only checks and must produce results.</summary>
+    private static void CheckSystemPages(ShellWindow window, List<string> notes)
+    {
+        IShellServices services = window;
+        window.Workspace.Navigate("GPU"); Flush(window.Dispatcher);
+        if (window.CurrentNative is not GpuPage gpu) throw new IOException("GPU is not the native page.");
+        WaitFor(gpu.View.RunAsync("Show graphics details", gpu.Actions), window);
+        if (gpu.View.Result.CardCount == 0) throw new IOException("The GPU check produced no cards.");
+        window.Workspace.Navigate("CPU"); Flush(window.Dispatcher);
+        if (window.CurrentNative is not CpuPage cpu || cpu.Processor is null) throw new IOException("CPU is not the native page.");
+        WaitFor(cpu.Processor.RunAsync("Check processor settings", SystemPages.CpuActions(services)), window);
+        if (cpu.Processor.Result.CardCount == 0) throw new IOException("The processor check produced no cards.");
+        window.Workspace.Routes.First(r => r.Name == "CPU  /  Power plans").Open(); Flush(window.Dispatcher);
+        if (cpu.CurrentTab != "Power plans") throw new IOException("A route did not select the Power plans tab.");
+        window.Workspace.Navigate("Memory"); Flush(window.Dispatcher);
+        if (window.CurrentNative is not MemoryPage memory) throw new IOException("Memory is not the native page.");
+        window.Workspace.Routes.First(r => r.Name == "Memory  /  Memory health").Open(); Flush(window.Dispatcher);
+        if (memory.Health is null) throw new IOException("Memory health did not build.");
+        WaitFor(memory.Health.RunAsync("Check memory health", SystemPages.MemoryActions(services)), window);
+        if (memory.Health.Result.CardCount == 0) throw new IOException("The memory check produced no cards.");
+        window.Workspace.Navigate("Storage"); Flush(window.Dispatcher);
+        if (window.CurrentNative is not StoragePage storage) throw new IOException("Storage is not the native page.");
+        WaitFor(storage.View.RunAsync("Check storage", storage.Actions), window);
+        if (storage.View.Result.CardCount == 0) throw new IOException("The storage check produced no cards.");
+        window.Workspace.Navigate("Home"); Flush(window.Dispatcher);
+        notes.Add("system-pages");
+    }
     /// <summary>Shield: native tabs, the Defender views build without running anything, and the scan history loads.</summary>
     private static void CheckShield(ShellWindow window, List<string> notes)
     {

@@ -199,7 +199,7 @@ internal sealed class LegacyWorkspace : Panel
         return path;
     }
     /// <summary>Pages a native page still shows through a host while its own version is not written.</summary>
-    internal Control? HostedPanel(string key) => key switch { "Apps & storage" => apps, "Usage review" => usage, "Startup / undo" => startup, "Duplicates" => duplicates, "Startup folders" => startupFolders, "Comparisons" => sampling, _ => null };
+    internal Control? HostedPanel(string key) => key switch { "Apps & storage" => apps, "Usage review" => usage, "Startup / undo" => startup, "Duplicates" => duplicates, "Startup folders" => startupFolders, "Comparisons" => sampling, "Power plans" => tuning, "Memory & pagefile" => performance, _ => null };
     /// <summary>Maps an installed app for usage review (the Usage review page's own action).</summary>
     internal void MapUsage(InstalledApp app) => usage.Map(app);
 
