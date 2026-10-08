@@ -142,13 +142,21 @@ internal sealed class ReviewDrawer : Window
         var stack = new StackPanel { Margin = new Thickness(0, 18, 0, 0) };
         foreach (var item in request.Items) {
             var content = new StackPanel { Margin = new Thickness(0, 0, 0, 0) };
-            var box = new CheckBox { Content = UiKit.Text(item.Title, 15, weight: FontWeights.SemiBold), IsEnabled = item.Blocked is null };
-            content.Children.Add(box);
-            foreach (var line in item.Lines) { var text = UiKit.Text(line, 13, UiKit.Res("TextMuted"), wrap: true); text.Margin = new Thickness(26, 4, 0, 0); content.Children.Add(text); }
-            if (item.Blocked is { } blocked) { var why = UiKit.Text(blocked, 13, UiKit.Res("Review"), wrap: true); why.Margin = new Thickness(26, 6, 0, 0); content.Children.Add(why); }
-            box.Checked += (_, _) => Refresh(); box.Unchecked += (_, _) => Refresh();
-            System.Windows.Automation.AutomationProperties.SetName(box, item.Title);
-            items.Add((box, item));
+            double indent = item.Informational ? 0 : 26;
+            if (item.Informational) content.Children.Add(UiKit.Text(item.Title, 15, weight: FontWeights.SemiBold, wrap: true));
+            else {
+                var box = new CheckBox { Content = UiKit.Text(item.Title, 15, weight: FontWeights.SemiBold), IsEnabled = item.Blocked is null, IsChecked = item.Ticked };
+                content.Children.Add(box);
+                box.Checked += (_, _) => Refresh(); box.Unchecked += (_, _) => Refresh();
+                System.Windows.Automation.AutomationProperties.SetName(box, item.Title);
+                items.Add((box, item));
+            }
+            foreach (var line in item.Lines) { var text = UiKit.Text(line, 13, UiKit.Res("TextMuted"), wrap: true); text.Margin = new Thickness(indent, 4, 0, 0); content.Children.Add(text); }
+            if (item.Blocked is { } blocked) { var why = UiKit.Text(blocked, 13, UiKit.Res("Review"), wrap: true); why.Margin = new Thickness(indent, 6, 0, 0); content.Children.Add(why); }
+            if (item.LinkLabel is { } label && item.Link is { } link) {
+                var open = new Button { Style = (Style)Application.Current.FindResource("QuietButton"), Content = label, HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(indent - 8, 6, 0, 0), Foreground = UiKit.Res("Accent") };
+                open.Click += (_, _) => link(); content.Children.Add(open);
+            }
             stack.Children.Add(new Border { Style = (Style)Application.Current.FindResource("Card"), Background = UiKit.Res("Canvas"), Padding = new Thickness(14, 12, 14, 12), Margin = new Thickness(0, 0, 0, 10), Child = content });
         }
         return stack;

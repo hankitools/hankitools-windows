@@ -9,7 +9,16 @@ public sealed record ReviewRow(string Label, string Value);
 /// <summary>One of several mutually exclusive actions (for example Recycle Bin or permanent delete).</summary>
 public sealed record ReviewChoice(string Id, string Title, string Description, string ConfirmLabel, bool Danger = false, string? Acknowledge = null);
 /// <summary>A checkable card (for example one proposed repair). Nothing is ticked in advance; a blocked item cannot be ticked.</summary>
-public sealed record ReviewItem(string Id, string Title, IReadOnlyList<string> Lines, string? Blocked = null);
+public sealed record ReviewItem(string Id, string Title, IReadOnlyList<string> Lines, string? Blocked = null)
+{
+    /// <summary>Ticked when the review opens (nothing is ticked in advance unless a caller says so, for example for non-optional changes).</summary>
+    public bool Ticked { get; init; }
+    /// <summary>A step only the person can do: shown as a card without a checkbox, and never counted as chosen.</summary>
+    public bool Informational { get; init; }
+    /// <summary>An optional button on the card (for example "Open settings").</summary>
+    public string? LinkLabel { get; init; }
+    public Action? Link { get; init; }
+}
 /// <summary>A separate checkbox with an explanation (for example allowing network use).</summary>
 public sealed record ReviewOption(string Id, string Title, string Description);
 /// <summary>What the person has chosen so far in a review.</summary>

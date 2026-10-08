@@ -71,7 +71,7 @@ internal static class ShellSmokeTest
                             if (routes.FirstOrDefault(r => r.Name == route) is not { } open) { screenshotError = "No route " + route; continue; }
                             UiSmokeTest.Note("screenshot " + route);
                             open.Open(); workspace.PerformLayout(); Flush(window.Dispatcher);
-                            if (file == "tune-plan") { UiSmokeTest.Find<TunePanel>(workspace)?.Preview(UiSmokeTest.ExamplePlan()); workspace.PerformLayout(); Flush(window.Dispatcher); }
+                            if (file == "tune-plan" && window.CurrentNative is PerformanceOverviewPage tuning) { tuning.Tune.Preview(UiSmokeTest.ExamplePlan()); window.UpdateLayout(); Flush(window.Dispatcher); }
                             if (file == "home-search" && window.CurrentNative is HomePage searching) { searching.SetQuery("slow"); window.UpdateLayout(); Flush(window.Dispatcher); }
                             if (file == "home-glance" && window.CurrentNative is HomePage home) { home.SetQuery(""); home.ScrollTo(460); window.UpdateLayout(); Flush(window.Dispatcher); }
                             var path = Path.Combine(screenshotFolder, file + ".png");
@@ -107,8 +107,8 @@ internal static class ShellSmokeTest
             if (entry.Button.IsChecked != true) throw new IOException("Rail item not selected on " + entry.Page + " (" + string.Join(",", notes) + ")");
             if (window.CurrentTitle.Length == 0) throw new IOException("Empty header title on " + entry.Page);
             if (window.BackVisible) throw new IOException("A landing page shows a back link: " + entry.Page);
-            // Home and Fix my PC are native WPF pages; every other destination is still a hosted WinForms page.
-            bool expectNative = entry.Page is "Home" or "System overview";
+            // Home, Fix my PC and Tune my PC are native WPF pages; every other destination is still a hosted WinForms page.
+            bool expectNative = entry.Page is "Home" or "System overview" or "Performance overview";
             if ((window.CurrentNative is not null) != expectNative) throw new IOException("Wrong kind of page shown for " + entry.Page);
             notes.Add("rail/" + entry.Page);
         }
@@ -254,12 +254,37 @@ internal static class ShellSmokeTest
         second.Tick("sfc", true); Flush(window.Dispatcher);
         if (!second.ConfirmEnabled) throw new IOException("Ticking a repair does not enable Repair selected.");
         second.Close(); Flush(window.Dispatcher);
+        // A change review: optional changes start unticked, mandatory ones ticked, "you change it" steps are cards without a box.
+        var changeReview = new ReviewRequest("Tune my PC: Gaming + Performance", "Hanki saves the current value of each change first.") {
+            Items = [new("a", "Game Mode  ·  Windows", ["Now: Off   →   Recommended: On"]) { Ticked = true },
+                new("b", "Mouse acceleration  ·  Windows", ["Now: On   →   Recommended: Off   (optional)"]),
+                new("c", "Resizable BAR  ·  Display  ·  you change it", ["Enable it in the BIOS."]) { Informational = true, LinkLabel = "Open settings", Link = () => { } }],
+            ConfirmLabel = "Apply selected",
+        };
+        var third = new ReviewDrawer(changeReview, (FrameworkElement)window.Content) { Owner = window };
+        third.Show(); Flush(window.Dispatcher);
+        if (!third.ConfirmEnabled) throw new IOException("A review with a pre-ticked change cannot be confirmed.");
+        third.Tick("c", true); Flush(window.Dispatcher);
+        third.CancelButton.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Primitives.ButtonBase.ClickEvent)); Flush(window.Dispatcher);
+        if (third.Result is not { Confirmed: false } cancelled || cancelled.State.Items.Count != 1 || !cancelled.State.Items.Contains("a")) throw new IOException("A pre-ticked change is not counted, or a step for you is counted as chosen.");
         notes.Add("review-drawer");
     }
     private static void Capture(ShellWindow window, string path)
     {
         var dpi = VisualTreeHelper.GetDpi(window);
         int width = (int)Math.Round(window.ActualWidth * dpi.DpiScaleX), height = (int)Math.Round(window.ActualHeight * dpi.DpiScaleY);
+        // A native page is drawn straight from WPF into a bitmap: that needs no visible desktop, so the check can run on a hidden one.
+        // A hosted WinForms page still needs the window itself (PrintWindow).
+        if (window.CurrentNative is not null && window.Content is System.Windows.Media.Visual root) {
+            window.UpdateLayout();
+            var target = new System.Windows.Media.Imaging.RenderTargetBitmap(width, height, 96 * dpi.DpiScaleX, 96 * dpi.DpiScaleY, PixelFormats.Pbgra32);
+            var backdrop = new System.Windows.Media.DrawingVisual();
+            using (var dc = backdrop.RenderOpen()) dc.DrawRectangle(UiKit.Res("Canvas"), null, new System.Windows.Rect(0, 0, window.ActualWidth, window.ActualHeight));
+            target.Render(backdrop); target.Render(root);
+            var encoder = new System.Windows.Media.Imaging.PngBitmapEncoder(); encoder.Frames.Add(System.Windows.Media.Imaging.BitmapFrame.Create(target));
+            using var file = File.Create(path); encoder.Save(file);
+            return;
+        }
         using var bitmap = new System.Drawing.Bitmap(width, height);
         using (var graphics = System.Drawing.Graphics.FromImage(bitmap)) {
             var device = graphics.GetHdc();

@@ -286,7 +286,7 @@ public sealed class GamesPanel : ToolPage
 /// <summary>Reviews proposed changes, applies the approved ones through Recovery, and records a Performance session.</summary>
 internal static class ChangeReview
 {
-    internal static async Task ReviewAndApply(Control owner, IReadOnlyList<ProposedChange> changes, string title, string? sessionName, Action<string> report)
+    internal static async Task ReviewAndApply(IWin32Window owner, IReadOnlyList<ProposedChange> changes, string title, string? sessionName, Action<string> report)
     {
         // Guardrail: only documented change kinds with a Recovery entry are ever applied.
         changes = changes.Where(Guardrails.Allowed).ToArray();
@@ -365,6 +365,7 @@ internal static class ChangeReviewDialog
     /// <returns>The approved changes Hanki applies, or null when cancelled.</returns>
     internal static IReadOnlyList<ProposedChange>? Show(IWin32Window owner, string title, IReadOnlyList<ProposedChange> changes)
     {
+        if (Shell.ReviewPresenter.IsAvailable) return ShowInDrawer(title, changes);
         var (dialog, approved) = Build(title, changes);
         using (dialog) return dialog.ShowDialog(owner) == DialogResult.OK ? approved() : null;
     }
@@ -409,5 +410,28 @@ internal static class ChangeReviewDialog
         dialog.Controls.Add(outer); dialog.CancelButton = cancel;
         HankiTheme.Apply(dialog);
         return (dialog, () => choices.Where(c => c.Box.Checked).Select(c => c.Change).ToArray());
+    }
+
+    /// <summary>The same review as a drawer: one card per change with its Now → Recommended, why, and the steps only you can take.</summary>
+    private static IReadOnlyList<ProposedChange>? ShowInDrawer(string title, IReadOnlyList<ProposedChange> changes)
+    {
+        static string Source(ProposedChange c) => c.Source switch { ChangeSource.Nvidia => "NVIDIA", ChangeSource.Amd => "AMD", ChangeSource.Display => "Display", ChangeSource.Game => "Game", _ => "Windows" };
+        var items = changes.Select(c => {
+            var lines = new List<string> { $"Now: {c.Current}   →   Recommended: {c.Recommended}{(c.Optional ? "   (optional)" : "")}", c.Why };
+            if (!c.HankiApplies && c.Manual is { Length: > 0 } manual) lines.Add(manual);
+            return new ReviewItem(c.Id, c.HankiApplies ? $"{c.Setting}  ·  {Source(c)}" : $"{c.Setting}  ·  {Source(c)}  ·  you change it", lines) {
+                Ticked = c.HankiApplies && !c.Optional, Informational = !c.HankiApplies,
+                LinkLabel = c.SettingsUri is null ? null : "Open settings",
+                Link = c.SettingsUri is { } uri ? () => { try { using var process = Process.Start(new ProcessStartInfo(uri) { UseShellExecute = true }); } catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or InvalidOperationException) { } } : null,
+            };
+        }).ToArray();
+        bool any = changes.Any(c => c.HankiApplies);
+        var request = new ReviewRequest(title, "Hanki saves the current value of each change first, so you can undo it in Recovery. Optional changes aren't ticked; changes marked “you change it” are steps only you can take.") {
+            Items = items, ConfirmLabel = "Apply selected",
+            Validate = state => !any ? "These are steps for you; Hanki has nothing to apply here." : null,
+        };
+        var result = Shell.ReviewPresenter.Ask(request);
+        if (!result.Confirmed) return null;
+        return changes.Where(c => c.HankiApplies && result.State.Items.Contains(c.Id)).ToArray();
     }
 }

@@ -116,7 +116,7 @@ internal sealed class TunePanel : UserControl
     }
 
     /// <summary>Reads everything the plan needs (read-only) and saves the findings as the latest Performance check.</summary>
-    private static async Task<TuneInputs> Collect()
+    internal static async Task<TuneInputs> Collect()
     {
         var gaming = new GamingState();
         await Task.Run(gaming.Collect);
@@ -161,7 +161,7 @@ internal sealed class TunePanel : UserControl
             cpu, vcache, intelTuning, obs, measured);
     }
 
-    private static string AreaName(TuneArea area) => area switch {
+    internal static string AreaName(TuneArea area) => area switch {
         TuneArea.GraphicsDriver => "Graphics driver", TuneArea.Games => "In your games", TuneArea.Background => "Running in the background",
         TuneArea.Hardware => "Hardware and BIOS", TuneArea.Streaming => "Streaming and recording", _ => area.ToString()
     };
