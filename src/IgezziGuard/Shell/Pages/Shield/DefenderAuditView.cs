@@ -29,6 +29,8 @@ internal sealed class DefenderAuditView : ScrollViewer
         assistant.Click += (_, _) => { if (view.ReportText.Length > 0) shell.PrepareForAssistant(view.ReportText); };
     }
 
+    internal Task RunAsync() => Run();
+
     private async Task Run()
     {
         if (running is not null) return;

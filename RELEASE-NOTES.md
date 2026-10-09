@@ -9,7 +9,7 @@ Hanki Tools has a new interface. Every page is rebuilt, nothing about what Hanki
 - **Every page is new.** Home, Fix my PC (scan results are a short list: what needs attention first, then incomplete checks and the checks that need no action, each expandable), Recovery, Maintain (files, apps, startup, duplicates, usage review, startup folders), Shield, Tune my PC, Performance Lab with charts, GPU, CPU, memory, storage, Gaming (games, NVIDIA, AMD Radeon, Tactical Vision), Connect, Diagnose, History, Help, Hanki Pro and the Assistant.
 - **Back follows where you have been**, including tabs inside a page (Alt+Left too). Guided troubleshooting for the internet, the twelve interface languages and Tactical Vision from the 0.19 previews are all in the new window.
 - **Language.** The language button at the bottom of the rail chooses one of twelve languages or follows Windows. It applies the next time Hanki opens. Detailed reports and some secondary text are still English.
-- **Setup installer.** A Windows setup EXE (current user or all users) is built next to the portable ZIP. The setup program itself is not signed; the installed HankiTools.exe is.
+- **Setup installer.** A Windows setup EXE (current user or all users) is built next to the portable ZIP. Both the setup program and the installed HankiTools.exe are code-signed.
 - **Licence.** Hanki is now released under the PolyForm Noncommercial licence (see LICENSE).
 - **The old window** is still available: start HankiTools.exe with `--legacy-shell`.
 - **Under the hood.** The tested logic moved to a UI-free library (Hanki.Core) with 780+ automated checks; the new window is checked on a hidden desktop in all twelve languages so nothing appears on your screen.

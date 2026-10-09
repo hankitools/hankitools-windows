@@ -74,6 +74,8 @@ internal static class ShellSmokeTest
                             if (file == "tune-plan" && window.CurrentNative is PerformanceOverviewPage tuning) { tuning.Tune.Preview(UiSmokeTest.ExamplePlan()); window.UpdateLayout(); Flush(window.Dispatcher); }
                             if (file == "home-search" && window.CurrentNative is HomePage searching) { searching.SetQuery("slow"); window.UpdateLayout(); Flush(window.Dispatcher); }
                             if (file == "home-glance" && window.CurrentNative is HomePage home) { home.SetQuery(""); home.ScrollTo(460); window.UpdateLayout(); Flush(window.Dispatcher); }
+                            if (file == "shield" && window.CurrentNative is ShieldPage shieldPage) { WaitFor(shieldPage.Audit!.RunAsync(), window); window.UpdateLayout(); Flush(window.Dispatcher); }
+                            if (file == "scan" && window.CurrentNative is FixScanPage) { WaitFor(((IShellServices)window).Scan.StartAsync(false, () => true), window, 400); window.UpdateLayout(); Flush(window.Dispatcher); }
                             if (file == "update" && window.CurrentNative is DiagnosePage page) { WaitFor(page.Update!.RunAsync("Check Windows Update", DiagnoseActions.WindowsUpdate(window)), window); window.UpdateLayout(); Flush(window.Dispatcher); }
                             if (file == "memory" && window.CurrentNative is MemoryPage mem) { WaitFor(mem.Health!.RunAsync("Check memory health", SystemPages.MemoryActions(window)), window); window.UpdateLayout(); Flush(window.Dispatcher); }
                             var path = Path.Combine(screenshotFolder, file + ".png");
