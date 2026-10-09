@@ -8,7 +8,7 @@ internal static partial class UiSmokeTest
     internal static readonly IReadOnlyList<(string File, string Route)> Screens = [
         ("scan-results", "Fix My PC"), ("internet-guide", "Connect  /  Guided troubleshooting"),
         ("home", "Home"), ("home-glance", "Home"), ("fix-my-pc", "System overview"), ("tune-my-pc", "Performance overview"), ("gaming", "Gaming  /  Overview"),
-        ("games", "Gaming  /  Games"), ("nvidia", "Gaming  /  NVIDIA"), ("amd", "Gaming  /  AMD Radeon"), ("diagnose", "Diagnose"), ("maintain", "Maintain"), ("apps", "Maintain  /  Apps & storage"), ("shield", "Shield  /  Defender audit"), ("guided", "Diagnose  /  Guided checks"), ("connect", "Connect"), ("recovery", "Recovery"), ("history", "History"), ("help", "Help"), ("tune-plan", "Performance overview")];
+        ("games", "Gaming  /  Games"), ("nvidia", "Gaming  /  NVIDIA"), ("amd", "Gaming  /  AMD Radeon"), ("diagnose", "Diagnose"), ("maintain", "Maintain"), ("apps", "Maintain  /  Apps & storage"), ("shield", "Shield  /  Defender audit"), ("guided", "Diagnose  /  Guided checks"), ("update", "Diagnose  /  Windows Update"), ("memory", "Memory  /  Memory health"), ("connect", "Connect"), ("recovery", "Recovery"), ("history", "History"), ("help", "Help"), ("tune-plan", "Performance overview")];
 
     /// <summary>An example Tune my PC plan from fixed data (an untuned desktop with an RTX 4070), for the plan screenshot.</summary>
     internal static TunePlan ExamplePlan()
