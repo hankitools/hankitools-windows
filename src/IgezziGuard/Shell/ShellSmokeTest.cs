@@ -85,7 +85,7 @@ internal static class ShellSmokeTest
             finally {
                 UiSmokeTest.Note(error is null ? "finished" : "failed: " + error);
                 try { File.WriteAllText(Path.GetFullPath(reportPath), JsonSerializer.Serialize(new {
-                    Version = AppInfo.Version, Passed = error is null, At = DateTimeOffset.Now, Dpi = (int)dpi, Shell = "WPF",
+                    Version = AppInfo.Version, Language = Localizer.CurrentLanguage, Passed = error is null, At = DateTimeOffset.Now, Dpi = (int)dpi, Shell = "WPF",
                     Visited = visited, ShellChecks = shell, Error = error, Screenshots = screenshots, ScreenshotError = screenshotError,
                     Limitation = "Structural navigation only. Does not validate pixels, screen readers, native actions, Defender, networking or repairs."
                 }, new JsonSerializerOptions { WriteIndented = true })); }
