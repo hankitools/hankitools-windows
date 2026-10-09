@@ -28,7 +28,7 @@ internal sealed partial class ShellWindow : Window, IShellServices
     private readonly LegacyWorkspace workspace;
     private readonly List<(WpfRadioButton Button, ProductArea Area, string Page)> rail = [];
     private readonly DispatcherTimer taskTimer = new() { Interval = TimeSpan.FromMilliseconds(500) };
-    private readonly NavigationHistory history = new();
+    private NavigationHistory history = new();
     private bool restoring;
     private string? subKey;
     private string statusMessage = "";
@@ -186,6 +186,9 @@ internal sealed partial class ShellWindow : Window, IShellServices
     }
 
     /// <summary>Back follows the places actually visited, including tabs inside a page; going back does not add a visit.</summary>
+    /// <summary>Forgets the visited places (screenshots start from a clean page).</summary>
+    internal void ResetHistory() { history = new(); BackButton.Visibility = Visibility.Collapsed; }
+
     internal void GoBack()
     {
         if (history.Back() is not { } target) return;

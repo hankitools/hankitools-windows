@@ -70,7 +70,7 @@ internal static class ShellSmokeTest
                         foreach (var (file, route) in UiSmokeTest.Screens) {
                             if (routes.FirstOrDefault(r => r.Name == route) is not { } open) { screenshotError = "No route " + route; continue; }
                             UiSmokeTest.Note("screenshot " + route);
-                            open.Open(); workspace.PerformLayout(); Flush(window.Dispatcher);
+                            window.ResetHistory(); open.Open(); workspace.PerformLayout(); Flush(window.Dispatcher);
                             if (file == "tune-plan" && window.CurrentNative is PerformanceOverviewPage tuning) { tuning.Tune.Preview(UiSmokeTest.ExamplePlan()); window.UpdateLayout(); Flush(window.Dispatcher); }
                             if (file == "home-search" && window.CurrentNative is HomePage searching) { searching.SetQuery("slow"); window.UpdateLayout(); Flush(window.Dispatcher); }
                             if (file == "home-glance" && window.CurrentNative is HomePage home) { home.SetQuery(""); home.ScrollTo(460); window.UpdateLayout(); Flush(window.Dispatcher); }
