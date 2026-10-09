@@ -66,7 +66,7 @@ internal static class ShellSmokeTest
                 if (screenshotFolder is not null) {
                     try {
                         Directory.CreateDirectory(screenshotFolder);
-                        window.Width = 1320; window.Height = 880; window.UpdateLayout(); Flush(window.Dispatcher);
+                        window.Width = int.TryParse(Environment.GetEnvironmentVariable("HANKI_SHOT_WIDTH"), out var shotWidth) ? shotWidth : 1320; window.Height = int.TryParse(Environment.GetEnvironmentVariable("HANKI_SHOT_HEIGHT"), out var shotHeight) ? shotHeight : 880; window.UpdateLayout(); Flush(window.Dispatcher);
                         foreach (var (file, route) in UiSmokeTest.Screens) {
                             if (routes.FirstOrDefault(r => r.Name == route) is not { } open) { screenshotError = "No route " + route; continue; }
                             UiSmokeTest.Note("screenshot " + route);
